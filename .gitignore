@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Source datasets and derived training data are never committed (proposal 9).
+/datasets/*
+!/datasets/.gitkeep
+
+# Written by scripts/make_sample_release.py, not authored.
+/configs/datasets/rse_sample.json
+
+# Model weights stay local.
+/checkpoints/*
+!/checkpoints/.gitkeep
+
+# Rendered output.
+*.wav
+*.ogg
+/out/

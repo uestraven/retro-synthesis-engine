@@ -1,0 +1,92 @@
+{
+  "schema_version": "rse-hardware/0.1.0",
+  "profile_id": "nes",
+  "display_name": "Nintendo Entertainment System (RP2A03 APU)",
+  "region": "NTSC",
+  "engine_tick_hz": 60.0988,
+  "notes": [
+    "Pitch ranges below are the working ranges used by the NES-MDB score",
+    "representation, not a derivation from the APU timer registers. They are",
+    "treated as provisional: `rse inspect` reports every note that falls",
+    "outside them instead of rejecting it, so Phase 1 measurement is what",
+    "fixes these numbers before the Phase 2 validator enforces them."
+  ],
+  "channels": [
+    {
+      "channel_id": "P1",
+      "role": "pulse1",
+      "type": "pulse",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 33,
+      "pitch_max": 108,
+      "volume_levels": 16,
+      "instrument_params": ["duty", "volume", "envelope_decay", "length_counter", "sweep"],
+      "duty_values": [0, 1, 2, 3],
+      "effects": ["pitch_slide", "arpeggio", "vibrato", "sweep"],
+      "track_name_patterns": ["^p1$", "^pulse ?1$", "^sq1$", "^square ?1$"]
+    },
+    {
+      "channel_id": "P2",
+      "role": "pulse2",
+      "type": "pulse",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 33,
+      "pitch_max": 108,
+      "volume_levels": 16,
+      "instrument_params": ["duty", "volume", "envelope_decay", "length_counter", "sweep"],
+      "duty_values": [0, 1, 2, 3],
+      "effects": ["pitch_slide", "arpeggio", "vibrato", "sweep"],
+      "track_name_patterns": ["^p2$", "^pulse ?2$", "^sq2$", "^square ?2$"]
+    },
+    {
+      "channel_id": "TR",
+      "role": "triangle",
+      "type": "triangle",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 21,
+      "pitch_max": 108,
+      "volume_levels": 1,
+      "instrument_params": ["linear_counter", "length_counter"],
+      "effects": ["pitch_slide", "arpeggio"],
+      "track_name_patterns": ["^tr$", "^tri$", "^triangle$"]
+    },
+    {
+      "channel_id": "NO",
+      "role": "noise",
+      "type": "noise",
+      "pitched": false,
+      "max_simultaneous_notes": 1,
+      "value_min": 1,
+      "value_max": 16,
+      "value_meaning": "noise period index; not a musical pitch",
+      "volume_levels": 16,
+      "instrument_params": ["period", "mode", "volume", "envelope_decay", "length_counter"],
+      "effects": ["period_sweep"],
+      "track_name_patterns": ["^no$", "^noise$"]
+    }
+  ],
+  "excluded_channels": [
+    {
+      "channel_id": "DMC",
+      "role": "dpcm",
+      "type": "sample",
+      "reason": "Out of scope for the initial MVP; the NES-MDB representation in use carries four channels.",
+      "planned_release": "0.2+"
+    }
+  ],
+  "percussion": {
+    "methods": ["noise_channel"],
+    "dpcm_available": false
+  },
+  "export": {
+    "formats": ["mid", "wav", "json"],
+    "console_native": []
+  },
+  "renderer": {
+    "default": "unimplemented",
+    "candidates": ["nesmdb", "famistudio"]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "rse-dataset/0.1.0",
+  "dataset_id": "nesmdb",
+  "display_name": "NES Music Database (NES-MDB)",
+  "homepage": "https://github.com/chrisdonahue/nesmdb",
+  "citation": "C. Donahue, H. H. Mao, J. McAuley. The NES Music Database: A multi-instrumental dataset with expressive performance attributes. ISMIR 2018.",
+  "use_class": "research_only",
+  "license_note": "The nesmdb software repository is open source, but the underlying game compositions are third-party copyrighted works. Research use only until a rights review is completed (proposal 5.5). Do not ship models or audio derived from this data commercially without that review.",
+  "notes": [
+    "Download URLs are intentionally left empty: fetch the archive yourself from",
+    "the homepage's distribution links, then register it with",
+    "`rse fetch --dataset nesmdb --release midi --archive <file> --sha256 <hash>`.",
+    "Once you have a URL and its hash, fill them in here so the acquisition is",
+    "reproducible, and `rse fetch` will download and verify it for you."
+  ],
+  "releases": {
+    "midi": {
+      "release_id": "midi",
+      "description": "Four-channel MIDI representation (P1, P2, TR, NO).",
+      "url": null,
+      "sha256": null,
+      "archive_name": "nesmdb_midi.tar.gz",
+      "file_globs": ["**/*.mid", "**/*.midi"],
+      "expected_splits": ["train", "valid", "test"],
+      "split_is_composer_disjoint": true
+    },
+    "score": {
+      "release_id": "score",
+      "description": "Expressive score representation (pickled NumPy arrays).",
+      "url": null,
+      "sha256": null,
+      "archive_name": "nesmdb_exprsco.tar.gz",
+      "file_globs": ["**/*.pkl"],
+      "expected_splits": ["train", "valid", "test"],
+      "split_is_composer_disjoint": true
+    }
+  }
+}
