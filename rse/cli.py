@@ -19,8 +19,11 @@ from rse.data.midi_io import MidiParseError, parse_midi
 from rse.data.normalize import build_intake_record
 from rse.data.pipeline import IngestConfig, ingest_release, processed_dir
 from rse.data.provenance import USE_UNKNOWN, describe_file
+from rse.exporters.wav import write_stems, write_wav
 from rse.hardware.profile import ProfileError, available_profiles, load_profile
-from rse.jsonio import read_json
+from rse.jsonio import read_json, write_json
+from rse.renderers.base import DEFAULT_SAMPLE_RATE, RenderSettings, notes_from_record
+from rse.renderers.nes_apu import NesApuRenderer
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -81,6 +84,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--file", type=Path, default=None, help="inspect one MIDI file instead of a release"
     )
     inspect.set_defaults(func=cmd_inspect)
+
+    render = sub.add_parser("render", help="synthesize audio from a MIDI file or intake record")
+    render.add_argument("--profile", default="nes")
+    render.add_argument("--file", type=Path, default=None, help="a MIDI file to render")
+    render.add_argument(
+        "--record", type=Path, default=None, help="an intake record written by `rse ingest`"
+    )
+    render.add_argument("--out", type=Path, default=None, help="output WAV path")
+    render.add_argument(
+        "--stems", action="store_true", help="also write one WAV per hardware channel"
+    )
+    render.add_argument("--sample-rate", type=int, default=DEFAULT_SAMPLE_RATE)
+    render.add_argument(
+        "--oversample",
+        type=int,
+        default=4,
+        help="internal oversampling factor; higher reduces aliasing",
+    )
+    render.add_argument(
+        "--no-filters", action="store_true", help="skip the console's output high-pass"
+    )
+    render.add_argument("--duty-p1", type=int, choices=(0, 1, 2, 3), default=None)
+    render.add_argument("--duty-p2", type=int, choices=(0, 1, 2, 3), default=None)
+    render.set_defaults(func=cmd_render)
 
     profiles = sub.add_parser("profiles", help="list available hardware profiles")
     profiles.set_defaults(func=cmd_profiles)
@@ -209,6 +236,103 @@ def _inspect_file(args: argparse.Namespace, profile) -> int:
     for warning in record["warnings"][:10]:
         print(f"  ! {warning}")
     extra = len(record["warnings"]) - 10
+    if extra > 0:
+        print(f"  ! ... and {extra} more warnings")
+    return 0
+
+
+def cmd_render(args: argparse.Namespace) -> int:
+    if (args.file is None) == (args.record is None):
+        print(
+            "error: pass exactly one of --file (MIDI) or --record (intake record)", file=sys.stderr
+        )
+        return 2
+
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+
+    if args.record is not None:
+        record = read_json(args.record)
+        if record.get("hardware_profile") not in (None, profile.profile_id):
+            print(
+                f"error: record targets profile {record['hardware_profile']!r}, "
+                f"not {profile.profile_id!r}",
+                file=sys.stderr,
+            )
+            return 2
+        default_stem = args.record.stem
+    else:
+        path = args.file.expanduser().resolve()
+        comp = parse_midi(path, profile)
+        source = describe_file(
+            path,
+            root=path.parent,
+            dataset_id="adhoc",
+            dataset_version="adhoc/render",
+            use_class=USE_UNKNOWN,
+            acquisition_method="render",
+        )
+        record = build_intake_record(comp, source, profile)
+        default_stem = path.stem
+
+    duty = {
+        cid: value
+        for cid, value in (("P1", args.duty_p1), ("P2", args.duty_p2))
+        if value is not None
+    }
+    renderer = NesApuRenderer(profile, duty_by_channel=duty)
+    settings = RenderSettings(
+        sample_rate=args.sample_rate,
+        oversample=args.oversample,
+        apply_output_filters=not args.no_filters,
+    )
+    notes = notes_from_record(record)
+    if not notes:
+        print("error: that composition contains no renderable notes", file=sys.stderr)
+        return 2
+    result = renderer.render(notes, settings)
+
+    out_path = args.out or Path(f"{default_stem}.wav")
+    write_wav(out_path, result.samples, result.sample_rate)
+    # A sidecar so any rendered file can be traced back to what produced it
+    # (proposal 9.2).
+    metadata = {
+        **result.to_dict(),
+        "composition_id": record.get("composition_id"),
+        "name": record.get("name"),
+        "hardware_profile": profile.profile_id,
+        "duty_by_channel": renderer.duty_by_channel,
+        "n_notes": len(notes),
+    }
+    sidecar = write_json(out_path.with_suffix(".render.json"), metadata)
+
+    stem_paths: dict[str, Path] = {}
+    if args.stems:
+        stem_paths = write_stems(
+            out_path.parent / f"{out_path.stem}_stems", result.stems, result.sample_rate
+        )
+
+    if args.json:
+        _print_json(
+            {
+                **metadata,
+                "wav": str(out_path),
+                "sidecar": str(sidecar),
+                "stems": {k: str(v) for k, v in stem_paths.items()},
+            }
+        )
+        return 0
+
+    print(f"rendered {len(notes)} notes to {out_path}")
+    print(
+        f"  {result.duration_sec:.2f}s, {result.sample_rate} Hz, "
+        f"{renderer.renderer_id}, channels: {', '.join(sorted(result.stems))}"
+    )
+    print(f"  metadata: {sidecar}")
+    for path in stem_paths.values():
+        print(f"  stem    : {path}")
+    for warning in result.warnings[:10]:
+        print(f"  ! {warning}")
+    extra = len(result.warnings) - 10
     if extra > 0:
         print(f"  ! ... and {extra} more warnings")
     return 0

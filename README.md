@@ -11,27 +11,31 @@ noise). Genesis and SNES profiles come later.
 
 ## Status
 
-**Phase 1 — data foundation — is implemented.** Everything downstream of it is
-scaffolding with a docstring naming the phase that fills it in.
+**Phase 1 (data foundation) is implemented, and the NES renderer works.** You
+can take a MIDI file and get authentic-sounding four-channel NES audio out of
+it today. What's missing is the part that *composes* the music.
 
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Repository, environment, dataset ingestion, statistics, provenance | **done** |
 | 2 | Canonical RSE Event Format, hardware validator | not started |
-| 3 | Rule-based baseline generator, NES renderer, exports | not started |
+| 3 | Rule-based baseline generator, NES renderer, exports | **renderer + WAV done**; generator not started |
 | 4 | Tokenizer, Transformer training and inference | not started |
 | 5 | Gradio interface | not started |
 | 6 | Regression tests, originality screening, alpha release | not started |
 
-What Phase 1 gives you: a reproducible path from a dataset archive to
-per-composition intake records, dataset statistics, a duplicate report, and a
-provenance manifest — with every source file traceable and every measurement
-written to disk.
+The renderer is a native APU synthesizer — no external binary, no subprocess,
+no download. Pitch is quantized to what the hardware timer can actually
+produce, phase advances in CPU cycles, and the APU's nonlinear channel mixing
+is modelled. Verified numerically rather than by ear: rendered pitches match
+the achievable hardware frequency within 1% across MIDI 33–108. See
+[docs/renderer-survey.md](docs/renderer-survey.md) for what it does *not* model
+(hardware envelopes are the big one) and why the alternatives were rejected.
 
 ## Install
 
 Python 3.11 or 3.12. Phase 4 pins the upper bound: torch, miditok and symusic
-have no 3.13+ wheels yet. The Phase 1 pipeline needs only `mido`.
+have no 3.13+ wheels yet. Ingestion and rendering need only `mido` and `numpy`.
 
 ```bash
 python3.11 -m venv .venv
@@ -39,7 +43,7 @@ python3.11 -m venv .venv
 ```
 
 Optional extras, added when the phase that needs them arrives:
-`.[ml]` (training), `.[audio]` (rendering), `.[ui]` (Gradio).
+`.[ml]` (training) and `.[ui]` (Gradio).
 
 No GPU is required for ingestion, testing or interface work.
 
@@ -54,10 +58,17 @@ python scripts/make_sample_release.py
 rse fetch   --dataset rse_sample --release midi --archive datasets/sample/rse_sample_midi.tar.gz
 rse ingest  --dataset rse_sample --release midi
 rse inspect --dataset rse_sample --release midi
+rse render  --file datasets/raw/rse_sample/midi/train/train_001.mid --out demo.wav --stems
 ```
 
 The files it produces are not music anyone would want to listen to. They exist
-to exercise parsing, normalization, measurement and de-duplication.
+to exercise parsing, normalization, measurement and de-duplication — but that
+last command does produce real NES-style audio, and `--stems` writes each
+channel separately so you can hear them in isolation.
+
+To hear the renderer on music you'd recognize, point `rse render --file` at any
+MIDI file. Name its tracks `P1`, `P2`, `TR` and `NO` to control which part
+lands on which channel; otherwise they're assigned in order.
 
 ## Use NES-MDB
 
@@ -82,6 +93,7 @@ the game compositions it contains are not. See "Data governance" below.
 rse fetch    acquire a release, extract it safely, write a provenance manifest
 rse ingest   parse, normalize, measure and de-duplicate a fetched release
 rse inspect  summarize a processed release, or one MIDI file with --file
+rse render   synthesize NES audio from a MIDI file or an intake record
 rse profiles list hardware profiles and their channel limits
 ```
 
@@ -109,8 +121,8 @@ rse/
   models/      Transformer definitions               — Phase 4
   training/    training and evaluation               — Phase 4
   generation/  phrase planning and sampling          — Phase 3, 4
-  renderers/   chip-aware audio synthesis            — Phase 3
-  exporters/   MIDI, WAV, JSON, tracker formats      — Phase 3
+  renderers/   NES APU synthesizer                   — working
+  exporters/   WAV export; MIDI/JSON/tracker         — Phase 3
   ui/          local Gradio application              — Phase 5
 configs/       hardware profiles and dataset definitions (committed)
 datasets/      downloads, raw sources, processed output (git-ignored)
@@ -157,10 +169,15 @@ against real numbers from a real dataset.
 ## Development
 
 ```bash
-.venv/bin/python -m pytest          # 95 tests, no dataset required
+.venv/bin/python -m pytest          # 155 tests, no dataset required
 .venv/bin/python -m ruff check .
 .venv/bin/python -m ruff format .
 ```
+
+The renderer has no reference recordings to diff against, so its tests measure
+the audio instead: pitch by autocorrelation, duty ratios off the waveform,
+LFSR period and balance, noise bandwidth, mixer nonlinearity, and aliasing
+versus oversampling.
 
 ## Data governance
 

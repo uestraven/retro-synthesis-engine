@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 
+import numpy as np
 import pytest
 
 from rse import paths
 from rse.cli import main
 from rse.data.synthetic import make_sample_release
+from rse.exporters.wav import read_wav
 from rse.jsonio import write_json
 
 CONFIG = {
@@ -142,3 +144,90 @@ def test_inspect_without_a_prior_ingest_explains_itself(workspace, capsys):
 def test_fetch_without_a_source_reports_an_error(workspace, capsys):
     assert run(["fetch", "--dataset", "sample", "--release", "midi"], workspace) == 2
     assert "no download URL" in capsys.readouterr().err
+
+
+def test_render_from_midi_writes_audio_and_a_sidecar(midi_path, tmp_path, capsys):
+    out = tmp_path / "song.wav"
+    assert main(["render", "--file", str(midi_path), "--out", str(out)]) == 0
+    assert "rendered" in capsys.readouterr().out
+
+    samples, rate = read_wav(out)
+    assert rate == 44_100
+    assert samples.size > 0
+    assert np.abs(samples).max() > 0.1  # actually audible
+
+    metadata = json.loads(out.with_suffix(".render.json").read_text())
+    assert metadata["renderer_id"].startswith("nes_apu/")
+    assert metadata["channels_rendered"] == ["NO", "P1", "P2", "TR"]
+    assert metadata["n_notes"] > 0
+    assert metadata["settings"]["sample_rate"] == 44_100
+
+
+def test_render_stems_produces_one_file_per_channel(midi_path, tmp_path):
+    out = tmp_path / "song.wav"
+    assert main(["render", "--file", str(midi_path), "--out", str(out), "--stems"]) == 0
+    stems = sorted(p.name for p in (tmp_path / "song_stems").glob("*.wav"))
+    assert stems == ["NO.wav", "P1.wav", "P2.wav", "TR.wav"]
+
+
+def test_render_from_an_intake_record(midi_path, tmp_path, nes_profile):
+    from rse.data.midi_io import parse_midi
+    from rse.data.normalize import build_intake_record
+    from rse.data.provenance import describe_file
+    from rse.jsonio import write_json
+
+    record = build_intake_record(
+        parse_midi(midi_path, nes_profile),
+        describe_file(midi_path, root=midi_path.parent, dataset_id="t", dataset_version="t/1"),
+        nes_profile,
+    )
+    record_path = write_json(tmp_path / "rec.json", record)
+    out = tmp_path / "from_record.wav"
+    assert main(["render", "--record", str(record_path), "--out", str(out)]) == 0
+    assert out.is_file()
+
+
+def test_render_rejects_a_record_for_another_profile(tmp_path, capsys):
+    from rse.jsonio import write_json
+
+    record = write_json(tmp_path / "r.json", {"hardware_profile": "genesis", "events": []})
+    assert main(["render", "--record", str(record), "--out", str(tmp_path / "x.wav")]) == 2
+    assert "targets profile" in capsys.readouterr().err
+
+
+def test_render_needs_exactly_one_input(midi_path, tmp_path, capsys):
+    assert main(["render", "--out", str(tmp_path / "x.wav")]) == 2
+    assert "exactly one of" in capsys.readouterr().err
+    assert (
+        main(
+            [
+                "render",
+                "--file",
+                str(midi_path),
+                "--record",
+                str(midi_path),
+                "--out",
+                str(tmp_path / "x.wav"),
+            ]
+        )
+        == 2
+    )
+
+
+def test_render_reports_a_composition_with_no_notes(tmp_path, capsys):
+    from rse.jsonio import write_json
+
+    record = write_json(
+        tmp_path / "empty.json",
+        {"hardware_profile": "nes", "midi": {"ticks_per_beat": 480}, "events": []},
+    )
+    assert main(["render", "--record", str(record), "--out", str(tmp_path / "x.wav")]) == 2
+    assert "no renderable notes" in capsys.readouterr().err
+
+
+def test_render_json_mode_is_machine_readable(midi_path, tmp_path, capsys):
+    out = tmp_path / "song.wav"
+    assert main(["--json", "render", "--file", str(midi_path), "--out", str(out)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["wav"] == str(out)
+    assert payload["duration_sec"] > 0
