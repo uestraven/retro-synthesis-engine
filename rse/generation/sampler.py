@@ -12,7 +12,7 @@ during generation rather than after it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import torch
@@ -39,6 +39,14 @@ class SamplingConfig:
 
     seed: int | None = None
     temperature: float = 1.0
+    #: Per-channel temperature overrides. The collapse this exists for is
+    #: channel-specific: at temperature 0.7 the pitched channels produced
+    #: baseline-matching repetition and 99.8% in-key notes, while the noise
+    #: channel emitted one duration 99.4% of the time and filled over 100% of
+    #: frames against 54% in the training data -- continuous static. Sampling
+    #: percussion hotter than melody treats the actual problem rather than
+    #: trading the whole piece's coherence away to fix the drums.
+    channel_temperature: dict[str, float] = field(default_factory=dict)
     top_k: int | None = 40
     top_p: float | None = 0.95
     max_tokens: int = 2048
@@ -48,6 +56,11 @@ class SamplingConfig:
     def __post_init__(self) -> None:
         if self.temperature <= 0:
             raise ValueError(f"temperature must be positive, got {self.temperature}")
+        for channel_id, value in self.channel_temperature.items():
+            if value <= 0:
+                raise ValueError(
+                    f"temperature for channel {channel_id!r} must be positive, got {value}"
+                )
         if self.top_k is not None and self.top_k < 1:
             raise ValueError(f"top_k must be at least 1, got {self.top_k}")
         if self.top_p is not None and not 0 < self.top_p <= 1:
@@ -59,6 +72,7 @@ class SamplingConfig:
         return {
             "seed": self.seed,
             "temperature": self.temperature,
+            "channel_temperature": dict(self.channel_temperature),
             "top_k": self.top_k,
             "top_p": self.top_p,
             "max_tokens": self.max_tokens,
@@ -217,9 +231,14 @@ def sample(
             overran_length = True
         if allowed is not None and not allowed:
             break
+        # While the grammar is inside a channel's note, that channel's own
+        # temperature applies.
+        temperature = config.temperature
+        if grammar.channel is not None:
+            temperature = config.channel_temperature.get(grammar.channel, temperature)
         filtered = filter_logits(
             logits,
-            temperature=config.temperature,
+            temperature=temperature,
             top_k=config.top_k,
             top_p=config.top_p,
             allowed=allowed,

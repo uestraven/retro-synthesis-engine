@@ -479,3 +479,45 @@ def test_periodic_checkpointing_can_be_switched_off(tokenizer, windows, tiny_con
     # Still written at the end, just not during.
     assert path.is_file()
     assert config.to_dict()["checkpoint_every_evals"] == 0
+
+
+# -- per-channel temperature --------------------------------------------------
+
+
+def test_channel_temperature_validates():
+    with pytest.raises(ValueError, match="channel 'NO' must be positive"):
+        SamplingConfig(channel_temperature={"NO": 0.0})
+
+
+def test_channel_temperature_is_recorded(tokenizer, tiny_config):
+    config = SamplingConfig(seed=0, max_tokens=120, channel_temperature={"NO": 1.3})
+    assert config.to_dict()["channel_temperature"] == {"NO": 1.3}
+    model = RseTransformer(tiny_config).eval()
+    result = sample(model, tokenizer, config=config)
+    assert result.config.channel_temperature == {"NO": 1.3}
+
+
+def test_a_channel_override_changes_only_that_channel(tokenizer, tiny_config):
+    """The noise collapse is channel-specific, so the fix must be too."""
+    model = RseTransformer(tiny_config).eval()
+    base = sample(model, tokenizer, config=SamplingConfig(seed=3, temperature=0.7, max_tokens=400))
+    overridden = sample(
+        model,
+        tokenizer,
+        config=SamplingConfig(
+            seed=3, temperature=0.7, channel_temperature={"NO": 1.4}, max_tokens=400
+        ),
+    )
+    # Same seed and same melodic temperature, so the streams agree until the
+    # first noise note and diverge after it.
+    assert base.ids[:8] == overridden.ids[:8]
+    assert base.ids != overridden.ids
+
+
+def test_the_token_budget_is_configurable(tokenizer, tiny_config):
+    """2048 truncated 32-bar pieces to 27 bars; it must be raisable."""
+    model = RseTransformer(tiny_config).eval()
+    short = sample(model, tokenizer, config=SamplingConfig(seed=0, max_tokens=60))
+    longer = sample(model, tokenizer, config=SamplingConfig(seed=0, max_tokens=300))
+    assert len(short.ids) <= 60
+    assert len(longer.ids) > len(short.ids)

@@ -241,6 +241,19 @@ def build_parser() -> argparse.ArgumentParser:
     sample.add_argument("--seed", type=int, default=None)
     sample.add_argument("--temperature", type=float, default=1.0)
     sample.add_argument("--top-k", type=int, default=40)
+    sample.add_argument(
+        "--noise-temperature",
+        type=float,
+        default=None,
+        help="sample the noise channel at its own temperature; percussion "
+        "collapses into static at the low values that help the melody",
+    )
+    sample.add_argument(
+        "--max-tokens",
+        type=int,
+        default=2048,
+        help="token budget for one piece; 32 bars at full density needs ~2700",
+    )
     sample.add_argument("--top-p", type=float, default=0.95)
     sample.add_argument(
         "--unconstrained",
@@ -259,6 +272,8 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--n", type=int, default=16, help="samples to draw from each")
     evaluate.add_argument("--bars", type=int, default=16)
     evaluate.add_argument("--temperature", type=float, default=1.0)
+    evaluate.add_argument("--noise-temperature", type=float, default=None)
+    evaluate.add_argument("--max-tokens", type=int, default=2048)
     evaluate.add_argument("--seed", type=int, default=0)
     evaluate.add_argument(
         "--corpus-size", type=int, default=64, help="reference pieces for originality screening"
@@ -878,8 +893,10 @@ def cmd_sample(args: argparse.Namespace) -> int:
     config = SamplingConfig(
         seed=args.seed,
         temperature=args.temperature,
+        channel_temperature=({"NO": args.noise_temperature} if args.noise_temperature else {}),
         top_k=args.top_k,
         top_p=args.top_p,
+        max_tokens=args.max_tokens,
         constrain_to_grammar=not args.unconstrained,
     )
     result = sample(model, tokenizer, conditioning=conditioning, config=config)
@@ -968,7 +985,14 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
             model,
             tokenizer,
             conditioning=Conditioning(n_bars=args.bars),
-            config=SamplingConfig(seed=args.seed + index, temperature=args.temperature),
+            config=SamplingConfig(
+                seed=args.seed + index,
+                temperature=args.temperature,
+                channel_temperature=(
+                    {"NO": args.noise_temperature} if args.noise_temperature else {}
+                ),
+                max_tokens=args.max_tokens,
+            ),
         )
         # Measure what the pipeline actually renders. Raw model output carries
         # no compliance guarantee -- that is what the constraint engine is for
