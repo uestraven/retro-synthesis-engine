@@ -22,10 +22,23 @@ would be `torch-directml`, which does not implement
 `scaled_dot_product_attention` and would need a manual attention fallback. A
 rented NVIDIA instance avoids the question entirely.
 
-## What to upload
+## Upload nothing: let the pod fetch it
 
-Not the dataset. `rse windows` does the expensive, dataset-dependent half of
-set-up and writes a single file:
+The dataset URLs and checksums are committed in `configs/datasets/nesmdb.json`,
+so a pod can acquire the corpus itself and no file has to move between
+machines. This is the preferred path — it needs no SSH keys, no `runpodctl
+send`, and it is reproducible from the repo alone.
+
+```bash
+rse fetch   --dataset nesmdb --release exprsco      # ~12 MB, checksum-verified
+rse ingest  --dataset nesmdb --release exprsco      # a couple of minutes
+rse windows --source dataset --dataset nesmdb --release exprsco \
+            --window-bars 16 --out windows_16bar.jsonl
+```
+
+### If you would rather transfer the windows file
+
+`rse windows` writes a single file that is the whole corpus, tokenized:
 
 ```bash
 rse windows --source dataset --dataset nesmdb --release exprsco \
@@ -62,19 +75,29 @@ a third-party host, so:
 
 ## The run
 
+Runpod's PyTorch images already have torch installed, so **do not create a
+virtualenv** — it would hide the preinstalled torch and pull a multi-gigabyte
+wheel instead. Install into the image's own environment, and install the base
+package rather than `.[ml]`: torch is already present, and `miditok` and
+`symusic` are declared for future work that no current code imports.
+
 ```bash
 git clone https://github.com/uestraven/retro-synthesis-engine.git
 cd retro-synthesis-engine
-python -m venv .venv && .venv/bin/pip install -e ".[ml]"
-# upload windows_16bar.jsonl here
+pip install -e .                      # mido + numpy; torch is already there
+python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 
-.venv/bin/rse train \
+rse train \
   --windows windows_16bar.jsonl \
   --steps 8000 --batch-size 32 --seq-len 1024 \
   --layers 8 --heads 8 --width 512 \
   --learning-rate 3e-4 --seed 0 --device cuda \
   --out checkpoints/nesmdb.pt
 ```
+
+**A pod with no network volume keeps nothing after termination.** Download the
+checkpoint before you destroy the pod, or mount a network volume at
+`/workspace` first so it outlives the pod.
 
 Then bring back `checkpoints/nesmdb.pt` (and its `.report.json`) and everything
 else runs locally without a GPU:
