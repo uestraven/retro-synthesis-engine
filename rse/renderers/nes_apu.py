@@ -36,7 +36,7 @@ from functools import lru_cache
 import numpy as np
 
 from rse.hardware.profile import HardwareProfile
-from rse.renderers.base import RenderNote, RenderResult, RenderSettings
+from rse.renderers.base import EnvelopePoint, RenderNote, RenderResult, RenderSettings
 
 RENDERER_ID = "nes_apu/0.1.0"
 
@@ -120,8 +120,18 @@ class NesApuRenderer:
         self.duty_by_channel = {**DEFAULT_DUTY, **(duty_by_channel or {})}
 
     def render(
-        self, notes: list[RenderNote], settings: RenderSettings | None = None
+        self,
+        notes: list[RenderNote],
+        settings: RenderSettings | None = None,
+        envelopes: dict[str, list[EnvelopePoint]] | None = None,
     ) -> RenderResult:
+        """Render notes to audio.
+
+        `envelopes` supplies per-channel volume over time, from the source's
+        own controller data. Without it every note holds its onset velocity for
+        its whole duration, which is what makes a decaying drum hit sound like
+        static.
+        """
         settings = settings or RenderSettings()
         warnings: list[str] = []
         internal_rate = settings.sample_rate * settings.oversample
@@ -139,7 +149,7 @@ class NesApuRenderer:
             if note.channel_id not in buffers:
                 warnings.append(f"no channel {note.channel_id!r} in the {self.profile_id} profile")
                 continue
-            self._render_note(note, buffers, internal_rate, warnings)
+            self._render_note(note, buffers, internal_rate, warnings, envelopes)
 
         mixed = self._mix(buffers)
         if settings.apply_output_filters:
@@ -174,6 +184,7 @@ class NesApuRenderer:
         buffers: dict[str, np.ndarray],
         rate: int,
         warnings: list[str],
+        envelopes: dict[str, list[EnvelopePoint]] | None = None,
     ) -> None:
         spec = self.profile.channel(note.channel_id)
         if not spec.in_range(note.value):
@@ -207,6 +218,13 @@ class NesApuRenderer:
 
         if wave is None:
             return
+
+        # The triangle channel has no volume register, so an envelope must not
+        # be applied to it — on real hardware it is on at full level or off.
+        if envelopes and spec.volume_levels > 1:
+            gain = _sample_envelope(envelopes.get(note.channel_id), note.start_sec, count, rate)
+            if gain is not None:
+                wave = wave * gain
         # Assignment, not addition: a hardware channel plays one note at a
         # time, so a later note replaces an earlier one rather than summing.
         buffer[start:stop] = wave
@@ -391,6 +409,32 @@ def _moving_average(signal: np.ndarray, window: int) -> np.ndarray:
     cumulative = np.cumsum(padded)
     cumulative = np.concatenate(([0.0], cumulative))
     return ((cumulative[window:] - cumulative[:-window]) / window)[: signal.size]
+
+
+def _sample_envelope(
+    points: list[EnvelopePoint] | None,
+    start_sec: float,
+    count: int,
+    rate: int,
+) -> np.ndarray | None:
+    """Per-sample gain for a note, held stepwise between breakpoints.
+
+    The volume register steps rather than glides, so a breakpoint's value holds
+    until the next write. Returns None when there is nothing to apply, leaving
+    the caller's velocity-derived constant level in place.
+    """
+    if not points:
+        return None
+    times = np.fromiter((point.sec for point in points), dtype=np.float64, count=len(points))
+    gains = np.fromiter((point.gain for point in points), dtype=np.float32, count=len(points))
+    sample_times = start_sec + np.arange(count, dtype=np.float64) / rate
+    # `side="right" - 1` gives the last breakpoint at or before each sample.
+    index = np.searchsorted(times, sample_times, side="right") - 1
+    if int(index.max()) < 0:
+        return None
+    # Before the first breakpoint, hold full level rather than silence, so a
+    # note starting ahead of any controller write is still audible.
+    return np.where(index < 0, np.float32(1.0), gains[np.clip(index, 0, None)]).astype(np.float32)
 
 
 def _velocity_to_volume(velocity: int) -> float:

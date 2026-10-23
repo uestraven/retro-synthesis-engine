@@ -403,3 +403,97 @@ def test_result_metadata_excludes_the_audio(renderer):
     assert payload["channels_rendered"] == ["P1"]
     assert payload["settings"]["sample_rate"] == 44_100
     assert "samples" not in payload
+
+
+# -- volume envelopes ---------------------------------------------------------
+
+
+def test_an_envelope_shapes_the_note(renderer):
+    """Without this, a decaying drum hit renders as flat static."""
+    from rse.renderers.base import EnvelopePoint
+
+    settings = RenderSettings(peak=None)
+    flat = renderer.render([note("NO", 8, end=0.5, pitched=False)], settings)
+    shaped = renderer.render(
+        [note("NO", 8, end=0.5, pitched=False)],
+        settings,
+        envelopes={"NO": [EnvelopePoint(0.0, 1.0), EnvelopePoint(0.1, 0.25)]},
+    )
+    rate = flat.sample_rate
+    early = slice(int(0.01 * rate), int(0.08 * rate))
+    late = slice(int(0.15 * rate), int(0.4 * rate))
+
+    # Flat holds its level; shaped falls after the breakpoint.
+    assert np.abs(flat.samples[early]).max() == pytest.approx(
+        np.abs(flat.samples[late]).max(), rel=0.2
+    )
+    assert np.abs(shaped.samples[late]).max() < 0.5 * np.abs(shaped.samples[early]).max()
+
+
+def test_the_triangle_ignores_envelopes(renderer):
+    """It has no volume register; exprsco stores zero velocity for it, so
+    applying an envelope would silence the bass line entirely."""
+    from rse.renderers.base import EnvelopePoint
+
+    settings = RenderSettings(peak=None)
+    silencing = {"TR": [EnvelopePoint(0.0, 0.0)]}
+    plain = renderer.render([note("TR", A4 - 24, end=0.5)], settings)
+    with_envelope = renderer.render([note("TR", A4 - 24, end=0.5)], settings, silencing)
+    assert np.abs(with_envelope.samples).max() > 0
+    assert np.array_equal(plain.samples, with_envelope.samples)
+
+
+def test_no_envelope_leaves_rendering_unchanged(renderer):
+    settings = RenderSettings(peak=None)
+    a = renderer.render([note("P1", A4)], settings)
+    b = renderer.render([note("P1", A4)], settings, envelopes={})
+    c = renderer.render([note("P1", A4)], settings, envelopes={"P2": []})
+    assert np.array_equal(a.samples, b.samples)
+    assert np.array_equal(a.samples, c.samples)
+
+
+def test_a_note_before_the_first_breakpoint_stays_audible(renderer):
+    """Otherwise a note starting ahead of any controller write is silenced."""
+    from rse.renderers.base import EnvelopePoint
+
+    result = renderer.render(
+        [note("P1", A4, start=0.0, end=0.2)],
+        RenderSettings(peak=None),
+        envelopes={"P1": [EnvelopePoint(0.5, 0.1)]},
+    )
+    assert np.abs(result.samples[: int(0.1 * result.sample_rate)]).max() > 0.01
+
+
+def test_the_register_steps_rather_than_glides(renderer):
+    """The APU's volume register holds its value until the next write."""
+    from rse.renderers.base import EnvelopePoint
+
+    result = renderer.render(
+        [note("P1", A4, end=0.4)],
+        RenderSettings(peak=None, apply_output_filters=False),
+        envelopes={"P1": [EnvelopePoint(0.0, 1.0), EnvelopePoint(0.2, 0.5)]},
+    )
+    rate = result.sample_rate
+    first = np.abs(result.samples[int(0.05 * rate) : int(0.15 * rate)]).max()
+    second = np.abs(result.samples[int(0.25 * rate) : int(0.35 * rate)]).max()
+    assert second == pytest.approx(first * 0.5, rel=0.15)
+
+
+def test_envelopes_are_read_from_a_record(nes_profile):
+    """CC 11 is what both the exprsco reader and NES-MDB's MIDI use."""
+    from rse.renderers.base import envelopes_from_record
+
+    record = {
+        "midi": {"ticks_per_beat": 480},
+        "tempo_map": [{"tick": 0, "us_per_beat": 500_000}],
+        "events": [
+            {"ch": "NO", "type": "control", "tick": 0, "control": 11, "value": 127},
+            {"ch": "NO", "type": "control", "tick": 240, "control": 11, "value": 32},
+            {"ch": "NO", "type": "control", "tick": 480, "control": 12, "value": 2},
+        ],
+    }
+    envelopes = envelopes_from_record(record)
+    assert list(envelopes) == ["NO"]
+    # CC 12 is timbre, not volume, and must not become an envelope point.
+    assert [round(p.gain, 3) for p in envelopes["NO"]] == [1.0, 0.252]
+    assert envelopes["NO"][1].sec == pytest.approx(0.25)

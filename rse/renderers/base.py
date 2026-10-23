@@ -55,6 +55,19 @@ class RenderSettings:
         }
 
 
+#: Controller number carrying per-frame volume, matching what NES-MDB's own
+#: MIDI release uses and what the exprsco reader writes.
+VOLUME_CONTROLLER = 11
+
+
+@dataclass(frozen=True)
+class EnvelopePoint:
+    """A volume register change: a step, not a ramp."""
+
+    sec: float
+    gain: float
+
+
 @dataclass(frozen=True)
 class RenderNote:
     """One note, resolved to absolute seconds and a hardware channel."""
@@ -122,6 +135,35 @@ def musical_time_from_record(record: dict[str, Any]) -> MusicalTime:
             for s in record.get("time_signatures", ())
         ],
     )
+
+
+def envelopes_from_record(record: dict[str, Any]) -> dict[str, list[EnvelopePoint]]:
+    """Per-channel volume envelopes, from the controller data.
+
+    Real NES instruments decay: measured over 8098 noise hits in NES-MDB, mean
+    volume falls 9.50 -> 5.98 -> 4.48 of 15 across the first three frames. That
+    movement is in the source, the parsers preserve it, and a renderer that
+    ignores it holds every note at its onset level — which is what makes a drum
+    hit sound like static rather than percussion.
+
+    The register steps rather than glides, so these are breakpoints to be held,
+    never interpolated.
+    """
+    time = musical_time_from_record(record)
+    envelopes: dict[str, list[EnvelopePoint]] = {}
+    for event in record.get("events", ()):
+        if event.get("type") != "control" or event.get("control") != VOLUME_CONTROLLER:
+            continue
+        channel_id = event.get("ch")
+        if channel_id is None:
+            continue
+        gain = max(0.0, min(1.0, event.get("value", 0) / 127.0))
+        envelopes.setdefault(channel_id, []).append(
+            EnvelopePoint(sec=time.seconds(event["tick"]), gain=gain)
+        )
+    for points in envelopes.values():
+        points.sort(key=lambda point: point.sec)
+    return envelopes
 
 
 def notes_from_record(record: dict[str, Any]) -> list[RenderNote]:
