@@ -86,6 +86,27 @@ MIN_TRIANGLE_TIMER = 2
 #: 4-bit volume range shared by the pulse and noise channels.
 MAX_VOLUME = 15
 
+#: Default decay for an unpitched note that carries no envelope data, as
+#: (seconds from onset, gain). Measured from 8098 short noise hits in NES-MDB:
+#: mean register volume runs 9.50, 5.98, 4.48, 4.19, 4.06 of 15 across the
+#: first five frames, which normalised to onset is 1.00, 0.63, 0.47, 0.44, 0.43.
+#:
+#: This exists because model output carries no controller data -- controllers
+#: are not tokenized -- so a generated drum hit would otherwise render at one
+#: constant level for its whole length. A listener described exactly that as a
+#: "static sweep" and a "thunder strike" rather than a drum.
+#:
+#: Pitched channels get no equivalent: the same measurement over pulse notes
+#: gives 1.00, 1.23, 1.22, 1.19, 1.14, so they rise slightly and hold. Decaying
+#: them would be inventing behaviour the hardware does not have.
+DEFAULT_NOISE_DECAY: tuple[tuple[float, float], ...] = (
+    (0.0, 1.00),
+    (1 / 24, 0.63),
+    (2 / 24, 0.47),
+    (3 / 24, 0.44),
+    (4 / 24, 0.43),
+)
+
 #: Default duty per pulse channel: a hollow 50% lead against a thinner 25%
 #: counterpoint, which is the most common NES pairing. Overridable.
 DEFAULT_DUTY = {"P1": 2, "P2": 1}
@@ -149,7 +170,7 @@ class NesApuRenderer:
             if note.channel_id not in buffers:
                 warnings.append(f"no channel {note.channel_id!r} in the {self.profile_id} profile")
                 continue
-            self._render_note(note, buffers, internal_rate, warnings, envelopes)
+            self._render_note(note, buffers, internal_rate, warnings, envelopes, settings)
 
         mixed = self._mix(buffers)
         if settings.apply_output_filters:
@@ -185,7 +206,9 @@ class NesApuRenderer:
         rate: int,
         warnings: list[str],
         envelopes: dict[str, list[EnvelopePoint]] | None = None,
+        settings: RenderSettings | None = None,
     ) -> None:
+        settings = settings or RenderSettings()
         spec = self.profile.channel(note.channel_id)
         if not spec.in_range(note.value):
             warnings.append(
@@ -221,8 +244,14 @@ class NesApuRenderer:
 
         # The triangle channel has no volume register, so an envelope must not
         # be applied to it — on real hardware it is on at full level or off.
-        if envelopes and spec.volume_levels > 1:
-            gain = _sample_envelope(envelopes.get(note.channel_id), note.start_sec, count, rate)
+        if spec.volume_levels > 1:
+            points = (envelopes or {}).get(note.channel_id)
+            gain = _sample_envelope(points, note.start_sec, count, rate)
+            if gain is None and settings.default_noise_decay and not spec.pitched:
+                # Nothing in the source to shape it: apply the measured
+                # percussive decay so the hit reads as a drum rather than as a
+                # burst of constant noise.
+                gain = _default_decay(count, rate)
             if gain is not None:
                 wave = wave * gain
         # Assignment, not addition: a hardware channel plays one note at a
@@ -409,6 +438,23 @@ def _moving_average(signal: np.ndarray, window: int) -> np.ndarray:
     cumulative = np.cumsum(padded)
     cumulative = np.concatenate(([0.0], cumulative))
     return ((cumulative[window:] - cumulative[:-window]) / window)[: signal.size]
+
+
+def _default_decay(count: int, rate: int) -> np.ndarray:
+    """The measured percussive decay, sampled over a note."""
+    times = np.fromiter(
+        (point[0] for point in DEFAULT_NOISE_DECAY),
+        dtype=np.float64,
+        count=len(DEFAULT_NOISE_DECAY),
+    )
+    gains = np.fromiter(
+        (point[1] for point in DEFAULT_NOISE_DECAY),
+        dtype=np.float32,
+        count=len(DEFAULT_NOISE_DECAY),
+    )
+    elapsed = np.arange(count, dtype=np.float64) / rate
+    index = np.clip(np.searchsorted(times, elapsed, side="right") - 1, 0, None)
+    return gains[index]
 
 
 def _sample_envelope(

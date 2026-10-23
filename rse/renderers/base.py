@@ -34,6 +34,10 @@ class RenderSettings:
     peak: float | None = 0.89
     #: Apply the console's output filters (two high-pass, one low-pass).
     apply_output_filters: bool = True
+    #: Shape unpitched notes that carry no envelope data with the measured
+    #: percussive decay. Without it, generated drums render at one constant
+    #: level and read as static rather than as hits.
+    default_noise_decay: bool = True
     #: Seconds of silence appended so release tails are not clipped.
     tail_sec: float = 0.25
 
@@ -51,6 +55,7 @@ class RenderSettings:
             "oversample": self.oversample,
             "peak": self.peak,
             "apply_output_filters": self.apply_output_filters,
+            "default_noise_decay": self.default_noise_decay,
             "tail_sec": self.tail_sec,
         }
 

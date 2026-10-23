@@ -412,8 +412,13 @@ def test_an_envelope_shapes_the_note(renderer):
     """Without this, a decaying drum hit renders as flat static."""
     from rse.renderers.base import EnvelopePoint
 
+    # The control must switch off the default percussive decay, or it is not
+    # a flat reference.
     settings = RenderSettings(peak=None)
-    flat = renderer.render([note("NO", 8, end=0.5, pitched=False)], settings)
+    flat = renderer.render(
+        [note("NO", 8, end=0.5, pitched=False)],
+        RenderSettings(peak=None, default_noise_decay=False),
+    )
     shaped = renderer.render(
         [note("NO", 8, end=0.5, pitched=False)],
         settings,
@@ -497,3 +502,54 @@ def test_envelopes_are_read_from_a_record(nes_profile):
     # CC 12 is timbre, not volume, and must not become an envelope point.
     assert [round(p.gain, 3) for p in envelopes["NO"]] == [1.0, 0.252]
     assert envelopes["NO"][1].sec == pytest.approx(0.25)
+
+
+def test_an_unpitched_note_decays_by_default(renderer):
+    """Model output carries no controller data, so without a default decay a
+    generated drum renders at one constant level — heard as static."""
+    hit = [note("NO", 13, end=5 / 24, pitched=False)]
+    flat = renderer.render(hit, RenderSettings(peak=None, default_noise_decay=False))
+    shaped = renderer.render(hit, RenderSettings(peak=None))
+
+    def per_frame(result):
+        rate = result.sample_rate
+        return [
+            float(np.abs(result.stems["NO"][int(k * rate / 24) : int((k + 1) * rate / 24)]).max())
+            for k in range(5)
+        ]
+
+    constant = per_frame(flat)
+    decayed = per_frame(shaped)
+    assert constant[0] == pytest.approx(constant[-1], rel=0.01)
+    # Falls to roughly the measured 0.43 of onset by the fifth frame.
+    assert decayed[-1] / decayed[0] == pytest.approx(0.43, abs=0.08)
+
+
+def test_pitched_channels_never_get_the_default_decay(renderer):
+    """Measured pulse notes rise then hold (1.00 1.23 1.22 1.19), so decaying
+    them would invent behaviour the hardware does not have."""
+    for channel, value in (("P1", A4), ("P2", A4), ("TR", A4 - 24)):
+        held = [note(channel, value, end=0.4)]
+        flat = renderer.render(held, RenderSettings(peak=None, default_noise_decay=False))
+        shaped = renderer.render(held, RenderSettings(peak=None))
+        assert np.array_equal(flat.samples, shaped.samples), channel
+
+
+def test_source_envelopes_take_precedence_over_the_default(renderer):
+    """Real data knows better than a default shape."""
+    from rse.renderers.base import EnvelopePoint
+
+    hit = [note("NO", 13, end=0.3, pitched=False)]
+    default = renderer.render(hit, RenderSettings(peak=None))
+    explicit = renderer.render(
+        hit,
+        RenderSettings(peak=None),
+        envelopes={"NO": [EnvelopePoint(0.0, 1.0)]},
+    )
+    # A flat explicit envelope must override the decaying default.
+    assert np.abs(explicit.samples).max() > np.abs(default.samples[-1000:]).max()
+
+
+def test_the_default_decay_is_reported_in_settings():
+    assert RenderSettings().to_dict()["default_noise_decay"] is True
+    assert RenderSettings(default_noise_decay=False).to_dict()["default_noise_decay"] is False
