@@ -27,6 +27,9 @@ from rse.data.provenance import (
 )
 from rse.jsonio import read_json, write_json, write_jsonl
 
+#: Readers available for a release's files.
+SOURCE_FORMATS = ("midi", "exprsco")
+
 
 class DatasetError(RuntimeError):
     """Raised for a missing registry entry, failed verification or unsafe archive."""
@@ -47,6 +50,8 @@ class DatasetRelease:
     license_note: str
     homepage: str
     raw: dict[str, Any]
+    #: Which reader parses this release's files. See `SOURCE_FORMATS`.
+    format: str = "midi"
 
     @property
     def version(self) -> str:
@@ -75,6 +80,12 @@ def load_release(
     use_class = data.get("use_class", USE_UNKNOWN)
     if use_class not in VALID_USE_CLASSES:
         raise DatasetError(f"dataset {dataset_id!r} declares unknown use_class {use_class!r}")
+    source_format = rel.get("format", "midi")
+    if source_format not in SOURCE_FORMATS:
+        raise DatasetError(
+            f"release {dataset_id}/{release_id} declares unknown format "
+            f"{source_format!r}; known: {list(SOURCE_FORMATS)}"
+        )
     return DatasetRelease(
         dataset_id=data["dataset_id"],
         release_id=rel.get("release_id", release_id),
@@ -87,6 +98,7 @@ def load_release(
         license_note=data.get("license_note", ""),
         homepage=data.get("homepage", ""),
         raw=rel,
+        format=source_format,
     )
 
 

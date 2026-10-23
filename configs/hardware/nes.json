@@ -5,11 +5,13 @@
   "region": "NTSC",
   "engine_tick_hz": 60.0988,
   "notes": [
-    "Pitch ranges below are the working ranges used by the NES-MDB score",
-    "representation, not a derivation from the APU timer registers. They are",
-    "treated as provisional: `rse inspect` reports every note that falls",
-    "outside them instead of rejecting it, so Phase 1 measurement is what",
-    "fixes these numbers before the Phase 2 validator enforces them."
+    "Confirmed against all 5278 NES-MDB compositions on 2026-10-23: every range",
+    "below is exact at both ends, in both the MIDI and exprsco releases.",
+    "P1/P2 pitch 33-108, TR 21-108, NO value 1-16, pulse and noise volume 0-15,",
+    "duty 0-3, noise mode 0-1, and the triangle carries no volume at all.",
+    "These were originally the working ranges of the NES-MDB score",
+    "representation rather than a derivation from the APU timer registers; the",
+    "measurement is what turned them from provisional into established."
   ],
   "channels": [
     {

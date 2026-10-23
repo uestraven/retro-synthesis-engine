@@ -10,11 +10,14 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from pickle import UnpicklingError
 from typing import Any
 
 from rse import INTAKE_SCHEMA_VERSION, __version__, paths
 from rse.data import dedupe
-from rse.data.midi_io import MidiParseError, parse_midi
+from rse.data.datasets import DatasetError, load_release
+from rse.data.exprsco import ExprscoError, load_exprsco, score_to_composition
+from rse.data.midi_io import IntakeComposition, MidiParseError, parse_midi
 from rse.data.normalize import build_intake_record
 from rse.data.provenance import SourceRecord, utc_now
 from rse.data.stats import DatasetStats
@@ -27,6 +30,8 @@ class IngestConfig:
     """Everything that affects the output of a run, logged into the report."""
 
     profile_id: str = "nes"
+    #: Which reader parses the source files. Normally taken from the release.
+    source_format: str = "midi"
     quantize_grid: float | None = None
     duplicate_threshold: float = dedupe.DEFAULT_THRESHOLD
     sketch_size: int | None = dedupe.DEFAULT_SKETCH_SIZE
@@ -36,6 +41,7 @@ class IngestConfig:
     def to_dict(self) -> dict[str, Any]:
         return {
             "profile_id": self.profile_id,
+            "source_format": self.source_format,
             "quantize_grid": self.quantize_grid,
             "duplicate_threshold": self.duplicate_threshold,
             "sketch_size": self.sketch_size,
@@ -51,6 +57,15 @@ class IngestResult:
     stats_path: Path | None
     report_path: Path | None
     records: list[dict[str, Any]] = field(default_factory=list)
+
+
+def read_source(path: Path, profile: HardwareProfile, source_format: str) -> IntakeComposition:
+    """Parse one source file with the reader its release calls for."""
+    if source_format == "midi":
+        return parse_midi(path, profile)
+    if source_format == "exprsco":
+        return score_to_composition(load_exprsco(path), path, profile)
+    raise ValueError(f"no reader for source format {source_format!r}")
 
 
 def processed_dir(dataset_id: str, release_id: str, *, datasets_dir: Path | None = None) -> Path:
@@ -84,6 +99,15 @@ def ingest_release(
     sources = [SourceRecord.from_dict(row) for row in read_jsonl(manifest_path)]
     source_root = raw_dir(dataset_id, release_id, datasets_dir=datasets_dir)
     profile = load_profile(config.profile_id, configs_dir=_hardware_dir(configs_dir))
+
+    # The release decides which reader is used, so a caller cannot accidentally
+    # parse a score release as MIDI.
+    try:
+        release = load_release(dataset_id, release_id, configs_dir=_dataset_dir(configs_dir))
+    except DatasetError:
+        release = None
+    if release is not None:
+        config.source_format = release.format
     return ingest(
         sources,
         source_root=source_root,
@@ -117,8 +141,8 @@ def ingest(
     for source in selected:
         path = source_root / source.relpath
         try:
-            comp = parse_midi(path, profile)
-        except (MidiParseError, OSError) as exc:
+            comp = read_source(path, profile, config.source_format)
+        except (MidiParseError, ExprscoError, UnpicklingError, OSError, ValueError) as exc:
             failures.append(
                 {"relpath": source.relpath, "source_id": source.source_id, "error": str(exc)}
             )
@@ -229,4 +253,12 @@ def _hardware_dir(configs_dir: Path | None) -> Path | None:
     if configs_dir is None:
         return None
     candidate = configs_dir / "hardware"
+    return candidate if candidate.is_dir() else configs_dir
+
+
+def _dataset_dir(configs_dir: Path | None) -> Path | None:
+    """Accept either a configs root or a datasets directory."""
+    if configs_dir is None:
+        return None
+    candidate = configs_dir / "datasets"
     return candidate if candidate.is_dir() else configs_dir

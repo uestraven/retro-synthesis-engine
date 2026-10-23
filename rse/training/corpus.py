@@ -145,8 +145,13 @@ def corpus_from_release(
             info.n_skipped += 1
             continue
         selected.append(row)
-    if limit:
+    if limit and limit < len(selected):
+        # Shuffle before truncating. The index is ordered by path, so `test/`
+        # sorts before `train/` and a plain prefix would hand back a corpus
+        # that was almost entirely the wrong split.
+        random.Random(seed).shuffle(selected)
         selected = selected[:limit]
+        selected.sort(key=lambda row: row["composition_id"])
 
     has_splits = any(row.get("split") for row in selected)
     fallback = (
