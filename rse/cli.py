@@ -19,7 +19,11 @@ from rse.data.midi_io import MidiParseError, parse_midi
 from rse.data.normalize import build_intake_record
 from rse.data.pipeline import IngestConfig, ingest_release, processed_dir
 from rse.data.provenance import USE_UNKNOWN, describe_file
+from rse.exporters.midi import write_midi
 from rse.exporters.wav import write_stems, write_wav
+from rse.generation.loops import validate_loop
+from rse.generation.plan import ENERGIES, FORMS, LENGTHS, MOODS, PlanSummary, make_plan
+from rse.generation.procedural import generate
 from rse.hardware.profile import ProfileError, available_profiles, load_profile
 from rse.jsonio import read_json, write_json
 from rse.renderers.base import DEFAULT_SAMPLE_RATE, RenderSettings, notes_from_record
@@ -108,6 +112,27 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument("--duty-p1", type=int, choices=(0, 1, 2, 3), default=None)
     render.add_argument("--duty-p2", type=int, choices=(0, 1, 2, 3), default=None)
     render.set_defaults(func=cmd_render)
+
+    generate = sub.add_parser(
+        "generate", help="compose an original piece with the rule-based generator"
+    )
+    generate.add_argument("--profile", default="nes")
+    generate.add_argument("--seed", type=int, default=None, help="omit for a random seed")
+    generate.add_argument("--mood", default="heroic", choices=list(MOODS))
+    generate.add_argument("--energy", default="medium", choices=list(ENERGIES))
+    generate.add_argument("--bars", type=int, default=16, choices=list(LENGTHS))
+    generate.add_argument("--tempo", type=float, default=None, help="BPM; omit to pick one")
+    generate.add_argument("--form", default=None, choices=list(FORMS))
+    generate.add_argument("--key", type=int, default=None, help="tonic pitch class, 0=C")
+    generate.add_argument("--scale", default=None, help="override the mood's scale")
+    generate.add_argument(
+        "--out", type=Path, default=None, help="output basename (default: derived from the seed)"
+    )
+    generate.add_argument("--stems", action="store_true", help="also write per-channel WAVs")
+    generate.add_argument(
+        "--no-loop", action="store_true", help="do not mark or validate the piece as a loop"
+    )
+    generate.set_defaults(func=cmd_generate)
 
     profiles = sub.add_parser("profiles", help="list available hardware profiles")
     profiles.set_defaults(func=cmd_profiles)
@@ -336,6 +361,94 @@ def cmd_render(args: argparse.Namespace) -> int:
     if extra > 0:
         print(f"  ! ... and {extra} more warnings")
     return 0
+
+
+def cmd_generate(args: argparse.Namespace) -> int:
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+    plan = make_plan(
+        seed=args.seed,
+        mood=args.mood,
+        energy=args.energy,
+        tempo_bpm=args.tempo,
+        n_bars=args.bars,
+        form=args.form,
+        tonic=args.key,
+        scale=args.scale,
+        loop=not args.no_loop,
+    )
+    composition = generate(profile, plan)
+
+    base = args.out or Path(f"rse_{plan.mood}_{plan.seed}")
+    base.parent.mkdir(parents=True, exist_ok=True)
+    wav_path = base.with_suffix(".wav")
+    midi_path = base.with_suffix(".mid")
+    json_path = base.with_suffix(".json")
+
+    renderer = NesApuRenderer(profile)
+    # A looping piece must not end in silence, or the repeat leaves a gap.
+    settings = RenderSettings(tail_sec=0.0 if plan.loop else 0.25)
+    result = renderer.render(notes_from_record(composition.record), settings)
+
+    write_wav(wav_path, result.samples, result.sample_rate)
+    write_midi(midi_path, composition.record)
+    loop_report = validate_loop(
+        composition.record, samples=result.samples, sample_rate=result.sample_rate
+    )
+    write_json(
+        json_path,
+        {
+            **composition.record,
+            "render": result.to_dict(),
+            "loop_report": loop_report.to_dict(),
+        },
+    )
+
+    stem_paths: dict[str, Path] = {}
+    if args.stems:
+        stem_paths = write_stems(
+            base.parent / f"{base.name}_stems", result.stems, result.sample_rate
+        )
+
+    measurements = composition.record["measurements"]
+    if args.json:
+        _print_json(
+            {
+                "composition_id": composition.composition_id,
+                "plan": plan.to_dict(),
+                "measurements": measurements,
+                "render": result.to_dict(),
+                "loop_report": loop_report.to_dict(),
+                "wav": str(wav_path),
+                "midi": str(midi_path),
+                "json": str(json_path),
+                "stems": {k: str(v) for k, v in stem_paths.items()},
+            }
+        )
+        return 0 if loop_report.ok else 1
+
+    for line in PlanSummary(plan).lines():
+        print(line)
+    print(
+        f"  {measurements['n_notes']} notes, {result.duration_sec:.1f}s, "
+        f"hardware compliant: {measurements['hardware_compliant']}"
+    )
+    for channel in composition.record["channels"]:
+        print(
+            f"  {channel['channel_id']:<4}{channel['n_notes']:>5} notes  "
+            f"range {channel['value_min']}-{channel['value_max']}  "
+            f"max poly {channel['max_simultaneous']}"
+        )
+    print(f"  wav : {wav_path}")
+    print(f"  midi: {midi_path}")
+    print(f"  json: {json_path}")
+    for path in stem_paths.values():
+        print(f"  stem: {path}")
+    if loop_report.ok:
+        print("  loop: clean")
+    else:
+        for issue in loop_report.issues:
+            print(f"  loop! {issue}")
+    return 0 if loop_report.ok else 1
 
 
 def cmd_profiles(args: argparse.Namespace) -> int:

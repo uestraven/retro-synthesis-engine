@@ -225,6 +225,93 @@ def test_render_reports_a_composition_with_no_notes(tmp_path, capsys):
     assert "no renderable notes" in capsys.readouterr().err
 
 
+def test_generate_writes_wav_midi_and_json(tmp_path, capsys):
+    base = tmp_path / "tune"
+    assert main(["generate", "--seed", "4321", "--bars", "8", "--out", str(base)]) == 0
+    out = capsys.readouterr().out
+    assert "form" in out and "loop: clean" in out
+
+    assert base.with_suffix(".wav").is_file()
+    assert base.with_suffix(".mid").is_file()
+    payload = json.loads(base.with_suffix(".json").read_text())
+    assert payload["generation"]["plan"]["seed"] == 4321
+    assert payload["measurements"]["hardware_compliant"] is True
+    assert payload["loop_report"]["ok"] is True
+
+    samples, rate = read_wav(base.with_suffix(".wav"))
+    assert rate == 44_100
+    assert np.abs(samples).max() > 0.1
+
+
+def test_generate_is_reproducible_from_its_seed(tmp_path):
+    first, second = tmp_path / "a", tmp_path / "b"
+    main(["generate", "--seed", "99", "--bars", "4", "--out", str(first)])
+    main(["generate", "--seed", "99", "--bars", "4", "--out", str(second)])
+    assert first.with_suffix(".wav").read_bytes() == second.with_suffix(".wav").read_bytes()
+
+
+def test_generate_honours_musical_parameters(tmp_path, capsys):
+    base = tmp_path / "dark"
+    assert (
+        main(
+            [
+                "generate",
+                "--seed",
+                "5",
+                "--mood",
+                "dark",
+                "--energy",
+                "high",
+                "--bars",
+                "16",
+                "--tempo",
+                "165",
+                "--form",
+                "ABAC",
+                "--key",
+                "2",
+                "--out",
+                str(base),
+            ]
+        )
+        == 0
+    )
+    assert "165 BPM" in capsys.readouterr().out
+    plan = json.loads(base.with_suffix(".json").read_text())["generation"]["plan"]
+    assert plan["mood"] == "dark"
+    assert plan["form"] == "ABAC"
+    assert plan["key"]["tonic"] == 2
+    assert plan["n_bars"] == 16
+
+
+def test_generated_loops_have_no_trailing_silence(tmp_path):
+    base = tmp_path / "loop"
+    main(["generate", "--seed", "8", "--bars", "4", "--out", str(base)])
+    report = json.loads(base.with_suffix(".json").read_text())["loop_report"]
+    assert report["trailing_silence_sec"] < 0.05
+
+
+def test_generate_stems(tmp_path):
+    base = tmp_path / "stemmed"
+    main(["generate", "--seed", "11", "--bars", "4", "--out", str(base), "--stems"])
+    stems = sorted(p.name for p in (tmp_path / "stemmed_stems").glob("*.wav"))
+    assert stems == ["NO.wav", "P1.wav", "P2.wav", "TR.wav"]
+
+
+def test_generate_json_mode_is_machine_readable(tmp_path, capsys):
+    base = tmp_path / "j"
+    assert main(["--json", "generate", "--seed", "3", "--bars", "4", "--out", str(base)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["plan"]["seed"] == 3
+    assert payload["loop_report"]["ok"] is True
+    assert payload["wav"].endswith(".wav")
+
+
+def test_generate_rejects_an_unsupported_length(tmp_path):
+    with pytest.raises(SystemExit):
+        main(["generate", "--bars", "7", "--out", str(tmp_path / "x")])
+
+
 def test_render_json_mode_is_machine_readable(midi_path, tmp_path, capsys):
     out = tmp_path / "song.wav"
     assert main(["--json", "render", "--file", str(midi_path), "--out", str(out)]) == 0

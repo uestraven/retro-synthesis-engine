@@ -11,15 +11,20 @@ noise). Genesis and SNES profiles come later.
 
 ## Status
 
-**Phase 1 (data foundation) is implemented, and the NES renderer works.** You
-can take a MIDI file and get authentic-sounding four-channel NES audio out of
-it today. What's missing is the part that *composes* the music.
+**RSE composes and renders original NES music today.** One command gives you a
+structured, looping, hardware-valid piece as WAV and MIDI. The machine learning
+is what's still missing — Phases 1 and 3 are done, and that is enough for a
+working (if unsurprising) music generator.
+
+```bash
+rse generate --mood dark --energy high --bars 16
+```
 
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Repository, environment, dataset ingestion, statistics, provenance | **done** |
 | 2 | Canonical RSE Event Format, hardware validator | not started |
-| 3 | Rule-based baseline generator, NES renderer, exports | **renderer + WAV done**; generator not started |
+| 3 | Rule-based generator, NES renderer, exports | **done** |
 | 4 | Tokenizer, Transformer training and inference | not started |
 | 5 | Gradio interface | not started |
 | 6 | Regression tests, originality screening, alpha release | not started |
@@ -31,6 +36,12 @@ is modelled. Verified numerically rather than by ear: rendered pitches match
 the achievable hardware frequency within 1% across MIDI 33–108. See
 [docs/renderer-survey.md](docs/renderer-survey.md) for what it does *not* model
 (hardware envelopes are the big one) and why the alternatives were rejected.
+
+The generator decides structure before notes: form, key and a chord
+progression first, then melody, accompaniment, bass and drums written into
+that frame. Repeated phrases reuse their material, so an AABA form hears as a
+return. Phase 4 has to beat this baseline to justify itself (proposal §11.3).
+See [docs/generator.md](docs/generator.md).
 
 ## Install
 
@@ -93,6 +104,7 @@ the game compositions it contains are not. See "Data governance" below.
 rse fetch    acquire a release, extract it safely, write a provenance manifest
 rse ingest   parse, normalize, measure and de-duplicate a fetched release
 rse inspect  summarize a processed release, or one MIDI file with --file
+rse generate compose an original piece: plan, notes, audio, MIDI, loop check
 rse render   synthesize NES audio from a MIDI file or an intake record
 rse profiles list hardware profiles and their channel limits
 ```
@@ -120,9 +132,9 @@ rse/
   tokenizers/  symbolic tokenization                 — Phase 4
   models/      Transformer definitions               — Phase 4
   training/    training and evaluation               — Phase 4
-  generation/  phrase planning and sampling          — Phase 3, 4
+  generation/  planning, the rule-based composer     — working
   renderers/   NES APU synthesizer                   — working
-  exporters/   WAV export; MIDI/JSON/tracker         — Phase 3
+  exporters/   WAV and MIDI; tracker formats later   — working
   ui/          local Gradio application              — Phase 5
 configs/       hardware profiles and dataset definitions (committed)
 datasets/      downloads, raw sources, processed output (git-ignored)
@@ -169,7 +181,7 @@ against real numbers from a real dataset.
 ## Development
 
 ```bash
-.venv/bin/python -m pytest          # 155 tests, no dataset required
+.venv/bin/python -m pytest          # 287 tests, no dataset required
 .venv/bin/python -m ruff check .
 .venv/bin/python -m ruff format .
 ```
