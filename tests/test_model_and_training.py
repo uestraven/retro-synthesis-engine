@@ -389,3 +389,93 @@ def test_the_token_limit_is_reported(tokenizer, tiny_config):
     result = sample(model, tokenizer, config=SamplingConfig(seed=0, max_tokens=20))
     assert result.hit_token_limit
     assert len(result.ids) <= 20
+
+
+# -- crash resilience ---------------------------------------------------------
+
+
+def test_a_checkpoint_exists_before_the_run_finishes(tokenizer, windows, tiny_config, tmp_path):
+    """A dropped connection should cost minutes, not the whole run."""
+    path = tmp_path / "interim.pt"
+    config = TrainConfig(
+        seed=0,
+        max_steps=30,
+        batch_size=4,
+        seq_len=128,
+        eval_every=10,
+        eval_batches=1,
+        amp=False,
+        device="cpu",
+        patience=0,
+        checkpoint_every_evals=1,
+    )
+
+    seen: list[bool] = []
+    real_evaluate = evaluate
+
+    import rse.training.train as train_module
+
+    def spy(*args, **kwargs):
+        # Record whether a usable checkpoint is on disk partway through.
+        seen.append(path.is_file())
+        return real_evaluate(*args, **kwargs)
+
+    train_module.evaluate = spy
+    try:
+        train(windows, tokenizer, model_config=tiny_config, config=config, checkpoint_path=path)
+    finally:
+        train_module.evaluate = real_evaluate
+
+    # The first evaluation precedes any write; later ones must find a file.
+    assert seen[0] is False
+    assert any(seen[1:]), "no interim checkpoint was written during the run"
+    model, restored, _payload = load_checkpoint(path, device="cpu")
+    assert len(restored) == len(tokenizer)
+    assert model.config == tiny_config
+
+
+def test_interim_checkpoints_hold_the_best_weights_not_the_latest(
+    tokenizer, windows, tiny_config, tmp_path
+):
+    path = tmp_path / "best.pt"
+    config = TrainConfig(
+        seed=1,
+        max_steps=20,
+        batch_size=4,
+        seq_len=128,
+        eval_every=10,
+        eval_batches=1,
+        amp=False,
+        device="cpu",
+        patience=0,
+        checkpoint_every_evals=1,
+    )
+    _model, history, _report = train(
+        windows,
+        tokenizer,
+        model_config=tiny_config,
+        config=config,
+        checkpoint_path=path,
+    )
+    _restored, _tok, payload = load_checkpoint(path, device="cpu")
+    assert payload["history"]["best_valid_loss"] == pytest.approx(history.best_valid_loss)
+
+
+def test_periodic_checkpointing_can_be_switched_off(tokenizer, windows, tiny_config, tmp_path):
+    path = tmp_path / "off.pt"
+    config = TrainConfig(
+        seed=0,
+        max_steps=10,
+        batch_size=4,
+        seq_len=128,
+        eval_every=10,
+        eval_batches=1,
+        amp=False,
+        device="cpu",
+        patience=0,
+        checkpoint_every_evals=0,
+    )
+    train(windows, tokenizer, model_config=tiny_config, config=config, checkpoint_path=path)
+    # Still written at the end, just not during.
+    assert path.is_file()
+    assert config.to_dict()["checkpoint_every_evals"] == 0

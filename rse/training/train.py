@@ -49,6 +49,9 @@ class TrainConfig:
     eval_batches: int = 20
     #: Stop when validation loss has not improved for this many evaluations.
     patience: int = 5
+    #: Write the best-so-far checkpoint every N evaluations, so a crash or a
+    #: dropped terminal costs minutes rather than the whole run. 0 disables it.
+    checkpoint_every_evals: int = 1
     #: Mixed precision, when the device supports it.
     amp: bool = True
     device: str | None = None
@@ -68,6 +71,7 @@ class TrainConfig:
             "eval_every": self.eval_every,
             "eval_batches": self.eval_batches,
             "patience": self.patience,
+            "checkpoint_every_evals": self.checkpoint_every_evals,
             "amp": self.amp,
             "device": self.device,
         }
@@ -250,6 +254,7 @@ def train(
     started = time.monotonic()
     since_improvement = 0
     best_state: dict[str, Tensor] | None = None
+    evals_done = 0
 
     for step in range(config.max_steps):
         lr = learning_rate_at(step, config)
@@ -300,6 +305,7 @@ def train(
                     f"valid {valid_loss:.4f}  lr {lr:.2e}"
                 )
 
+            evals_done += 1
             improved = not math.isnan(valid_loss) and valid_loss < history.best_valid_loss
             if improved:
                 history.best_valid_loss = valid_loss
@@ -310,9 +316,21 @@ def train(
                 since_improvement = 0
             else:
                 since_improvement += 1
-                if config.patience and since_improvement >= config.patience:
-                    history.stopped_early = True
-                    break
+
+            # Persist the best weights as we go. A long run on a rented GPU is
+            # exactly where a crash is most expensive, and writing only at the
+            # end means a dropped connection costs the entire run.
+            if (
+                checkpoint_path is not None
+                and best_state is not None
+                and config.checkpoint_every_evals
+                and evals_done % config.checkpoint_every_evals == 0
+            ):
+                _write_interim(checkpoint_path, model, best_state, tokenizer, config, history)
+
+            if not improved and config.patience and since_improvement >= config.patience:
+                history.stopped_early = True
+                break
 
     history.wall_clock_sec = time.monotonic() - started
     if best_state is not None:
@@ -335,6 +353,31 @@ def train(
         save_checkpoint(checkpoint_path, model, tokenizer, config, history, report)
         report["checkpoint"] = str(checkpoint_path)
     return model, history, report
+
+
+def _write_interim(
+    path: Path,
+    model: RseTransformer,
+    best_state: dict[str, Tensor],
+    tokenizer: RseTokenizer,
+    config: TrainConfig,
+    history: TrainHistory,
+) -> None:
+    """Save the best-so-far weights without disturbing the live model.
+
+    The running model holds whatever the last step produced, which is not the
+    checkpoint we want; `best_state` is the best-by-validation snapshot. Saving
+    is wrapped because a full disk on a rented pod should interrupt the run with
+    a warning, not destroy it.
+    """
+    live = model.state_dict()
+    try:
+        model.load_state_dict(best_state)
+        save_checkpoint(path, model, tokenizer, config, history)
+    except OSError as exc:  # pragma: no cover - depends on the filesystem
+        print(f"  ! could not write interim checkpoint: {exc}", flush=True)
+    finally:
+        model.load_state_dict(live)
 
 
 def save_checkpoint(
