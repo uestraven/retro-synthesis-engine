@@ -179,6 +179,18 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--corpus-size", type=int, default=200, help="procedural pieces to make")
     train.add_argument("--corpus-limit", type=int, default=None, help="cap dataset compositions")
     train.add_argument("--window-bars", type=int, default=16)
+    train.add_argument(
+        "--windows",
+        type=Path,
+        default=None,
+        help="cache tokenized windows here; reused on later runs instead of "
+        "rebuilding the corpus, which dominates start-up on a large dataset",
+    )
+    train.add_argument(
+        "--rebuild-windows",
+        action="store_true",
+        help="ignore an existing window cache and rebuild it",
+    )
     train.add_argument("--steps", type=int, default=2000)
     train.add_argument("--batch-size", type=int, default=8)
     train.add_argument("--seq-len", type=int, default=512)
@@ -195,6 +207,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="checkpoint path",
     )
     train.set_defaults(func=cmd_train)
+
+    windows_cmd = sub.add_parser(
+        "windows",
+        help="tokenize a corpus into training windows, for training elsewhere",
+    )
+    windows_cmd.add_argument("--profile", default="nes")
+    windows_cmd.add_argument("--source", default="dataset", choices=("procedural", "dataset"))
+    windows_cmd.add_argument("--dataset", default="nesmdb")
+    windows_cmd.add_argument("--release", default="exprsco")
+    windows_cmd.add_argument("--corpus-size", type=int, default=200)
+    windows_cmd.add_argument("--corpus-limit", type=int, default=None)
+    windows_cmd.add_argument("--window-bars", type=int, default=16)
+    windows_cmd.add_argument("--hop-bars", type=int, default=None)
+    windows_cmd.add_argument("--seed", type=int, default=0)
+    windows_cmd.add_argument("--out", type=Path, required=True)
+    windows_cmd.set_defaults(func=cmd_windows)
 
     sample = sub.add_parser("sample", help="generate music from a trained checkpoint")
     sample.add_argument("--profile", default="nes")
@@ -634,27 +662,47 @@ def _require_torch() -> None:
 def cmd_train(args: argparse.Namespace) -> int:
     _require_torch()
     from rse.models.transformer import ModelConfig
-    from rse.training.corpus import corpus_from_procedural, corpus_from_release
-    from rse.training.dataset import build_windows
+    from rse.training.corpus import CorpusInfo, corpus_from_procedural, corpus_from_release
+    from rse.training.dataset import WindowStats, build_windows, load_windows, save_windows
     from rse.training.train import TrainConfig, train
 
     profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
     tokenizer = RseTokenizer(TokenizerConfig(profile_id=profile.profile_id))
 
-    if args.source == "procedural":
-        entries, corpus_info = corpus_from_procedural(
-            profile, n=args.corpus_size, seed=args.seed, n_bars=args.window_bars
-        )
+    cached = args.windows is not None and args.windows.is_file() and not args.rebuild_windows
+    if cached:
+        print(f"windows   : reusing cache {args.windows}", flush=True)
+        windows = load_windows(args.windows)
+        window_stats = WindowStats(n_windows=len(windows))
+        for window in windows:
+            window_stats.total_tokens += len(window)
+            window_stats.max_tokens = max(window_stats.max_tokens, len(window))
+            window_stats.per_split[window.split] = window_stats.per_split.get(window.split, 0) + 1
+        corpus_info = CorpusInfo(source=f"cache:{args.windows}")
     else:
-        entries, corpus_info = corpus_from_release(
-            args.dataset,
-            args.release,
-            datasets_dir=args.datasets_dir,
-            limit=args.corpus_limit,
-            seed=args.seed,
-        )
+        if args.source == "procedural":
+            entries, corpus_info = corpus_from_procedural(
+                profile, n=args.corpus_size, seed=args.seed, n_bars=args.window_bars
+            )
+        else:
+            print("corpus    : loading records...", flush=True)
+            entries, corpus_info = corpus_from_release(
+                args.dataset,
+                args.release,
+                datasets_dir=args.datasets_dir,
+                limit=args.corpus_limit,
+                seed=args.seed,
+            )
+        print(f"corpus    : {corpus_info.n_compositions} compositions, tokenizing...", flush=True)
+        windows, window_stats = build_windows(entries, tokenizer, window_bars=args.window_bars)
+        # Release the compositions before training allocates; holding a whole
+        # dataset in memory alongside the model is what made the first real run
+        # take 7 GB.
+        del entries
+        if args.windows is not None:
+            save_windows(args.windows, windows)
+            print(f"windows   : cached to {args.windows}", flush=True)
 
-    windows, window_stats = build_windows(entries, tokenizer, window_bars=args.window_bars)
     if not windows:
         print("error: the corpus produced no training windows", file=sys.stderr)
         return 2
@@ -701,6 +749,69 @@ def cmd_train(args: argparse.Namespace) -> int:
     )
     print(f"time      : {history.wall_clock_sec:.1f}s")
     print(f"checkpoint: {args.out}")
+    return 0
+
+
+def cmd_windows(args: argparse.Namespace) -> int:
+    """Tokenize a corpus to disk. Needs no PyTorch, so it runs anywhere.
+
+    This is the expensive, repeatable half of training set-up, and the only
+    part that needs the dataset. Producing it separately is what lets training
+    happen on a machine that has a GPU but no copy of NES-MDB.
+    """
+    from rse.training.corpus import corpus_from_procedural, corpus_from_release
+    from rse.training.dataset import build_windows, save_windows
+
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+    tokenizer = RseTokenizer(TokenizerConfig(profile_id=profile.profile_id))
+
+    if args.source == "procedural":
+        entries, corpus_info = corpus_from_procedural(
+            profile, n=args.corpus_size, seed=args.seed, n_bars=args.window_bars
+        )
+    else:
+        entries, corpus_info = corpus_from_release(
+            args.dataset,
+            args.release,
+            datasets_dir=args.datasets_dir,
+            limit=args.corpus_limit,
+            seed=args.seed,
+        )
+    windows, stats = build_windows(
+        entries, tokenizer, window_bars=args.window_bars, hop_bars=args.hop_bars
+    )
+    if not windows:
+        print("error: the corpus produced no windows", file=sys.stderr)
+        return 2
+    save_windows(args.out, windows)
+
+    sidecar = write_json(
+        args.out.with_suffix(".meta.json"),
+        {
+            "corpus": corpus_info.to_dict(),
+            "windows": stats.to_dict(),
+            "window_bars": args.window_bars,
+            "hop_bars": args.hop_bars,
+            "vocab_size": len(tokenizer),
+            "tokenizer": tokenizer.config.to_dict(),
+            "use_class": "research_only" if args.source == "dataset" else "commercially_cleared",
+        },
+    )
+    if args.json:
+        _print_json({"windows": str(args.out), "meta": str(sidecar), "stats": stats.to_dict()})
+        return 0
+    print(f"{stats.n_windows} windows from {corpus_info.n_compositions} compositions")
+    print(f"  per split : {stats.per_split}")
+    print(f"  tokens    : mean {stats.mean_tokens:.0f}, max {stats.max_tokens}")
+    print(f"  vocabulary: {len(tokenizer)} tokens")
+    print(f"  windows   : {args.out}")
+    print(f"  metadata  : {sidecar}")
+    if args.source == "dataset":
+        print(
+            "\n  note: these windows are derived from research-only data. Moving\n"
+            "  them to a third-party host is a deliberate step, not an incidental\n"
+            "  one -- see docs/gpu-training.md."
+        )
     return 0
 
 
