@@ -107,7 +107,12 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument(
         "--record", type=Path, default=None, help="an intake record written by `rse ingest`"
     )
-    render.add_argument("--out", type=Path, default=None, help="output WAV path")
+    render.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output path; .wav is appended when no extension is given",
+    )
     render.add_argument(
         "--stems", action="store_true", help="also write one WAV per hardware channel"
     )
@@ -481,7 +486,12 @@ def cmd_render(args: argparse.Namespace) -> int:
         return 2
     result = renderer.render(notes, settings)
 
-    out_path = args.out or Path(f"{default_stem}.wav")
+    out_path = args.out or Path(default_stem)
+    # `generate` and `sample` treat --out as a basename and append extensions.
+    # This took a literal path, so `--out piece` wrote a file called `piece`
+    # with no suffix: a valid WAV the operating system would not open.
+    if not out_path.suffix:
+        out_path = out_path.with_suffix(".wav")
     write_wav(out_path, result.samples, result.sample_rate)
     # A sidecar so any rendered file can be traced back to what produced it
     # (proposal 9.2).

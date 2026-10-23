@@ -394,3 +394,20 @@ def test_render_json_mode_is_machine_readable(midi_path, tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["wav"] == str(out)
     assert payload["duration_sec"] > 0
+
+
+def test_render_appends_wav_when_no_extension_is_given(midi_path, tmp_path):
+    """`--out piece` wrote a file called `piece`: a valid WAV the OS would not
+    open, and inconsistent with generate and sample."""
+    base = tmp_path / "piece"
+    assert main(["render", "--file", str(midi_path), "--out", str(base)]) == 0
+    assert base.with_suffix(".wav").is_file()
+    assert not base.exists() or base.suffix == ".wav"
+    samples, rate = read_wav(base.with_suffix(".wav"))
+    assert rate == 44_100 and samples.size > 0
+
+
+def test_render_respects_an_explicit_extension(midi_path, tmp_path):
+    out = tmp_path / "explicit.wav"
+    assert main(["render", "--file", str(midi_path), "--out", str(out)]) == 0
+    assert out.is_file()
