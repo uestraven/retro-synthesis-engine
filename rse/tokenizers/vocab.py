@@ -16,7 +16,7 @@ from typing import Any
 
 #: Bump when the vocabulary layout changes in a way that invalidates
 #: checkpoints trained against it.
-VOCAB_VERSION = "rse-vocab/1.0.0"
+VOCAB_VERSION = "rse-vocab/1.1.0"
 
 # Reserved tokens. PAD must be index 0 so padded positions are easy to mask.
 PAD = "<pad>"
@@ -52,7 +52,11 @@ class TokenizerConfig:
     velocity_buckets: int = 8
     #: Tempo buckets, in BPM.
     tempo_min: int = 60
-    tempo_max: int = 220
+    #: Reaches 360 because NES-MDB's exprsco grid is one frame per sixteenth at
+    #: 24 Hz, which is exactly 360 BPM. Capping at a musical 220 silently
+    #: relabelled every exprsco window as 220 and made sampled audio play at
+    #: the wrong speed.
+    tempo_max: int = 360
     tempo_step: int = 10
     #: Bar counts offered as a conditioning token.
     lengths: tuple[int, ...] = (4, 8, 16, 32)
@@ -124,7 +128,7 @@ class TokenizerConfig:
             max_duration_steps=int(data.get("max_duration_steps", 32)),
             velocity_buckets=int(data.get("velocity_buckets", 8)),
             tempo_min=int(data.get("tempo_min", 60)),
-            tempo_max=int(data.get("tempo_max", 220)),
+            tempo_max=int(data.get("tempo_max", 360)),
             tempo_step=int(data.get("tempo_step", 10)),
             lengths=tuple(data.get("lengths", (4, 8, 16, 32))),
             channels=tuple(data.get("channels", ("P1", "P2", "TR", "NO"))),

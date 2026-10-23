@@ -230,7 +230,12 @@ def build_parser() -> argparse.ArgumentParser:
     sample.add_argument("--mood", default="unknown")
     sample.add_argument("--energy", default="unknown")
     sample.add_argument("--bars", type=int, default=16)
-    sample.add_argument("--tempo", type=float, default=120.0)
+    sample.add_argument(
+        "--tempo",
+        type=float,
+        default=None,
+        help="BPM; defaults to the tempo the checkpoint was trained on",
+    )
     sample.add_argument("--seed", type=int, default=None)
     sample.add_argument("--temperature", type=float, default=1.0)
     sample.add_argument("--top-k", type=int, default=40)
@@ -649,6 +654,22 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def _dominant_tempo(windows, tokenizer) -> float:
+    """The most common Tempo token across a window set, as BPM."""
+    from collections import Counter
+
+    from rse.tokenizers.vocab import TEMPO
+
+    counts: Counter[float] = Counter()
+    for window in windows:
+        for token_id in window.ids[:8]:
+            token = tokenizer.vocabulary.token_of(token_id)
+            if token.startswith(TEMPO):
+                counts[float(token[len(TEMPO) :])] += 1
+                break
+    return counts.most_common(1)[0][0] if counts else 120.0
+
+
 def _require_torch() -> None:
     """Fail with instructions rather than a traceback when torch is absent."""
     try:
@@ -732,6 +753,9 @@ def cmd_train(args: argparse.Namespace) -> int:
     )
     report["corpus"] = corpus_info.to_dict()
     report["windows"] = window_stats.to_dict()
+    # The tempo the corpus was labelled with, so `rse sample` can default to it
+    # instead of to a number that happens to be wrong for this checkpoint.
+    report["conditioning_tempo_bpm"] = _dominant_tempo(windows, tokenizer)
     write_json(args.out.with_suffix(".report.json"), report)
 
     if args.json:
@@ -823,8 +847,13 @@ def cmd_sample(args: argparse.Namespace) -> int:
     profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
     model, tokenizer, payload = load_checkpoint(args.checkpoint)
 
+    tempo = args.tempo
+    if tempo is None:
+        # Default to whatever the checkpoint was trained on. Guessing 120 made
+        # exprsco-trained output play at well under half speed.
+        tempo = payload.get("report", {}).get("conditioning_tempo_bpm") or 120.0
     conditioning = Conditioning(
-        mood=args.mood, energy=args.energy, tempo_bpm=args.tempo, n_bars=args.bars
+        mood=args.mood, energy=args.energy, tempo_bpm=tempo, n_bars=args.bars
     )
     config = SamplingConfig(
         seed=args.seed,

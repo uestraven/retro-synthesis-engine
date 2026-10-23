@@ -22,6 +22,7 @@ from rse.models.transformer import RseTransformer
 from rse.tokenizers.grammar import TokenGrammar
 from rse.tokenizers.tokenizer import Conditioning, RseTokenizer
 from rse.tokenizers.vocab import (
+    BAR,
     BOS,
     ENERGY,
     HW,
@@ -76,6 +77,9 @@ class SampledComposition:
     config: SamplingConfig
     n_grammar_rejections: int = 0
     hit_token_limit: bool = False
+    #: True when the model tried to run past the requested bar count and was
+    #: held to it.
+    overran_length: bool = False
     decode_warnings: list[str] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -86,6 +90,7 @@ class SampledComposition:
             "sampling": self.config.to_dict(),
             "n_grammar_rejections": self.n_grammar_rejections,
             "hit_token_limit": self.hit_token_limit,
+            "overran_length": self.overran_length,
             "decode_warnings": list(self.decode_warnings)[:20],
         }
 
@@ -175,8 +180,12 @@ def sample(
     ids = [tokenizer.vocabulary.id_of(token) for token in tokens]
 
     eos_id = tokenizer.vocabulary.eos_id
+    bar_id = tokenizer.vocabulary.id_of(BAR)
+    target_bars = max(1, conditioning.n_bars)
+    bars_emitted = 0
     rejections = 0
     hit_limit = True
+    overran_length = False
 
     while len(ids) < config.max_tokens:
         window = ids[-model.config.max_seq_len :]
@@ -184,6 +193,14 @@ def sample(
         logits = model(inputs)[0, -1, :].float().cpu()
 
         allowed = grammar.allowed_ids() if config.constrain_to_grammar else None
+        if allowed is not None and bars_emitted >= target_bars and bar_id in allowed:
+            # The requested length is a control, not a suggestion. Once the
+            # last bar is open, another Bar token is removed from the options
+            # so the model has to finish rather than run on; an undertrained
+            # model will otherwise emit bars forever, since the grammar alone
+            # has no reason to stop it.
+            allowed = tuple(i for i in allowed if i != bar_id)
+            overran_length = True
         if allowed is not None and not allowed:
             break
         filtered = filter_logits(
@@ -211,6 +228,8 @@ def sample(
 
         ids.append(next_id)
         tokens.append(token)
+        if next_id == bar_id:
+            bars_emitted += 1
         if next_id == eos_id:
             hit_limit = False
             break
@@ -224,5 +243,6 @@ def sample(
         config=config,
         n_grammar_rejections=rejections,
         hit_token_limit=hit_limit,
+        overran_length=overran_length,
         decode_warnings=decoded.warnings,
     )
