@@ -80,6 +80,9 @@ class SampledComposition:
     #: True when the model tried to run past the requested bar count and was
     #: held to it.
     overran_length: bool = False
+    #: True when the model tried to stop short of the requested bar count and
+    #: was held to it.
+    underran_length: bool = False
     decode_warnings: list[str] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -91,6 +94,7 @@ class SampledComposition:
             "n_grammar_rejections": self.n_grammar_rejections,
             "hit_token_limit": self.hit_token_limit,
             "overran_length": self.overran_length,
+            "underran_length": self.underran_length,
             "decode_warnings": list(self.decode_warnings)[:20],
         }
 
@@ -186,6 +190,7 @@ def sample(
     rejections = 0
     hit_limit = True
     overran_length = False
+    underran_length = False
 
     while len(ids) < config.max_tokens:
         window = ids[-model.config.max_seq_len :]
@@ -193,6 +198,15 @@ def sample(
         logits = model(inputs)[0, -1, :].float().cpu()
 
         allowed = grammar.allowed_ids() if config.constrain_to_grammar else None
+        if allowed is not None and bars_emitted < target_bars and len(allowed) > 1:
+            # Length is a control in both directions. Without this the model
+            # ends early, leaving the last bars empty, which both breaks the
+            # requested length and makes the loop die away across the seam.
+            without_end = tuple(i for i in allowed if i != eos_id)
+            if without_end:
+                allowed = without_end
+                if eos_id in grammar.allowed_ids():
+                    underran_length = True
         if allowed is not None and bars_emitted >= target_bars and bar_id in allowed:
             # The requested length is a control, not a suggestion. Once the
             # last bar is open, another Bar token is removed from the options
@@ -244,5 +258,6 @@ def sample(
         n_grammar_rejections=rejections,
         hit_token_limit=hit_limit,
         overran_length=overran_length,
+        underran_length=underran_length,
         decode_warnings=decoded.warnings,
     )

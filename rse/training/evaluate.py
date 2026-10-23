@@ -68,6 +68,10 @@ class MusicMetrics:
 
     # Technical
     hardware_compliant: bool = False
+    #: Whether it was compliant *before* the constraint engine touched it.
+    #: Informative for model output, which carries no guarantee; always true
+    #: for the rule-based generator, which is compliant by construction.
+    raw_hardware_compliant: bool = True
     loop_ok: bool = False
     grid_aligned_fraction: float = 0.0
 
@@ -98,6 +102,7 @@ class MusicMetrics:
             "stepwise_fraction": round(self.stepwise_fraction, 4),
             "large_leap_fraction": round(self.large_leap_fraction, 4),
             "hardware_compliant": self.hardware_compliant,
+            "raw_hardware_compliant": self.raw_hardware_compliant,
             "loop_ok": self.loop_ok,
             "grid_aligned_fraction": round(self.grid_aligned_fraction, 4),
             "max_corpus_similarity": (
@@ -325,6 +330,7 @@ _MEAN_FIELDS = (
 #: Boolean fields reported as a rate when aggregating.
 _RATE_FIELDS = (
     "hardware_compliant",
+    "raw_hardware_compliant",
     "loop_ok",
     "repetition_in_band",
     "flagged_as_memorized",

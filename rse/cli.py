@@ -970,9 +970,16 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
             conditioning=Conditioning(n_bars=args.bars),
             config=SamplingConfig(seed=args.seed + index, temperature=args.temperature),
         )
-        model_metrics.append(
-            evaluate_composition(result.composition, profile, corpus_fingerprints=fingerprints)
-        )
+        # Measure what the pipeline actually renders. Raw model output carries
+        # no compliance guarantee -- that is what the constraint engine is for
+        # -- so judging the raw sample fails the model for something the system
+        # repairs by design. Raw compliance is still reported, separately.
+        engine = ConstraintEngine(profile)
+        raw_compliant = not engine.validate(result.composition)
+        playable, _repair = engine.apply(result.composition)
+        metrics = evaluate_composition(playable, profile, corpus_fingerprints=fingerprints)
+        metrics.raw_hardware_compliant = raw_compliant
+        model_metrics.append(metrics)
 
     baseline_metrics = []
     for index in range(args.n):
