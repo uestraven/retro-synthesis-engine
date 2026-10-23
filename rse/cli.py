@@ -38,6 +38,8 @@ from rse.renderers.base import DEFAULT_SAMPLE_RATE, RenderSettings, notes_from_r
 from rse.renderers.nes_apu import NesApuRenderer
 from rse.tokenizers.tokenizer import Conditioning, RseTokenizer
 from rse.tokenizers.vocab import TokenizerConfig
+from rse.ui.app import DEFAULT_HOST as UI_DEFAULT_HOST
+from rse.ui.app import DEFAULT_PORT as UI_DEFAULT_PORT
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -263,6 +265,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate.add_argument("--out", type=Path, default=None, help="write the full report here")
     evaluate.set_defaults(func=cmd_evaluate)
+
+    ui = sub.add_parser("ui", help="launch the local web interface (needs the ui extra)")
+    ui.add_argument("--profile", default="nes")
+    ui.add_argument(
+        "--host",
+        default=UI_DEFAULT_HOST,
+        help=f"bind address; defaults to {UI_DEFAULT_HOST} and refuses anything "
+        "non-loopback without --allow-remote",
+    )
+    ui.add_argument("--port", type=int, default=UI_DEFAULT_PORT)
+    ui.add_argument("--out-dir", type=Path, default=None, help="where generated files go")
+    ui.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="permit a non-loopback bind, exposing the interface to the network",
+    )
+    ui.add_argument("--open", action="store_true", help="open a browser window")
+    ui.set_defaults(func=cmd_ui)
 
     profiles = sub.add_parser("profiles", help="list available hardware profiles")
     profiles.set_defaults(func=cmd_profiles)
@@ -1006,6 +1026,26 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     if args.out:
         print(f"  report: {args.out}")
     return 0 if comparison["clears_technical_bar"] else 1
+
+
+def cmd_ui(args: argparse.Namespace) -> int:
+    from rse.ui.app import DEFAULT_OUTPUT_DIR, UiConfig, UiError, launch
+
+    config = UiConfig(
+        host=args.host,
+        port=args.port,
+        output_dir=args.out_dir or DEFAULT_OUTPUT_DIR,
+        configs_dir=_hardware_configs(args.configs_dir),
+        profile_id=args.profile,
+        allow_remote=args.allow_remote,
+        open_browser=args.open,
+    )
+    try:
+        launch(config)
+    except UiError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    return 0
 
 
 def cmd_profiles(args: argparse.Namespace) -> int:

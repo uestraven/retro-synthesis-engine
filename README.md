@@ -26,7 +26,7 @@ rse generate --mood dark --energy high --bars 16
 | 2 | Canonical RSE Event Format, hardware validator | **done** |
 | 3 | Rule-based generator, NES renderer, exports | **done** |
 | 4 | Tokenizer, Transformer training and inference | **pipeline done**; no model trained on real music |
-| 5 | Gradio interface | not started |
+| 5 | Gradio interface | **done** |
 | 6 | Regression tests, originality screening, alpha release | not started |
 
 The renderer is a native APU synthesizer — no external binary, no subprocess,
@@ -118,6 +118,8 @@ rse train    train a composition model (needs the ml extra)
 rse sample   generate music from a trained checkpoint
 rse evaluate measure a checkpoint against the rule-based baseline
 rse render   synthesize NES audio from a MIDI file or an intake record
+rse ui       launch the local web interface (needs the ui extra)
+rse windows  tokenize a corpus to disk, for training elsewhere
 rse profiles list hardware profiles and their channel limits
 ```
 
@@ -147,7 +149,7 @@ rse/
   generation/  planning, rule-based composer, sampler — working
   renderers/   NES APU synthesizer                   — working
   exporters/   WAV and MIDI; tracker formats later   — working
-  ui/          local Gradio application              — Phase 5
+  ui/          local Gradio application               — working
 configs/       hardware profiles and dataset definitions (committed)
 datasets/      downloads, raw sources, processed output (git-ignored)
 checkpoints/   model weights (git-ignored)
@@ -193,7 +195,7 @@ against real numbers from a real dataset.
 ## Development
 
 ```bash
-.venv/bin/python -m pytest          # 477 tests, no dataset required
+.venv/bin/python -m pytest          # 534 tests, no dataset required
 .venv/bin/python -m ruff check .
 .venv/bin/python -m ruff format .
 ```
@@ -219,3 +221,26 @@ rights, sample-bank licences and output similarity all need review.
 - [MidiTok](https://miditok.readthedocs.io/en/latest/)
 - [FamiStudio](https://famistudio.org/doc/)
 - [Furnace Tracker](https://github.com/tildearrow/furnace)
+
+## The interface
+
+```bash
+pip install -e ".[ui]"
+rse ui                 # http://127.0.0.1:7860
+```
+
+Pick a source (rule-based composer, or a trained checkpoint), set mood, energy,
+length, tempo and seed, press Generate, and you get playable audio plus a
+per-channel breakdown, the hardware and loop reports, and WAV/MIDI/JSON
+downloads. It works with no checkpoint at all — the rule-based composer is a
+complete generator on its own — and gains the model as a second source once
+one exists.
+
+The UI is a client of `rse.compose`, which the CLI uses too, so neither can
+drift from the other about what a composition is.
+
+**It binds `127.0.0.1` and nothing else.** Generated music is yours and the
+server has no authentication, so it must not be reachable from off the machine.
+A non-loopback `--host` is refused unless you also pass `--allow-remote`, and
+Gradio's public `share` tunnel is never used. To reach it from another machine,
+forward the port over SSH rather than widening the bind.
