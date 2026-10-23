@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from rse.data.timing import TempoChange, TimeSignatureChange
-from rse.events.schema import Composition, Noise, Note
+from rse.events.schema import Composition, Noise, Note, SectionSpan
 from rse.jsonio import read_json, write_json
 from rse.tokenizers.grammar import TokenGrammar
 from rse.tokenizers.vocab import (
@@ -33,6 +33,7 @@ from rse.tokenizers.vocab import (
     NOISE,
     PITCH,
     POSITION,
+    SECTION,
     TEMPO,
     VELOCITY,
     TokenizerConfig,
@@ -212,7 +213,16 @@ class RseTokenizer:
 
         n_bars = max((bar for bar, _ in grid), default=-1) + 1
         n_bars = max(n_bars, conditioning.n_bars)
+        # Sections are announced at the bar they open. Empty means the form is
+        # unknown, and the stream simply carries no Section tokens.
+        section_at_bar = {
+            span.start_bar: span.label
+            for span in composition.sections
+            if span.label in self.config.section_labels
+        }
         for bar in range(n_bars):
+            if bar in section_at_bar:
+                tokens.append(f"{SECTION}{section_at_bar[bar]}")
             # A Bar token for every bar, including empty ones, so bar count and
             # phrase position stay recoverable from the sequence alone.
             tokens.append(BAR)
@@ -279,6 +289,8 @@ class RseTokenizer:
         )
 
         bar = -1
+        pending_section: str | None = None
+        sections: list[SectionSpan] = []
         position = 0
         channel: str | None = None
         value: int | None = None
@@ -296,6 +308,11 @@ class RseTokenizer:
             if token == BAR:
                 bar += 1
                 position = 0
+                if pending_section is not None:
+                    sections.append(SectionSpan(start_bar=bar, label=pending_section))
+                    pending_section = None
+            elif token.startswith(SECTION):
+                pending_section = token[len(SECTION) :]
             elif token == LOOP_START:
                 has_loop_start = True
             elif token == LOOP_END:
@@ -342,6 +359,7 @@ class RseTokenizer:
                 value = None
 
         composition = result.composition
+        composition.sections = sections
         composition.tempo_map = [TempoChange(0, int(round(60_000_000 / (tempo_bpm or 120.0))))]
         composition.time_signatures = [TimeSignatureChange(0, self.config.beats_per_bar, 4)]
         if has_loop_start:

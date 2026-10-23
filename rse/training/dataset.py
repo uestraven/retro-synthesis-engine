@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from rse.events.schema import Composition, Noise, Note
+from rse.events.structure import derive_sections
 from rse.jsonio import read_jsonl, write_jsonl
 from rse.tokenizers.tokenizer import Conditioning, RseTokenizer, conditioning_from_composition
 
@@ -167,6 +168,13 @@ def windows_from_composition(
         sliced = slice_bars(composition, start, window_bars, beats_per_bar=beats_per_bar)
         if not sliced.sounding_events():
             continue
+        # NES-MDB has no form annotation, so the window's sections are inferred
+        # from its own repetition. Derived per window rather than per
+        # composition, because a window's form is what its token stream claims.
+        if not sliced.sections:
+            sliced.sections = derive_sections(
+                sliced, beats_per_bar=beats_per_bar, n_bars=window_bars
+            )
         base = conditioning_from_composition(composition, tokenizer.config)
         conditioning = Conditioning(
             mood=base.mood,

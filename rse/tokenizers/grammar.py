@@ -29,6 +29,7 @@ from rse.tokenizers.vocab import (
     NOISE,
     PITCH,
     POSITION,
+    SECTION,
     TEMPO,
     VELOCITY,
     Vocabulary,
@@ -45,6 +46,8 @@ class State(Enum):
     EXPECT_TEMPO = auto()
     EXPECT_LENGTH = auto()
     EXPECT_FIRST_BAR = auto()
+    #: A Section token announces the bar that opens it, so only Bar may follow.
+    EXPECT_BAR_AFTER_SECTION = auto()
     #: After a Bar: a Position, another Bar, or the end.
     EXPECT_POSITION = auto()
     #: After a Position: a Channel must follow.
@@ -90,9 +93,11 @@ class TokenGrammar:
         if self.state is State.EXPECT_LENGTH:
             return (LENGTH,)
         if self.state is State.EXPECT_FIRST_BAR:
-            return (LOOP_START, BAR)
+            return (LOOP_START, SECTION, BAR)
+        if self.state is State.EXPECT_BAR_AFTER_SECTION:
+            return (BAR,)
         if self.state is State.EXPECT_POSITION:
-            return (POSITION, BAR, LOOP_END, EOS)
+            return (POSITION, SECTION, BAR, LOOP_END, EOS)
         if self.state is State.EXPECT_CHANNEL:
             return (CHANNEL,)
         if self.state is State.EXPECT_VALUE:
@@ -104,7 +109,7 @@ class TokenGrammar:
         if self.state is State.EXPECT_DURATION:
             return (DURATION,)
         if self.state is State.EXPECT_NOTE_OR_NEXT:
-            return (CHANNEL, POSITION, BAR, LOOP_END, EOS)
+            return (CHANNEL, POSITION, SECTION, BAR, LOOP_END, EOS)
         return ()
 
     def allowed_ids(self) -> tuple[int, ...]:
@@ -156,10 +161,19 @@ class TokenGrammar:
         elif self.state is State.EXPECT_LENGTH:
             self.state = State.EXPECT_FIRST_BAR
         elif self.state is State.EXPECT_FIRST_BAR:
-            self.state = State.EXPECT_POSITION if token == BAR else State.EXPECT_FIRST_BAR
+            if token == BAR:
+                self.state = State.EXPECT_POSITION
+            elif token.startswith(SECTION):
+                self.state = State.EXPECT_BAR_AFTER_SECTION
+            else:
+                self.state = State.EXPECT_FIRST_BAR
+        elif self.state is State.EXPECT_BAR_AFTER_SECTION:
+            self.state = State.EXPECT_POSITION
         elif self.state in (State.EXPECT_POSITION, State.EXPECT_NOTE_OR_NEXT):
             if token == EOS:
                 self.state = State.DONE
+            elif token.startswith(SECTION):
+                self.state = State.EXPECT_BAR_AFTER_SECTION
             elif token == BAR or token == LOOP_END:
                 self.state = State.EXPECT_POSITION
             elif token.startswith(POSITION):

@@ -372,3 +372,85 @@ def test_grammar_reset(tokenizer):
     grammar.advance(BOS)
     grammar.reset()
     assert grammar.state is State.START
+
+
+# -- section tokens -----------------------------------------------------------
+
+
+def test_section_tokens_exist_in_the_vocabulary():
+    vocabulary = build_vocabulary()
+    assert "Section_A" in vocabulary and "Section_F" in vocabulary
+    assert len(vocabulary.family("Section_")) == 6
+
+
+def test_sections_are_emitted_at_the_bar_they_open(tokenizer):
+    from rse.events.schema import SectionSpan
+
+    composition = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[Note(channel_id="P1", tick=0, pitch=60, duration=240, velocity=100)],
+        sections=[SectionSpan(0, "A"), SectionSpan(8, "B")],
+    )
+    tokens = tokenizer.encode(composition, conditioning=Conditioning(n_bars=16)).tokens
+    assert tokens.count("Section_A") == 1
+    assert tokens.count("Section_B") == 1
+    # Each announces the bar it opens, so Bar follows immediately.
+    assert tokens[tokens.index("Section_A") + 1] == "Bar"
+    assert tokens[tokens.index("Section_B") + 1] == "Bar"
+
+
+def test_a_composition_without_sections_emits_none(tokenizer, composition):
+    composition.sections = []
+    assert not any(t.startswith("Section_") for t in tokenizer.encode(composition).tokens)
+
+
+def test_sections_round_trip(tokenizer):
+    from rse.events.schema import SectionSpan
+
+    original = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[
+            Note(channel_id="P1", tick=t * 480 * 4, pitch=60, duration=240, velocity=100)
+            for t in range(16)
+        ],
+        sections=[SectionSpan(0, "A"), SectionSpan(4, "B"), SectionSpan(8, "A")],
+    )
+    decoded = tokenizer.decode(tokenizer.encode(original).ids)
+    assert [(s.start_bar, s.label) for s in decoded.composition.sections] == [
+        (0, "A"),
+        (4, "B"),
+        (8, "A"),
+    ]
+
+
+def test_the_grammar_requires_a_bar_after_a_section(tokenizer):
+    grammar = TokenGrammar(tokenizer.vocabulary)
+    for token in (BOS, "Hardware_nes", "Mood_dark", "Energy_low", "Tempo_120", "Length_8"):
+        grammar.advance(token)
+    assert grammar.advance("Section_A")
+    assert not grammar.advance("Position_0")  # only Bar may follow a Section
+    assert not grammar.advance("Section_B")
+    assert grammar.advance("Bar")
+
+
+def test_a_section_may_open_a_later_bar_too(tokenizer):
+    grammar = TokenGrammar(tokenizer.vocabulary)
+    for token in (
+        BOS,
+        "Hardware_nes",
+        "Mood_dark",
+        "Energy_low",
+        "Tempo_120",
+        "Length_8",
+        "Bar",
+        "Position_0",
+        "Channel_P1",
+        "Pitch_60",
+        "Velocity_4",
+        "Duration_4",
+    ):
+        assert grammar.advance(token), token
+    assert grammar.advance("Section_B")
+    assert grammar.advance("Bar")

@@ -16,7 +16,7 @@ from typing import Any
 
 #: Bump when the vocabulary layout changes in a way that invalidates
 #: checkpoints trained against it.
-VOCAB_VERSION = "rse-vocab/1.1.0"
+VOCAB_VERSION = "rse-vocab/1.2.0"
 
 # Reserved tokens. PAD must be index 0 so padded positions are easy to mask.
 PAD = "<pad>"
@@ -64,6 +64,11 @@ class TokenizerConfig:
     channels: tuple[str, ...] = ("P1", "P2", "TR", "NO")
     #: Which channels are unpitched, and so use NOISE tokens.
     unpitched_channels: tuple[str, ...] = ("NO",)
+    #: Section letters available as structure tokens. This is the family
+    #: proposal 6.2 reserved for phrase boundaries: a `Section_A` before a bar
+    #: says "the form returns here", which is the one thing the first model
+    #: could not learn from `Bar` tokens alone.
+    section_labels: tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
     #: Reserved: controller events are preserved in the data but not yet
     #: modelled. See docs/tokenizer.md for why.
     include_controllers: bool = False
@@ -106,6 +111,7 @@ class TokenizerConfig:
             "lengths": list(self.lengths),
             "channels": list(self.channels),
             "unpitched_channels": list(self.unpitched_channels),
+            "section_labels": list(self.section_labels),
             "include_controllers": self.include_controllers,
             "vocab_version": self.vocab_version,
         }
@@ -133,6 +139,7 @@ class TokenizerConfig:
             lengths=tuple(data.get("lengths", (4, 8, 16, 32))),
             channels=tuple(data.get("channels", ("P1", "P2", "TR", "NO"))),
             unpitched_channels=tuple(data.get("unpitched_channels", ("NO",))),
+            section_labels=tuple(data.get("section_labels", ("A", "B", "C", "D", "E", "F"))),
             include_controllers=bool(data.get("include_controllers", False)),
             vocab_version=version or VOCAB_VERSION,
         )
@@ -223,6 +230,7 @@ VELOCITY = "Velocity_"
 DURATION = "Duration_"
 LOOP_START = "Loop_start"
 LOOP_END = "Loop_end"
+SECTION = "Section_"
 
 
 def build_vocabulary(config: TokenizerConfig | None = None) -> Vocabulary:
@@ -243,6 +251,7 @@ def build_vocabulary(config: TokenizerConfig | None = None) -> Vocabulary:
     tokens.extend(f"{NOISE}{value}" for value in range(config.noise_min, config.noise_max + 1))
     tokens.extend(f"{VELOCITY}{bucket}" for bucket in range(config.velocity_buckets))
     tokens.extend(f"{DURATION}{steps}" for steps in range(1, config.max_duration_steps + 1))
+    tokens.extend(f"{SECTION}{label}" for label in config.section_labels)
     tokens.extend((LOOP_START, LOOP_END))
 
     return Vocabulary(tokens=tuple(tokens), config=config)

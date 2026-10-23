@@ -22,7 +22,7 @@ from typing import Any
 from rse.data.timing import MusicalTime, TempoChange, TimeSignatureChange
 
 #: Bump the minor version for additive changes, the major for breaking ones.
-RSE_EF_SCHEMA_VERSION = "rse-ef/1.0.0"
+RSE_EF_SCHEMA_VERSION = "rse-ef/1.1.0"
 
 #: Major version this build can read.
 SUPPORTED_SCHEMA_MAJOR = "rse-ef/1"
@@ -37,6 +37,26 @@ EVENT_TYPES = (NOTE, NOISE, CONTROLLER, PROGRAM, EFFECT)
 
 class SchemaError(ValueError):
     """Raised when a serialized composition cannot be read."""
+
+
+@dataclass(frozen=True)
+class SectionSpan:
+    """Where a section of the form begins, and which section it is.
+
+    Derived from repetition rather than annotated — NES-MDB carries no form
+    labels — so a span says "this material resembles the earlier A", not "the
+    composer wrote an A here". See `rse.events.structure`.
+    """
+
+    start_bar: int
+    label: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"start_bar": self.start_bar, "label": self.label}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SectionSpan:
+        return cls(start_bar=int(data["start_bar"]), label=str(data["label"]))
 
 
 @dataclass(frozen=True)
@@ -220,6 +240,9 @@ class Composition:
     time_signatures: list[TimeSignatureChange] = field(default_factory=list)
     loop_start_tick: int | None = None
     loop_end_tick: int | None = None
+    #: Sections of the form, in bar order. Empty when unknown; nothing requires
+    #: them, so a document written before schema 1.1.0 still loads.
+    sections: list[SectionSpan] = field(default_factory=list)
     source_metadata: dict[str, Any] = field(default_factory=dict)
     schema_version: str = RSE_EF_SCHEMA_VERSION
 
@@ -274,6 +297,7 @@ class Composition:
             ],
             "loop_start_tick": self.loop_start_tick,
             "loop_end_tick": self.loop_end_tick,
+            "sections": [s.to_dict() for s in self.sections],
             "source_metadata": self.source_metadata,
             "events": [e.to_dict() for e in self.sorted_events()],
         }
@@ -300,6 +324,7 @@ class Composition:
             ],
             loop_start_tick=data.get("loop_start_tick"),
             loop_end_tick=data.get("loop_end_tick"),
+            sections=[SectionSpan.from_dict(s) for s in data.get("sections", ())],
             source_metadata=data.get("source_metadata", {}),
             schema_version=version,
         )
