@@ -25,7 +25,7 @@ rse generate --mood dark --energy high --bars 16
 | 1 | Repository, environment, dataset ingestion, statistics, provenance | **done** |
 | 2 | Canonical RSE Event Format, hardware validator | **done** |
 | 3 | Rule-based generator, NES renderer, exports | **done** |
-| 4 | Tokenizer, Transformer training and inference | not started |
+| 4 | Tokenizer, Transformer training and inference | **pipeline done**; no model trained on real music |
 | 5 | Gradio interface | not started |
 | 6 | Regression tests, originality screening, alpha release | not started |
 
@@ -43,6 +43,13 @@ that frame. Repeated phrases reuse their material, so an AABA form hears as a
 return. Phase 4 has to beat this baseline to justify itself (proposal §11.3).
 See [docs/generator.md](docs/generator.md).
 
+The Phase 4 machine learning is **wired up but untrained on real music**: the
+tokenizer, Transformer, training loop, grammar-constrained sampler and
+evaluation harness all work end to end, and the only corpus available so far
+is output from the rule-based generator. That validates the pipeline and
+nothing about musical quality — see [docs/model.md](docs/model.md), which says
+so at more length. Training on real NES music is blocked on fetching NES-MDB.
+
 ## Install
 
 Python 3.11 or 3.12. Phase 4 pins the upper bound: torch, miditok and symusic
@@ -53,8 +60,9 @@ python3.11 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"     # Windows: .venv\Scripts\python
 ```
 
-Optional extras, added when the phase that needs them arrives:
-`.[ml]` (training) and `.[ui]` (Gradio).
+Optional extras: `.[ml]` for training and sampling (PyTorch), `.[ui]` for the
+Gradio interface once it exists. Ingestion, rendering and the rule-based
+generator all work without them.
 
 No GPU is required for ingestion, testing or interface work.
 
@@ -106,6 +114,9 @@ rse ingest   parse, normalize, measure and de-duplicate a fetched release
 rse inspect  summarize a processed release, or one MIDI file with --file
 rse generate compose an original piece: plan, notes, audio, MIDI, loop check
 rse validate check a composition against the hardware profile and its loop
+rse train    train a composition model (needs the ml extra)
+rse sample   generate music from a trained checkpoint
+rse evaluate measure a checkpoint against the rule-based baseline
 rse render   synthesize NES audio from a MIDI file or an intake record
 rse profiles list hardware profiles and their channel limits
 ```
@@ -130,10 +141,10 @@ rse/
   data/        acquisition, MIDI parsing, normalization, stats, de-duplication
   hardware/    profiles and the constraint engine     — working
   events/      canonical RSE Event Format (RSE-EF)    — working
-  tokenizers/  symbolic tokenization                 — Phase 4
-  models/      Transformer definitions               — Phase 4
-  training/    training and evaluation               — Phase 4
-  generation/  planning, the rule-based composer     — working
+  tokenizers/  REMI-style vocabulary and grammar      — working
+  models/      decoder-only Transformer               — working
+  training/    corpus, windows, training, evaluation  — working
+  generation/  planning, rule-based composer, sampler — working
   renderers/   NES APU synthesizer                   — working
   exporters/   WAV and MIDI; tracker formats later   — working
   ui/          local Gradio application              — Phase 5
@@ -182,7 +193,7 @@ against real numbers from a real dataset.
 ## Development
 
 ```bash
-.venv/bin/python -m pytest          # 357 tests, no dataset required
+.venv/bin/python -m pytest          # 477 tests, no dataset required
 .venv/bin/python -m ruff check .
 .venv/bin/python -m ruff format .
 ```

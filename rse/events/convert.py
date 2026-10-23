@@ -265,6 +265,12 @@ class Tolerance:
     controllers, and a regression should fail rather than be absorbed. The
     knobs exist so a lossy external format can be measured against a stated
     budget instead of an opinion.
+
+    `timing_ticks` does double duty: it is both the window used to identify an
+    event's counterpart and the budget for how far it may have moved. A
+    difference larger than the window is therefore reported as loss rather than
+    drift, because an event that far away cannot be confidently called the same
+    event. The other three fields are budgets only.
     """
 
     timing_ticks: int = 0
@@ -291,6 +297,9 @@ class RoundTripReport:
     n_original: int = 0
     n_result: int = 0
     n_matched: int = 0
+    #: Matched events that differed but stayed inside the tolerance. Visible so
+    #: an "ok" round trip still shows what it cost.
+    n_within_tolerance: int = 0
     missing: list[dict[str, Any]] = field(default_factory=list)
     added: list[dict[str, Any]] = field(default_factory=list)
     drifted: list[dict[str, Any]] = field(default_factory=list)
@@ -307,6 +316,7 @@ class RoundTripReport:
             "n_original": self.n_original,
             "n_result": self.n_result,
             "n_matched": self.n_matched,
+            "n_within_tolerance": self.n_within_tolerance,
             "n_missing": len(self.missing),
             "n_added": len(self.added),
             "n_drifted": len(self.drifted),
@@ -335,9 +345,14 @@ def compare_compositions(
             report.missing.append(_describe(event))
             continue
         report.n_matched += 1
-        drift = _drift(event, match)
-        if drift:
-            report.drifted.append({**_describe(event), "drift": drift})
+        difference = _differences(event, match)
+        if not difference:
+            continue
+        exceeded = _exceeds_tolerance(difference, tolerance)
+        if exceeded:
+            report.drifted.append({**_describe(event), "drift": exceeded})
+        else:
+            report.n_within_tolerance += 1
     report.added = [_describe(e) for e in unmatched]
 
     if original.ticks_per_beat != result.ticks_per_beat:
@@ -391,20 +406,44 @@ def _identity_matches(a: Event, b: Event) -> bool:
     return False
 
 
-def _drift(original: Event, result: Event) -> dict[str, int]:
-    """Differences that exceeded tolerance, per field."""
-    drift: dict[str, int] = {}
+def _differences(original: Event, result: Event) -> dict[str, int]:
+    """Every field that moved, regardless of whether it was allowed to."""
+    difference: dict[str, int] = {}
     if result.tick != original.tick:
-        drift["tick"] = result.tick - original.tick
+        difference["tick"] = result.tick - original.tick
     if isinstance(original, Note | Noise) and isinstance(result, Note | Noise):
         if result.duration != original.duration:
-            drift["duration"] = result.duration - original.duration
+            difference["duration"] = result.duration - original.duration
         if result.velocity != original.velocity:
-            drift["velocity"] = result.velocity - original.velocity
+            difference["velocity"] = result.velocity - original.velocity
     if isinstance(original, Controller) and isinstance(result, Controller):
         if result.value != original.value:
-            drift["value"] = result.value - original.value
-    return drift
+            difference["value"] = result.value - original.value
+    return difference
+
+
+#: Which tolerance field governs which observed difference.
+_BUDGETS = {
+    "tick": "timing_ticks",
+    "duration": "duration_ticks",
+    "velocity": "velocity",
+    "value": "controller_value",
+}
+
+
+def _exceeds_tolerance(difference: dict[str, int], tolerance: Tolerance) -> dict[str, int]:
+    """The subset of differences that blew their budget.
+
+    A tolerance is a budget, not just a matching window: a difference inside it
+    is acceptable by definition, so it must not make the report fail. Otherwise
+    `ok` would only ever mean bit-exact and the tolerance fields would be
+    decoration.
+    """
+    return {
+        field_name: delta
+        for field_name, delta in difference.items()
+        if abs(delta) > getattr(tolerance, _BUDGETS[field_name], 0)
+    }
 
 
 def _describe(event: Event) -> dict[str, Any]:

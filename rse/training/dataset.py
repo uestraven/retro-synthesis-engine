@@ -1,0 +1,265 @@
+"""Turning a corpus of compositions into training windows.
+
+Proposal 5.4 asks for 8-16 bar windows that preserve phrase and loop
+boundaries. So windows are cut on *bar* lines, never mid-bar, and a window
+carries its own conditioning header — a model conditioned on "16 bars" must be
+trained on sequences that really are 16 bars.
+
+Splits come from the corpus, not from a random shuffle here. NES-MDB ships
+composer-disjoint splits, and reshuffling them would quietly invite the
+memorization the originality screening is meant to catch.
+"""
+
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from rse.events.schema import Composition, Noise, Note
+from rse.jsonio import read_jsonl, write_jsonl
+from rse.tokenizers.tokenizer import Conditioning, RseTokenizer, conditioning_from_composition
+
+#: Split names used throughout training.
+TRAIN = "train"
+VALID = "valid"
+TEST = "test"
+SPLITS = (TRAIN, VALID, TEST)
+
+
+@dataclass
+class Window:
+    """One training example: a token sequence and where it came from."""
+
+    ids: list[int]
+    split: str
+    composition_id: str
+    start_bar: int
+    n_bars: int
+
+    def __len__(self) -> int:
+        return len(self.ids)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ids": self.ids,
+            "split": self.split,
+            "composition_id": self.composition_id,
+            "start_bar": self.start_bar,
+            "n_bars": self.n_bars,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Window:
+        return cls(
+            ids=list(data["ids"]),
+            split=data["split"],
+            composition_id=data["composition_id"],
+            start_bar=int(data["start_bar"]),
+            n_bars=int(data["n_bars"]),
+        )
+
+
+@dataclass
+class WindowStats:
+    n_compositions: int = 0
+    n_windows: int = 0
+    n_skipped_empty: int = 0
+    max_tokens: int = 0
+    total_tokens: int = 0
+    per_split: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def mean_tokens(self) -> float:
+        return self.total_tokens / self.n_windows if self.n_windows else 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "n_compositions": self.n_compositions,
+            "n_windows": self.n_windows,
+            "n_skipped_empty": self.n_skipped_empty,
+            "max_tokens": self.max_tokens,
+            "mean_tokens": round(self.mean_tokens, 1),
+            "per_split": dict(sorted(self.per_split.items())),
+        }
+
+
+def slice_bars(
+    composition: Composition, start_bar: int, n_bars: int, *, beats_per_bar: int = 4
+) -> Composition:
+    """Extract `n_bars` bars starting at `start_bar`, rebased to tick zero.
+
+    Notes are cut on bar lines rather than being allowed to hang over the end,
+    so every window is self-contained and can be rendered on its own.
+    """
+    ticks_per_bar = composition.ticks_per_beat * beats_per_bar
+    start_tick = start_bar * ticks_per_bar
+    end_tick = start_tick + n_bars * ticks_per_bar
+
+    events = []
+    for event in composition.sorted_events():
+        if event.tick < start_tick or event.tick >= end_tick:
+            continue
+        shifted_tick = event.tick - start_tick
+        if isinstance(event, Note | Noise):
+            duration = min(event.duration, end_tick - event.tick)
+            if duration <= 0:
+                continue
+            from dataclasses import replace
+
+            events.append(replace(event, tick=shifted_tick, duration=duration))
+        else:
+            from dataclasses import replace
+
+            events.append(replace(event, tick=shifted_tick))
+
+    window = Composition(
+        hardware_profile=composition.hardware_profile,
+        ticks_per_beat=composition.ticks_per_beat,
+        events=events,
+        tempo_map=list(composition.tempo_map[:1]),
+        time_signatures=list(composition.time_signatures[:1]),
+        # A slice of a loop is not itself a loop unless it is the whole thing.
+        loop_start_tick=0 if start_bar == 0 and composition.loop_start_tick is not None else None,
+        loop_end_tick=(
+            n_bars * ticks_per_bar
+            if composition.loop_end_tick is not None
+            and composition.loop_end_tick <= end_tick
+            and start_bar == 0
+            else None
+        ),
+        source_metadata=dict(composition.source_metadata),
+    )
+    window.normalize()
+    return window
+
+
+def bar_count(composition: Composition, *, beats_per_bar: int = 4) -> int:
+    ticks_per_bar = composition.ticks_per_beat * beats_per_bar
+    if not composition.events:
+        return 0
+    return -(-composition.end_tick // ticks_per_bar)
+
+
+def windows_from_composition(
+    composition: Composition,
+    tokenizer: RseTokenizer,
+    *,
+    split: str,
+    window_bars: int = 16,
+    hop_bars: int | None = None,
+    composition_id: str | None = None,
+) -> list[Window]:
+    """Cut one composition into overlapping bar-aligned windows."""
+    beats_per_bar = tokenizer.config.beats_per_bar
+    total_bars = bar_count(composition, beats_per_bar=beats_per_bar)
+    if total_bars == 0:
+        return []
+    hop = hop_bars or window_bars
+    identifier = composition_id or str(composition.source_metadata.get("composition_id", "unknown"))
+
+    out: list[Window] = []
+    # A composition shorter than one window still yields that window, padded
+    # out by the bar tokens the tokenizer emits for empty bars.
+    starts = list(range(0, max(1, total_bars - window_bars + 1), hop))
+    for start in starts:
+        sliced = slice_bars(composition, start, window_bars, beats_per_bar=beats_per_bar)
+        if not sliced.sounding_events():
+            continue
+        base = conditioning_from_composition(composition, tokenizer.config)
+        conditioning = Conditioning(
+            mood=base.mood,
+            energy=base.energy,
+            tempo_bpm=base.tempo_bpm,
+            n_bars=window_bars,
+        )
+        encoded = tokenizer.encode(sliced, conditioning=conditioning)
+        out.append(
+            Window(
+                ids=encoded.ids,
+                split=split,
+                composition_id=identifier,
+                start_bar=start,
+                n_bars=window_bars,
+            )
+        )
+    return out
+
+
+def build_windows(
+    compositions: list[tuple[Composition, str, str]],
+    tokenizer: RseTokenizer,
+    *,
+    window_bars: int = 16,
+    hop_bars: int | None = None,
+) -> tuple[list[Window], WindowStats]:
+    """Cut a corpus of `(composition, split, id)` triples into windows."""
+    stats = WindowStats()
+    windows: list[Window] = []
+    for composition, split, identifier in compositions:
+        stats.n_compositions += 1
+        produced = windows_from_composition(
+            composition,
+            tokenizer,
+            split=split,
+            window_bars=window_bars,
+            hop_bars=hop_bars,
+            composition_id=identifier,
+        )
+        if not produced:
+            stats.n_skipped_empty += 1
+            continue
+        for window in produced:
+            stats.n_windows += 1
+            stats.total_tokens += len(window)
+            stats.max_tokens = max(stats.max_tokens, len(window))
+            stats.per_split[split] = stats.per_split.get(split, 0) + 1
+        windows.extend(produced)
+    return windows, stats
+
+
+def save_windows(path: Path, windows: list[Window]) -> Path:
+    return write_jsonl(Path(path), (w.to_dict() for w in windows))
+
+
+def load_windows(path: Path) -> list[Window]:
+    return [Window.from_dict(row) for row in read_jsonl(Path(path))]
+
+
+def split_windows(windows: list[Window]) -> dict[str, list[Window]]:
+    out: dict[str, list[Window]] = {split: [] for split in SPLITS}
+    for window in windows:
+        out.setdefault(window.split, []).append(window)
+    return out
+
+
+def assign_splits(
+    identifiers: list[str],
+    *,
+    seed: int = 0,
+    valid_fraction: float = 0.1,
+    test_fraction: float = 0.1,
+) -> dict[str, str]:
+    """Split a corpus by composition, never by window.
+
+    Windows from one composition overlap, so splitting at window level would
+    put near-identical sequences in train and validation and make the
+    validation loss meaningless.
+    """
+    if valid_fraction + test_fraction >= 1.0:
+        raise ValueError("valid and test fractions must leave something for training")
+    unique = sorted(set(identifiers))
+    rng = random.Random(seed)
+    rng.shuffle(unique)
+    n_valid = max(1, int(len(unique) * valid_fraction)) if len(unique) > 2 else 0
+    n_test = max(1, int(len(unique) * test_fraction)) if len(unique) > 2 else 0
+    assignment: dict[str, str] = {}
+    for index, identifier in enumerate(unique):
+        if index < n_valid:
+            assignment[identifier] = VALID
+        elif index < n_valid + n_test:
+            assignment[identifier] = TEST
+        else:
+            assignment[identifier] = TRAIN
+    return assignment

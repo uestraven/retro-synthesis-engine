@@ -36,6 +36,8 @@ from rse.hardware.profile import ProfileError, available_profiles, load_profile
 from rse.jsonio import read_json, write_json
 from rse.renderers.base import DEFAULT_SAMPLE_RATE, RenderSettings, notes_from_record
 from rse.renderers.nes_apu import NesApuRenderer
+from rse.tokenizers.tokenizer import Conditioning, RseTokenizer
+from rse.tokenizers.vocab import TokenizerConfig
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -163,6 +165,71 @@ def build_parser() -> argparse.ArgumentParser:
         help="also export to MIDI, read it back, and report any drift",
     )
     validate.set_defaults(func=cmd_validate)
+
+    train = sub.add_parser("train", help="train a composition model (requires the ml extra)")
+    train.add_argument("--profile", default="nes")
+    train.add_argument(
+        "--source",
+        default="procedural",
+        choices=("procedural", "dataset"),
+        help="synthetic corpus from the rule-based generator, or an ingested release",
+    )
+    train.add_argument("--dataset", default="nesmdb")
+    train.add_argument("--release", default="midi")
+    train.add_argument("--corpus-size", type=int, default=200, help="procedural pieces to make")
+    train.add_argument("--corpus-limit", type=int, default=None, help="cap dataset compositions")
+    train.add_argument("--window-bars", type=int, default=16)
+    train.add_argument("--steps", type=int, default=2000)
+    train.add_argument("--batch-size", type=int, default=8)
+    train.add_argument("--seq-len", type=int, default=512)
+    train.add_argument("--learning-rate", type=float, default=3e-4)
+    train.add_argument("--layers", type=int, default=6)
+    train.add_argument("--heads", type=int, default=8)
+    train.add_argument("--width", type=int, default=256, help="d_model")
+    train.add_argument("--seed", type=int, default=0)
+    train.add_argument("--device", default=None, help="cpu, cuda, or omit to detect")
+    train.add_argument(
+        "--out",
+        type=Path,
+        default=paths.CHECKPOINTS_DIR / "rse_model.pt",
+        help="checkpoint path",
+    )
+    train.set_defaults(func=cmd_train)
+
+    sample = sub.add_parser("sample", help="generate music from a trained checkpoint")
+    sample.add_argument("--profile", default="nes")
+    sample.add_argument("--checkpoint", type=Path, required=True)
+    sample.add_argument("--mood", default="unknown")
+    sample.add_argument("--energy", default="unknown")
+    sample.add_argument("--bars", type=int, default=16)
+    sample.add_argument("--tempo", type=float, default=120.0)
+    sample.add_argument("--seed", type=int, default=None)
+    sample.add_argument("--temperature", type=float, default=1.0)
+    sample.add_argument("--top-k", type=int, default=40)
+    sample.add_argument("--top-p", type=float, default=0.95)
+    sample.add_argument(
+        "--unconstrained",
+        action="store_true",
+        help="do not mask illegal tokens; shows raw model behaviour",
+    )
+    sample.add_argument("--out", type=Path, default=None, help="output basename")
+    sample.add_argument("--stems", action="store_true")
+    sample.set_defaults(func=cmd_sample)
+
+    evaluate = sub.add_parser(
+        "evaluate", help="measure a checkpoint against the rule-based baseline"
+    )
+    evaluate.add_argument("--profile", default="nes")
+    evaluate.add_argument("--checkpoint", type=Path, required=True)
+    evaluate.add_argument("--n", type=int, default=16, help="samples to draw from each")
+    evaluate.add_argument("--bars", type=int, default=16)
+    evaluate.add_argument("--temperature", type=float, default=1.0)
+    evaluate.add_argument("--seed", type=int, default=0)
+    evaluate.add_argument(
+        "--corpus-size", type=int, default=64, help="reference pieces for originality screening"
+    )
+    evaluate.add_argument("--out", type=Path, default=None, help="write the full report here")
+    evaluate.set_defaults(func=cmd_evaluate)
 
     profiles = sub.add_parser("profiles", help="list available hardware profiles")
     profiles.set_defaults(func=cmd_profiles)
@@ -552,6 +619,253 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     ok = report.ok and loop_report.ok and (round_trip is None or round_trip.ok)
     return 0 if ok else 1
+
+
+def _require_torch() -> None:
+    """Fail with instructions rather than a traceback when torch is absent."""
+    try:
+        import torch  # noqa: F401
+    except ImportError as exc:  # pragma: no cover - depends on the environment
+        raise ProfileError(
+            'this command needs PyTorch; install it with `pip install -e ".[ml]"`'
+        ) from exc
+
+
+def cmd_train(args: argparse.Namespace) -> int:
+    _require_torch()
+    from rse.models.transformer import ModelConfig
+    from rse.training.corpus import corpus_from_procedural, corpus_from_release
+    from rse.training.dataset import build_windows
+    from rse.training.train import TrainConfig, train
+
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+    tokenizer = RseTokenizer(TokenizerConfig(profile_id=profile.profile_id))
+
+    if args.source == "procedural":
+        entries, corpus_info = corpus_from_procedural(
+            profile, n=args.corpus_size, seed=args.seed, n_bars=args.window_bars
+        )
+    else:
+        entries, corpus_info = corpus_from_release(
+            args.dataset,
+            args.release,
+            datasets_dir=args.datasets_dir,
+            limit=args.corpus_limit,
+            seed=args.seed,
+        )
+
+    windows, window_stats = build_windows(entries, tokenizer, window_bars=args.window_bars)
+    if not windows:
+        print("error: the corpus produced no training windows", file=sys.stderr)
+        return 2
+
+    model_config = ModelConfig(
+        vocab_size=len(tokenizer),
+        n_layers=args.layers,
+        n_heads=args.heads,
+        d_model=args.width,
+        max_seq_len=max(args.seq_len + 1, window_stats.max_tokens),
+    )
+    train_config = TrainConfig(
+        seed=args.seed,
+        max_steps=args.steps,
+        batch_size=args.batch_size,
+        seq_len=args.seq_len,
+        learning_rate=args.learning_rate,
+        device=args.device,
+    )
+    _model, history, report = train(
+        windows,
+        tokenizer,
+        model_config=model_config,
+        config=train_config,
+        checkpoint_path=args.out,
+        progress=not args.json,
+    )
+    report["corpus"] = corpus_info.to_dict()
+    report["windows"] = window_stats.to_dict()
+    write_json(args.out.with_suffix(".report.json"), report)
+
+    if args.json:
+        _print_json(report)
+        return 0
+
+    print(f"corpus    : {corpus_info.n_compositions} compositions from {corpus_info.source}")
+    if corpus_info.synthetic:
+        print("            synthetic: this validates the training pipeline, not musical quality")
+    print(f"windows   : {window_stats.n_windows} ({window_stats.per_split})")
+    print(f"model     : {report['n_parameters']:,} parameters on {report['device']}")
+    print(
+        f"best loss : {history.best_valid_loss:.4f} at step {history.best_step}"
+        f"{' (stopped early)' if history.stopped_early else ''}"
+    )
+    print(f"time      : {history.wall_clock_sec:.1f}s")
+    print(f"checkpoint: {args.out}")
+    return 0
+
+
+def cmd_sample(args: argparse.Namespace) -> int:
+    _require_torch()
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.training.train import load_checkpoint
+
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+    model, tokenizer, payload = load_checkpoint(args.checkpoint)
+
+    conditioning = Conditioning(
+        mood=args.mood, energy=args.energy, tempo_bpm=args.tempo, n_bars=args.bars
+    )
+    config = SamplingConfig(
+        seed=args.seed,
+        temperature=args.temperature,
+        top_k=args.top_k,
+        top_p=args.top_p,
+        constrain_to_grammar=not args.unconstrained,
+    )
+    result = sample(model, tokenizer, conditioning=conditioning, config=config)
+
+    # Model output has no compliance guarantee, so it goes through the
+    # constraint engine before anything tries to render it.
+    engine = ConstraintEngine(profile)
+    playable, constraint_report = engine.apply(result.composition)
+
+    base = args.out or Path(f"rse_sample_{args.seed if args.seed is not None else 'rand'}")
+    base.parent.mkdir(parents=True, exist_ok=True)
+    record = composition_to_intake(playable, profile=profile)
+    renderer = NesApuRenderer(profile)
+    render_settings = RenderSettings(tail_sec=0.0)
+    notes = notes_from_record(record)
+    if not notes:
+        print("error: the model produced no renderable notes", file=sys.stderr)
+        return 1
+    rendered = renderer.render(notes, render_settings)
+
+    write_wav(base.with_suffix(".wav"), rendered.samples, rendered.sample_rate)
+    write_midi(base.with_suffix(".mid"), record)
+    loop_report = validate_loop(record, samples=rendered.samples, sample_rate=rendered.sample_rate)
+    payload_summary = {
+        **result.to_dict(),
+        "constraints": constraint_report.to_dict(),
+        "loop": loop_report.to_dict(),
+        "checkpoint": str(args.checkpoint),
+        "trained_on": payload.get("report", {}).get("corpus", {}),
+        "wav": str(base.with_suffix(".wav")),
+        "midi": str(base.with_suffix(".mid")),
+    }
+    write_json(base.with_suffix(".json"), {**record, "sample": payload_summary})
+
+    stem_paths: dict[str, Path] = {}
+    if args.stems:
+        stem_paths = write_stems(
+            base.parent / f"{base.name}_stems", rendered.stems, rendered.sample_rate
+        )
+
+    if args.json:
+        _print_json({**payload_summary, "stems": {k: str(v) for k, v in stem_paths.items()}})
+        return 0
+
+    print(f"sampled {len(result.ids)} tokens -> {len(playable.events)} events")
+    print(f"  {rendered.duration_sec:.1f}s, {len(notes)} notes")
+    if result.hit_token_limit:
+        print("  ! stopped at the token limit without emitting an end token")
+    if constraint_report.ok:
+        print("  hardware: playable as sampled")
+    else:
+        print(f"  hardware: repaired {constraint_report.counts()}")
+    print("  loop: " + ("clean" if loop_report.ok else "; ".join(loop_report.issues)))
+    print(f"  wav : {base.with_suffix('.wav')}")
+    print(f"  midi: {base.with_suffix('.mid')}")
+    for path in stem_paths.values():
+        print(f"  stem: {path}")
+    return 0
+
+
+def cmd_evaluate(args: argparse.Namespace) -> int:
+    _require_torch()
+    from rse.generation.plan import make_plan
+    from rse.generation.procedural import generate as generate_procedural
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.training.corpus import corpus_from_procedural
+    from rse.training.evaluate import (
+        aggregate,
+        compare,
+        corpus_fingerprints,
+        evaluate_composition,
+    )
+    from rse.training.train import load_checkpoint
+
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+    model, tokenizer, _payload = load_checkpoint(args.checkpoint)
+
+    reference, _info = corpus_from_procedural(
+        profile, n=args.corpus_size, seed=args.seed, n_bars=args.bars
+    )
+    fingerprints = corpus_fingerprints([c for c, _, _ in reference], profile)
+
+    model_metrics = []
+    for index in range(args.n):
+        result = sample(
+            model,
+            tokenizer,
+            conditioning=Conditioning(n_bars=args.bars),
+            config=SamplingConfig(seed=args.seed + index, temperature=args.temperature),
+        )
+        model_metrics.append(
+            evaluate_composition(result.composition, profile, corpus_fingerprints=fingerprints)
+        )
+
+    baseline_metrics = []
+    for index in range(args.n):
+        generated = generate_procedural(
+            profile, make_plan(seed=900_000 + args.seed + index, n_bars=args.bars)
+        )
+        baseline_metrics.append(
+            evaluate_composition(
+                composition_from_intake(generated.record),
+                profile,
+                corpus_fingerprints=fingerprints,
+            )
+        )
+
+    comparison = compare(
+        aggregate("rule-based baseline", baseline_metrics),
+        aggregate("model", model_metrics),
+    )
+    if args.out:
+        write_json(
+            args.out,
+            {
+                "comparison": comparison,
+                "model_metrics": [m.to_dict() for m in model_metrics],
+                "baseline_metrics": [m.to_dict() for m in baseline_metrics],
+            },
+        )
+
+    if args.json:
+        _print_json(comparison)
+        return 0
+
+    baseline = comparison["baseline"]
+    candidate = comparison["candidate"]
+    print(f"{args.n} samples each, {args.bars} bars\n")
+    print(f"  {'metric':<26}{'baseline':>12}{'model':>12}{'delta':>10}")
+    for name in sorted(baseline["means"]):
+        base_value = baseline["means"].get(name, 0.0)
+        model_value = candidate["means"].get(name, 0.0)
+        print(
+            f"  {name:<26}{base_value:>12.3f}{model_value:>12.3f}{model_value - base_value:>+10.3f}"
+        )
+    for name in sorted(baseline["rates"]):
+        base_value = baseline["rates"].get(name, 0.0)
+        model_value = candidate["rates"].get(name, 0.0)
+        print(
+            f"  {name:<26}{base_value:>11.0%}{model_value:>12.0%}{model_value - base_value:>+10.0%}"
+        )
+    print(f"\n  technical bar: {comparison['technical_bar']}")
+    print(f"  clears it: {comparison['clears_technical_bar']}")
+    if args.out:
+        print(f"  report: {args.out}")
+    return 0 if comparison["clears_technical_bar"] else 1
 
 
 def cmd_profiles(args: argparse.Namespace) -> int:

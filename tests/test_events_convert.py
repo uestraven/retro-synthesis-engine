@@ -172,9 +172,20 @@ def test_timing_drift_beyond_tolerance_is_caught():
     assert not exact.ok
     assert exact.missing  # too far to match at all under exact tolerance
 
+    # A tolerance is a budget: a 5-tick shift inside an 8-tick budget is
+    # acceptable, so it is counted but must not fail the report.
     loose = compare_compositions(base(), shifted, tolerance=Tolerance(timing_ticks=8))
     assert loose.n_matched == 1
-    assert loose.drifted and loose.drifted[0]["drift"]["tick"] == 5
+    assert loose.drifted == []
+    assert loose.n_within_tolerance == 1
+    assert loose.ok
+
+    # Narrower than the shift: the event is now too far away to be identified
+    # as the same one, so it reads as loss rather than drift.
+    tight = compare_compositions(base(), shifted, tolerance=Tolerance(timing_ticks=2))
+    assert not tight.ok
+    assert tight.missing and tight.added
+    assert tight.n_matched == 0
 
 
 def test_velocity_drift_is_reported_as_drift_not_loss():
