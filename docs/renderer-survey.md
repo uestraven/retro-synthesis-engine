@@ -101,13 +101,20 @@ more coarsely than hardware and made high notes measurably wrong — MIDI 93 and
 104 could not be measured as their own pitch at all. Counting phase in CPU
 cycles fixed it; those notes now land within 0.3%.
 
+## Listening check
+
+Confirmed by ear on 2026-10-23: a generated 16-bar piece rendered through this
+backend "sounds like NES" to a listener who knows the platform. That is the
+check the numerical tests cannot make, and it is what retires the renderer as a
+project risk.
+
 ## What this does not prove
 
-The renderer produces the right *frequencies*, with the right timing, and
-plausibly NES-like timbre. Nobody has yet compared it against a real NES
-recording. The honest next test is the one that needs the real dataset: render
-an existing NES-MDB composition and A/B it against that song's own VGM
-reference. Until then, "sounds authentic" is an expectation, not a measurement.
+Sounding like the platform is not the same as matching a specific song. Nobody
+has yet A/B'd this renderer against a real NES recording of the *same* music;
+that test needs NES-MDB, and it is what would turn "sounds right" into a
+measurement. Timbre accuracy per channel, relative channel balance, and the
+missing envelopes are all still unquantified.
 
 The missing envelopes are the likeliest source of a gap. Without them,
 sustained notes hold a flat level where real NES instruments decay, which tends
