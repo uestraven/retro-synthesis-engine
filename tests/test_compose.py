@@ -167,3 +167,52 @@ def test_model_compose_runs_output_through_the_constraint_engine(nes_profile, tm
     from rse.hardware.constraints import ConstraintEngine
 
     assert ConstraintEngine(nes_profile).validate(to_composition(result.record)) == []
+
+
+# -- mix and audition ---------------------------------------------------------
+
+
+def test_channel_selection_validates():
+    with pytest.raises(ValueError, match="channels cannot be empty"):
+        ComposeRequest(channels=())
+    with pytest.raises(ValueError, match="audition_repeats"):
+        ComposeRequest(audition_repeats=0)
+
+
+def test_muting_a_channel_changes_the_audio(nes_profile):
+    full = compose(ComposeRequest(seed=3, bars=4), profile=nes_profile)
+    without_drums = compose(
+        ComposeRequest(seed=3, bars=4, channels=("P1", "P2", "TR")), profile=nes_profile
+    )
+    assert not np.array_equal(full.samples, without_drums.samples)
+
+
+def test_muting_re_renders_rather_than_zeroing_a_stem(nes_profile):
+    """So the APU's nonlinear mixing still applies to what is left."""
+    both = compose(ComposeRequest(seed=3, bars=4, channels=("P1", "P2")), profile=nes_profile)
+    one = compose(ComposeRequest(seed=3, bars=4, channels=("P1",)), profile=nes_profile)
+    # Two pulses mixed nonlinearly are not twice one pulse, so the solo cannot
+    # be a simple scaling of the pair.
+    assert not np.allclose(both.samples, one.samples * 2, atol=0.05)
+
+
+def test_soloing_a_silent_channel_is_an_error(nes_profile):
+    with pytest.raises(ValueError, match="no renderable notes"):
+        compose(
+            ComposeRequest(source=RULES, seed=3, bars=4, channels=("DMC",)),
+            profile=nes_profile,
+        )
+
+
+def test_auditioning_repeats_the_audio(nes_profile):
+    once = compose(ComposeRequest(seed=5, bars=4), profile=nes_profile)
+    thrice = compose(ComposeRequest(seed=5, bars=4, audition_repeats=3), profile=nes_profile)
+    assert thrice.samples.size == once.samples.size * 3
+    assert np.array_equal(thrice.samples[: once.samples.size], once.samples)
+
+
+def test_the_loop_report_describes_one_pass_not_the_audition(nes_profile):
+    """Otherwise repeating a clean loop would look like a three-times-longer one."""
+    once = compose(ComposeRequest(seed=5, bars=4), profile=nes_profile)
+    thrice = compose(ComposeRequest(seed=5, bars=4, audition_repeats=3), profile=nes_profile)
+    assert once.loop_report.to_dict() == thrice.loop_report.to_dict()

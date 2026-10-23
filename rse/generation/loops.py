@@ -131,6 +131,21 @@ def trailing_silence_sec(samples: np.ndarray, sample_rate: int) -> float:
     return float(array.size - 1 - sounding[-1]) / sample_rate
 
 
+def tile_for_audition(samples: np.ndarray, repeats: int = 3) -> np.ndarray:
+    """Repeat a loop end to end so the seam can be heard rather than measured.
+
+    The seam is the one part of a loop that no single playthrough reveals: a
+    piece can measure clean and still pump or click on the wrap. Playing it
+    three times is how a person checks.
+    """
+    if repeats < 1:
+        raise ValueError(f"repeats must be at least 1, got {repeats}")
+    array = np.asarray(samples)
+    if array.size == 0 or repeats == 1:
+        return array
+    return np.tile(array, repeats)
+
+
 def validate_loop(
     record: dict[str, Any],
     *,

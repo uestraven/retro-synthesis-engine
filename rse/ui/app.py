@@ -25,6 +25,7 @@ from rse import paths
 from rse.compose import MODEL, RULES, ComposeRequest, ComposeResult, compose
 from rse.generation.plan import ENERGIES, LENGTHS, MOODS
 from rse.hardware.profile import HardwareProfile, available_profiles, load_profile
+from rse.ui.pianoroll import legend, render_pianoroll
 
 #: Private by default. Not a placeholder — the deliverable's default.
 DEFAULT_HOST = "127.0.0.1"
@@ -156,6 +157,8 @@ def build_app(config: UiConfig | None = None, profile: HardwareProfile | None = 
         temperature: float,
         top_k: int,
         stems: bool,
+        channels_on: list[str],
+        audition_repeats: int,
     ):
         source = MODEL if source_label.startswith("Model") else RULES
         if source == MODEL and not checkpoint:
@@ -177,6 +180,8 @@ def build_app(config: UiConfig | None = None, profile: HardwareProfile | None = 
             temperature=float(temperature),
             top_k=int(top_k) if top_k else None,
             stems=bool(stems),
+            channels=tuple(channels_on) if channels_on else None,
+            audition_repeats=int(audition_repeats),
         )
         stem = f"{source}_{request.seed if request.seed is not None else 'random'}"
         try:
@@ -193,6 +198,7 @@ def build_app(config: UiConfig | None = None, profile: HardwareProfile | None = 
         downloads += list(result.stems.values())
         return (
             str(result.wav),
+            render_pianoroll(result.record),
             describe(result),
             channel_rows(result),
             [str(p) for p in downloads],
@@ -234,10 +240,30 @@ def build_app(config: UiConfig | None = None, profile: HardwareProfile | None = 
                 with gr.Accordion("Model sampling", open=False):
                     temperature = gr.Slider(0.1, 2.0, value=1.0, step=0.05, label="Temperature")
                     top_k = gr.Slider(0, 200, value=40, step=1, label="Top-k (0 for off)")
+                with gr.Accordion("Mix and audition", open=False):
+                    channels_on = gr.CheckboxGroup(
+                        choices=list(profile.channel_ids),
+                        value=list(profile.channel_ids),
+                        label="Channels",
+                        info="Unticking re-renders without that channel, so the "
+                        "APU's nonlinear mixing still applies to the rest.",
+                    )
+                    audition_repeats = gr.Slider(
+                        1,
+                        4,
+                        value=1,
+                        step=1,
+                        label="Play the loop N times",
+                        info="The seam is the part no single playthrough reveals.",
+                    )
                 stems = gr.Checkbox(value=False, label="Also write per-channel stems")
                 generate_button = gr.Button("Generate", variant="primary")
             with gr.Column(scale=2):
                 audio = gr.Audio(label="Result", type="filepath", interactive=False)
+                pianoroll = gr.Image(
+                    label="Piano roll", type="numpy", interactive=False, height=320
+                )
+                gr.Markdown(legend())
                 summary = gr.Markdown()
                 channels = gr.Dataframe(
                     headers=["Channel", "Role", "Notes", "Range", "Max poly", "Overlaps"],
@@ -276,8 +302,10 @@ def build_app(config: UiConfig | None = None, profile: HardwareProfile | None = 
                 temperature,
                 top_k,
                 stems,
+                channels_on,
+                audition_repeats,
             ],
-            outputs=[audio, summary, channels, files, report],
+            outputs=[audio, pianoroll, summary, channels, files, report],
         )
     return app
 

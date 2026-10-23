@@ -19,7 +19,7 @@ from typing import Any
 from rse.events.convert import composition_to_intake
 from rse.exporters.midi import write_midi
 from rse.exporters.wav import write_stems, write_wav
-from rse.generation.loops import LoopReport, validate_loop
+from rse.generation.loops import LoopReport, tile_for_audition, validate_loop
 from rse.generation.plan import PlanSummary, make_plan
 from rse.generation.procedural import generate as generate_procedural
 from rse.hardware.constraints import ConstraintEngine, ValidationReport
@@ -60,6 +60,12 @@ class ComposeRequest:
     duty_p1: int | None = None
     duty_p2: int | None = None
     stems: bool = False
+    #: Channels to sound. None means all of them. Muting re-renders rather
+    #: than zeroing a stem, so the APU's nonlinear mixing still applies to
+    #: whatever is left: two pulses muted to one is not simply half as loud.
+    channels: tuple[str, ...] | None = None
+    #: Repeat the rendered audio this many times, to audition the loop seam.
+    audition_repeats: int = 1
 
     def __post_init__(self) -> None:
         if self.source not in SOURCES:
@@ -68,6 +74,10 @@ class ComposeRequest:
             raise ValueError("the model source needs a checkpoint")
         if self.bars < 1:
             raise ValueError(f"bars must be positive, got {self.bars}")
+        if self.channels is not None and not self.channels:
+            raise ValueError("channels cannot be empty; omit it to sound all of them")
+        if self.audition_repeats < 1:
+            raise ValueError(f"audition_repeats must be at least 1, got {self.audition_repeats}")
 
 
 @dataclass
@@ -160,6 +170,9 @@ def compose(
         },
     )
     notes = notes_from_record(record)
+    if request.channels is not None:
+        wanted = set(request.channels)
+        notes = [note for note in notes if note.channel_id in wanted]
     if not notes:
         raise ValueError("that composition contains no renderable notes")
     # A looping piece must not end in silence, or the repeat leaves a gap.
@@ -175,9 +188,13 @@ def compose(
         renderer_id=rendered.renderer_id,
         warnings=list(rendered.warnings),
     )
+    # Measured on one pass, before any auditioning repeats, so the numbers
+    # describe the loop itself.
     result.loop_report = validate_loop(
         record, samples=rendered.samples, sample_rate=rendered.sample_rate
     )
+    if request.audition_repeats > 1:
+        result.samples = tile_for_audition(rendered.samples, request.audition_repeats)
 
     if out_base is not None:
         _write(result, request, out_base, rendered)
