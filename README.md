@@ -23,7 +23,7 @@ rse generate --mood dark --energy high --bars 16
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Repository, environment, dataset ingestion, statistics, provenance | **done** |
-| 2 | Canonical RSE Event Format, hardware validator | not started |
+| 2 | Canonical RSE Event Format, hardware validator | **done** |
 | 3 | Rule-based generator, NES renderer, exports | **done** |
 | 4 | Tokenizer, Transformer training and inference | not started |
 | 5 | Gradio interface | not started |
@@ -105,6 +105,7 @@ rse fetch    acquire a release, extract it safely, write a provenance manifest
 rse ingest   parse, normalize, measure and de-duplicate a fetched release
 rse inspect  summarize a processed release, or one MIDI file with --file
 rse generate compose an original piece: plan, notes, audio, MIDI, loop check
+rse validate check a composition against the hardware profile and its loop
 rse render   synthesize NES audio from a MIDI file or an intake record
 rse profiles list hardware profiles and their channel limits
 ```
@@ -127,8 +128,8 @@ $ rse inspect --file datasets/raw/nesmdb/midi/train/some_song.mid
 ```
 rse/
   data/        acquisition, MIDI parsing, normalization, stats, de-duplication
-  hardware/    versioned hardware profiles (Phase 2 adds the constraint engine)
-  events/      canonical RSE Event Format            — Phase 2
+  hardware/    profiles and the constraint engine     — working
+  events/      canonical RSE Event Format (RSE-EF)    — working
   tokenizers/  symbolic tokenization                 — Phase 4
   models/      Transformer definitions               — Phase 4
   training/    training and evaluation               — Phase 4
@@ -181,7 +182,7 @@ against real numbers from a real dataset.
 ## Development
 
 ```bash
-.venv/bin/python -m pytest          # 287 tests, no dataset required
+.venv/bin/python -m pytest          # 357 tests, no dataset required
 .venv/bin/python -m ruff check .
 .venv/bin/python -m ruff format .
 ```

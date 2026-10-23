@@ -19,11 +19,19 @@ from rse.data.midi_io import MidiParseError, parse_midi
 from rse.data.normalize import build_intake_record
 from rse.data.pipeline import IngestConfig, ingest_release, processed_dir
 from rse.data.provenance import USE_UNKNOWN, describe_file
+from rse.events.convert import (
+    composition_from_intake,
+    composition_from_midi,
+    composition_to_intake,
+    round_trip_midi,
+)
+from rse.events.schema import Composition
 from rse.exporters.midi import write_midi
 from rse.exporters.wav import write_stems, write_wav
 from rse.generation.loops import validate_loop
 from rse.generation.plan import ENERGIES, FORMS, LENGTHS, MOODS, PlanSummary, make_plan
 from rse.generation.procedural import generate
+from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import ProfileError, available_profiles, load_profile
 from rse.jsonio import read_json, write_json
 from rse.renderers.base import DEFAULT_SAMPLE_RATE, RenderSettings, notes_from_record
@@ -133,6 +141,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-loop", action="store_true", help="do not mark or validate the piece as a loop"
     )
     generate.set_defaults(func=cmd_generate)
+
+    validate = sub.add_parser(
+        "validate",
+        help="check a composition against the hardware profile and its loop boundary",
+    )
+    validate.add_argument("--profile", default="nes")
+    validate.add_argument("--file", type=Path, default=None, help="a MIDI file to check")
+    validate.add_argument(
+        "--record", type=Path, default=None, help="an intake record or RSE-EF document"
+    )
+    validate.add_argument(
+        "--fix",
+        type=Path,
+        default=None,
+        help="write a repaired RSE-EF document to this path",
+    )
+    validate.add_argument(
+        "--round-trip",
+        action="store_true",
+        help="also export to MIDI, read it back, and report any drift",
+    )
+    validate.set_defaults(func=cmd_validate)
 
     profiles = sub.add_parser("profiles", help="list available hardware profiles")
     profiles.set_defaults(func=cmd_profiles)
@@ -449,6 +479,79 @@ def cmd_generate(args: argparse.Namespace) -> int:
         for issue in loop_report.issues:
             print(f"  loop! {issue}")
     return 0 if loop_report.ok else 1
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    if (args.file is None) == (args.record is None):
+        print(
+            "error: pass exactly one of --file (MIDI) or --record (intake record or RSE-EF)",
+            file=sys.stderr,
+        )
+        return 2
+
+    profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
+    if args.file is not None:
+        composition = composition_from_midi(args.file, profile)
+    else:
+        data = read_json(args.record)
+        # Accept either representation: an RSE-EF document declares its own
+        # schema version, an intake record does not.
+        if str(data.get("schema_version", "")).startswith("rse-ef/"):
+            composition = Composition.from_dict(data)
+        else:
+            composition = composition_from_intake(data)
+
+    engine = ConstraintEngine(profile)
+    repaired, report = engine.apply(composition)
+    loop_report = validate_loop(composition_to_intake(composition, profile=profile))
+
+    round_trip = None
+    if args.round_trip:
+        _, round_trip = round_trip_midi(repaired, profile)
+
+    if args.fix is not None:
+        write_json(args.fix, repaired.to_dict())
+
+    payload = {
+        "profile": profile.profile_id,
+        "schema_version": composition.schema_version,
+        "n_events": len(composition.events),
+        "constraints": report.to_dict(),
+        "loop": loop_report.to_dict(),
+        "round_trip": None if round_trip is None else round_trip.to_dict(),
+        "fixed": None if args.fix is None else str(args.fix),
+    }
+    if args.json:
+        _print_json(payload)
+    else:
+        print(f"{len(composition.events)} events, profile {profile.profile_id}")
+        if report.ok:
+            print("  hardware: playable as written")
+        else:
+            print(
+                f"  hardware: {len(report.violations)} violation(s), "
+                f"{len(report.modifications)} change(s) to fix them {report.counts()}"
+            )
+            for modification in report.modifications[:10]:
+                print(
+                    f"    {modification.kind:<11}{modification.channel_id:<4}"
+                    f"@{modification.tick:<8}{modification.detail}"
+                )
+            extra = len(report.modifications) - 10
+            if extra > 0:
+                print(f"    ... and {extra} more")
+        print("  loop: " + ("clean" if loop_report.ok else "; ".join(loop_report.issues)))
+        if round_trip is not None:
+            print(
+                f"  round trip: {'lossless' if round_trip.ok else 'LOSSY'} "
+                f"({round_trip.n_matched}/{round_trip.n_original} events matched"
+                f"{'' if round_trip.ok else f', {len(round_trip.drifted)} drifted'})"
+            )
+        if args.fix is not None:
+            print(f"  repaired: {args.fix}")
+
+    ok = report.ok and loop_report.ok and (round_trip is None or round_trip.ok)
+    return 0 if ok else 1
 
 
 def cmd_profiles(args: argparse.Namespace) -> int:

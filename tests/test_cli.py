@@ -312,6 +312,82 @@ def test_generate_rejects_an_unsupported_length(tmp_path):
         main(["generate", "--bars", "7", "--out", str(tmp_path / "x")])
 
 
+def test_validate_a_clean_midi_file(midi_path, capsys):
+    assert main(["validate", "--file", str(midi_path), "--round-trip"]) == 0
+    out = capsys.readouterr().out
+    assert "hardware: playable as written" in out
+    assert "loop: clean" in out
+    assert "round trip: lossless" in out
+
+
+def test_validate_a_generated_piece(tmp_path, capsys):
+    base = tmp_path / "piece"
+    main(["generate", "--seed", "17", "--bars", "8", "--out", str(base)])
+    capsys.readouterr()
+    assert main(["validate", "--record", str(base.with_suffix(".json")), "--round-trip"]) == 0
+    assert "playable as written" in capsys.readouterr().out
+
+
+def test_validate_repairs_broken_input_and_can_write_the_fix(tmp_path, capsys):
+    from rse.events.schema import Composition, Note
+    from rse.jsonio import write_json
+
+    broken = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        loop_start_tick=0,
+        loop_end_tick=960,
+        events=[
+            Note(channel_id="P1", tick=0, pitch=12, duration=1200, velocity=100),
+            Note(channel_id="P1", tick=240, pitch=64, duration=240, velocity=90),
+        ],
+    )
+    path = write_json(tmp_path / "broken.json", broken.to_dict())
+    fixed = tmp_path / "fixed.json"
+    assert main(["validate", "--record", str(path), "--fix", str(fixed)]) == 1
+    out = capsys.readouterr().out
+    assert "violation(s)" in out
+    assert "transposed" in out
+
+    repaired = Composition.from_dict(json.loads(fixed.read_text()))
+    from rse.hardware.constraints import ConstraintEngine
+
+    engine = ConstraintEngine(paths_profile())
+    assert engine.validate(repaired) == []
+
+
+def paths_profile():
+    from rse.hardware.profile import load_profile
+
+    return load_profile("nes", configs_dir=paths.HARDWARE_CONFIGS_DIR)
+
+
+def test_validate_accepts_an_rse_ef_document(midi_path, tmp_path):
+    """`validate` must take either representation, told apart by schema_version."""
+    from rse.events.convert import composition_from_midi
+    from rse.jsonio import write_json
+
+    composition = composition_from_midi(midi_path, paths_profile())
+    path = write_json(tmp_path / "ef.json", composition.to_dict())
+    assert path.is_file()
+    assert main(["validate", "--record", str(path)]) == 0
+
+
+def test_validate_needs_exactly_one_input(midi_path, capsys):
+    assert main(["validate"]) == 2
+    assert "exactly one of" in capsys.readouterr().err
+    assert main(["validate", "--file", str(midi_path), "--record", str(midi_path)]) == 2
+
+
+def test_validate_json_mode_is_machine_readable(midi_path, capsys):
+    assert main(["--json", "validate", "--file", str(midi_path), "--round-trip"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["constraints"]["ok"] is True
+    assert payload["round_trip"]["ok"] is True
+    assert payload["loop"]["ok"] is True
+    assert payload["schema_version"].startswith("rse-ef/")
+
+
 def test_render_json_mode_is_machine_readable(midi_path, tmp_path, capsys):
     out = tmp_path / "song.wav"
     assert main(["--json", "render", "--file", str(midi_path), "--out", str(out)]) == 0
