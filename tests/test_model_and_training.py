@@ -498,9 +498,20 @@ def test_channel_temperature_is_recorded(tokenizer, tiny_config):
 
 
 def test_a_channel_override_changes_only_that_channel(tokenizer, tiny_config):
-    """The noise collapse is channel-specific, so the fix must be too."""
+    """The noise collapse is channel-specific, so the fix must be too.
+
+    The model is seeded explicitly: an unseeded one draws its weights from
+    global torch RNG, so whether a random model happens to emit a noise note
+    inside the token budget depended on which tests ran first. This passed or
+    failed by luck, and a vocabulary change that shifted token ids exposed it.
+    """
+    torch.manual_seed(0)
     model = RseTransformer(tiny_config).eval()
     base = sample(model, tokenizer, config=SamplingConfig(seed=3, temperature=0.7, max_tokens=400))
+    # The override can only bite if a noise note is actually sampled.
+    assert any(tokenizer.vocabulary.token_of(i) == "Channel_NO" for i in base.ids), (
+        "no noise note sampled, so this test would pass vacuously"
+    )
     overridden = sample(
         model,
         tokenizer,

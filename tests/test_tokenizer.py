@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from rse.events.convert import Tolerance, compare_compositions, composition_from_intake
+from rse.events.convert import composition_from_intake
 from rse.events.schema import Composition, Noise, Note
 from rse.generation.plan import make_plan
 from rse.generation.procedural import generate
@@ -230,13 +230,50 @@ def test_round_trip_preserves_every_note(tokenizer, composition):
     assert len(decoded.composition.sounding_events()) == len(composition.sounding_events())
 
 
-def test_round_trip_is_within_a_stated_tolerance(tokenizer, composition):
-    """One grid step of timing, one step of duration, one velocity bucket."""
+def test_round_trip_preserves_the_music_in_rows(tokenizer, composition):
+    """The round-trip contract is musical, not tick-exact.
+
+    Since the grid is each piece's own tracker row, `decode` writes canonical
+    ticks and a Tempo that compensates — so ticks legitimately change while the
+    music does not. Comparing in rows is what holds, and it is also
+    tempo-independent, which matters because the Tempo token is bucketed and a
+    2% bucket error is enough to make a comparison in seconds drift apart.
+    """
+    encoded = tokenizer.encode(composition)
+    decoded = tokenizer.decode(encoded.ids)
+    fit = tokenizer.fit_grid(composition)
+
+    def rows(comp, step_ticks):
+        events = comp.sounding_events()
+        first = min(e.tick for e in events)
+        return {
+            (
+                round((e.tick - first) / step_ticks),
+                e.channel_id,
+                e.pitch if isinstance(e, Note) else e.value,
+            )
+            for e in events
+        }
+
+    original = rows(composition, fit.step_ticks)
+    result = rows(decoded.composition, tokenizer.ticks_per_step(decoded.composition.ticks_per_beat))
+    # Nothing invented, and nothing lost beyond the intra-row writes that the
+    # encoder deliberately folds together.
+    assert result <= original, result - original
+    assert len(result) >= len(original) - encoded.n_rows_collapsed
+
+
+def test_round_trip_keeps_velocity_within_its_bucket(tokenizer, composition):
+    """Velocity survives to the bucket, which is all the vocabulary carries."""
     decoded = tokenizer.decode(tokenizer.encode(composition).ids)
-    tolerance = Tolerance(timing_ticks=60, duration_ticks=120, velocity=16)
-    report = compare_compositions(composition, decoded.composition, tolerance=tolerance)
-    assert report.ok, report.to_dict()
-    assert report.n_matched == len(composition.sounding_events())
+    buckets: dict[tuple[str, int], set[int]] = {}
+    for event in composition.sounding_events():
+        key = (event.channel_id, event.pitch if isinstance(event, Note) else event.value)
+        buckets.setdefault(key, set()).add(tokenizer.velocity_bucket(event.velocity))
+    for event in decoded.composition.sounding_events():
+        key = (event.channel_id, event.pitch if isinstance(event, Note) else event.value)
+        assert key in buckets
+        assert tokenizer.velocity_bucket(event.velocity) in buckets[key]
 
 
 def test_noise_decodes_as_noise_not_pitch(tokenizer, composition):
@@ -251,9 +288,15 @@ def test_tempo_and_loop_survive_the_round_trip(tokenizer, composition):
     decoded = tokenizer.decode(tokenizer.encode(composition).ids)
     assert decoded.composition.loop_start_tick == 0
     assert decoded.composition.loop_end_tick is not None
-    original_bpm = 60_000_000 / composition.tempo_map[0].us_per_beat
+    # Tempo describes the fitted row rate, not the source file's tempo map.
+    # NES-MDB's map is useless for this — every file claims 120 BPM — and the
+    # row rate is what `decode` needs to turn rows back into seconds. Whether a
+    # detected row is a sixteenth or an eighth is not knowable, so the number
+    # can differ from the composer's intent by a factor of two while the piece
+    # still plays at the right speed.
+    fit = tokenizer.fit_grid(composition)
     decoded_bpm = 60_000_000 / decoded.composition.tempo_map[0].us_per_beat
-    assert decoded_bpm == pytest.approx(original_bpm, abs=5)  # tempo is bucketed
+    assert decoded_bpm == pytest.approx(fit.bpm, rel=0.03)  # geometric buckets
 
 
 def test_decoding_tolerates_garbage(tokenizer, composition):
@@ -454,3 +497,97 @@ def test_a_section_may_open_a_later_bar_too(tokenizer):
         assert grammar.advance(token), token
     assert grammar.advance("Section_B")
     assert grammar.advance("Bar")
+
+
+# -- the tracker row grid -----------------------------------------------------
+
+
+def row_composition(row_ticks, n_rows, *, ticks_per_beat=480, phase=0):
+    """Notes one per row, which is what a tracker produces."""
+    return Composition(
+        hardware_profile="nes",
+        ticks_per_beat=ticks_per_beat,
+        events=[
+            Note(
+                channel_id="P1",
+                tick=phase + int(round(i * row_ticks)),
+                pitch=60 + i % 7,
+                duration=int(row_ticks),
+                velocity=100,
+            )
+            for i in range(n_rows)
+        ],
+    )
+
+
+def test_the_grid_is_fitted_to_the_row_not_the_source_frame():
+    """NES music advances one row every few video frames; the row is the unit
+    the tokenizer should step on, not whatever the source file sampled at."""
+    tokenizer = RseTokenizer()
+    fit = tokenizer.fit_grid(row_composition(240, 64))
+    assert fit.aligned
+    assert fit.step_ticks == pytest.approx(240, rel=0.01)
+
+
+def test_the_tempo_follows_from_the_row_length():
+    """Four rows to a beat, so BPM = 15 / row_seconds. A 0.1 s row is 150 BPM,
+    which is FamiTracker's default of speed 6 at 60 Hz."""
+    tokenizer = RseTokenizer()
+    # 480 ticks/beat at 120 BPM is 960 ticks/sec, so 96 ticks is 0.1 s.
+    fit = tokenizer.fit_grid(row_composition(96, 80))
+    assert fit.period_sec == pytest.approx(0.1, rel=0.02)
+    assert fit.bpm == pytest.approx(150.0, rel=0.02)
+
+
+def test_an_unfittable_composition_falls_back_to_the_old_grid():
+    """A single note cannot imply a row, and the encoder must still work."""
+    tokenizer = RseTokenizer()
+    lonely = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[Note(channel_id="P1", tick=0, pitch=60, duration=120, velocity=100)],
+    )
+    fit = tokenizer.fit_grid(lonely)
+    assert not fit.aligned
+    assert fit.step_ticks == tokenizer.ticks_per_step(480)
+
+
+def test_the_fit_can_be_turned_off_for_the_training_comparison():
+    from rse.tokenizers.vocab import TokenizerConfig
+
+    tokenizer = RseTokenizer(TokenizerConfig(aligned_grid=False))
+    assert not tokenizer.fit_grid(row_composition(240, 64)).aligned
+
+
+def test_several_events_in_one_row_collapse_to_one_note_per_channel():
+    """A tracker row holds one note per channel, so extra events inside a row
+    are vibrato or arpeggio writes. Emitting them all would put a chord on a
+    monophonic channel, which the hardware cannot play."""
+    tokenizer = RseTokenizer()
+    composition = row_composition(240, 64)
+    # An arpeggio write a third of a row after each of the first four notes.
+    for i in range(4):
+        composition.events.append(
+            Note(channel_id="P1", tick=i * 240 + 80, pitch=72, duration=80, velocity=100)
+        )
+    encoded = tokenizer.encode(composition)
+    assert encoded.n_rows_collapsed == 4
+    assert "Pitch_72" not in encoded.tokens
+
+
+def test_the_first_sounding_row_is_bar_zero_position_zero():
+    """Counting from the fitted phase is unstable: the phase is only defined
+    modulo the row, so two fits of the same music can differ by one position."""
+    tokenizer = RseTokenizer()
+    for phase in (0, 97, 239):
+        tokens = tokenizer.encode(row_composition(240, 64, phase=phase)).tokens
+        assert tokens[tokens.index("Bar") + 1] == "Position_0", phase
+
+
+def test_encoding_is_stable_when_repeated():
+    """The gate that caught both earlier designs: encode, decode, encode again."""
+    tokenizer = RseTokenizer()
+    composition = row_composition(240, 64)
+    first = tokenizer.encode(composition).tokens
+    second = tokenizer.encode(tokenizer.decode(first).composition).tokens
+    assert first == second

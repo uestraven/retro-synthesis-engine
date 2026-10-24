@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from rse.data.timing import TempoChange, TimeSignatureChange
+from rse.events.pulse import detect_pulse
 from rse.events.schema import Composition, Noise, Note, SectionSpan
 from rse.jsonio import read_json, write_json
 from rse.tokenizers.grammar import TokenGrammar
@@ -43,6 +44,20 @@ from rse.tokenizers.vocab import (
 
 DEFAULT_TICKS_PER_BEAT = 480
 
+#: The tracker convention NES music is authored under. A music engine advances
+#: one row every `Tick Speed` video frames, and a row is a sixteenth: 4 rows to
+#: a beat, 16 to a bar in 4/4. FamiTracker's defaults are Tick Speed 6 at 60 Hz,
+#: giving a 0.1 s row and 150 BPM, and the corpus agrees — of 160 NES-MDB pieces
+#: with a whole-frame grid, the modal row is 6 frames (150.2 BPM) in 43 of them,
+#: then 8 (112.7 BPM), 10 (90.1), 7 (128.8), 5 (180.3), 12 (75.1), 4 (225.4).
+#: Those are Tick Speed values, not arbitrary periods.
+#:
+#: So the bar is not a quantity to detect. `rse.events.bar` was written to
+#: measure it and was weak at exactly that; its common 32-row repeat is a
+#: two-bar phrase, which is a form signal rather than a bar length.
+ROWS_PER_BEAT = 4
+ROWS_PER_BAR = 16
+
 
 @dataclass
 class Conditioning:
@@ -62,6 +77,45 @@ class Conditioning:
         }
 
 
+@dataclass(frozen=True)
+class GridFit:
+    """The row grid one composition is encoded against."""
+
+    #: Ticks in one row. Fractional: a fitted row is not a whole number of
+    #: ticks, and rounding it accumulates drift across a piece.
+    step_ticks: float
+    #: Where the first row starts, in ticks.
+    phase_ticks: float
+    #: Whether the row was fitted, or fell back to one step per source frame.
+    aligned: bool
+    #: Row length in seconds, which fixes the tempo.
+    period_sec: float = 0.0
+
+    def row_of(self, tick: int) -> int:
+        return int(round((tick - self.phase_ticks) / self.step_ticks))
+
+    def tick_of(self, row: int) -> int:
+        return int(round(self.phase_ticks + row * self.step_ticks))
+
+    @property
+    def bpm(self) -> float:
+        """Quarter-note tempo implied by the row length.
+
+        Four rows to a beat, so `BPM = 15 / row_seconds`. This matches
+        FamiTracker's `BPM = 6 * Module Tempo / Tick Speed` at its defaults.
+        """
+        return 60.0 / (self.period_sec * ROWS_PER_BEAT) if self.period_sec > 0 else 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "step_ticks": round(self.step_ticks, 4),
+            "phase_ticks": round(self.phase_ticks, 4),
+            "aligned": self.aligned,
+            "row_sec": round(self.period_sec, 5),
+            "bpm": round(self.bpm, 2),
+        }
+
+
 @dataclass
 class EncodedComposition:
     """A token sequence plus what encoding it cost."""
@@ -75,6 +129,9 @@ class EncodedComposition:
     total_start_error_ticks: int = 0
     n_duration_clamped: int = 0
     n_out_of_range: int = 0
+    #: Events folded into an earlier note on the same row and channel,
+    #: which are vibrato and arpeggio writes rather than notes.
+    n_rows_collapsed: int = 0
     warnings: list[str] = field(default_factory=list)
 
     def __len__(self) -> int:
@@ -94,6 +151,7 @@ class EncodedComposition:
             "mean_start_error_ticks": round(self.mean_start_error_ticks, 3),
             "n_duration_clamped": self.n_duration_clamped,
             "n_out_of_range": self.n_out_of_range,
+            "n_rows_collapsed": self.n_rows_collapsed,
             "conditioning": self.conditioning.to_dict(),
             "warnings": self.warnings[:20],
         }
@@ -140,6 +198,40 @@ class RseTokenizer:
             )
         return step
 
+    def fit_grid(self, composition: Composition) -> GridFit:
+        """Find the tracker row a composition is written on.
+
+        Falls back to one step per source frame when no row is found, which is
+        the old fixed-grid encoding. The fallback matters: NES-MDB's exprsco
+        release samples at 24 Hz, and a row is exactly representable there only
+        when it is a multiple of 2.5 frames, which 82% of rows are not — so on
+        that release the fit often declines and the legacy grid stands in.
+        """
+        legacy = GridFit(
+            step_ticks=float(self.ticks_per_step(composition.ticks_per_beat)),
+            phase_ticks=0.0,
+            aligned=False,
+        )
+        if not self.config.aligned_grid:
+            return legacy
+
+        pulse = detect_pulse(composition)
+        if not pulse.found or pulse.period_ticks <= 0:
+            return legacy
+
+        fit = GridFit(
+            step_ticks=pulse.period_ticks,
+            phase_ticks=pulse.phase_ticks,
+            aligned=True,
+            period_sec=pulse.period_sec,
+        )
+        # The Tempo token is the only thing `decode` has to rebuild absolute
+        # time from rows, so a tempo the vocabulary cannot express would play
+        # the piece at the wrong speed. Declining is better than clamping.
+        if not self.config.tempo_min <= fit.bpm <= self.config.tempo_max:
+            return legacy
+        return fit
+
     def velocity_bucket(self, velocity: int) -> int:
         buckets = self.config.velocity_buckets
         return max(0, min(buckets - 1, velocity * buckets // 128))
@@ -164,22 +256,20 @@ class RseTokenizer:
         conditioning: Conditioning | None = None,
     ) -> EncodedComposition:
         """Turn a composition into a token sequence."""
-        ticks_per_beat = composition.ticks_per_beat
-        step_ticks = self.ticks_per_step(ticks_per_beat)
+        fit = self.fit_grid(composition)
+        step_ticks = fit.step_ticks
         steps_per_bar = self.config.steps_per_bar
         sounding = composition.sounding_events()
 
         if conditioning is None:
-            conditioning = conditioning_from_composition(composition, self.config)
+            conditioning = conditioning_from_composition(composition, self.config, fit=fit)
 
         result = EncodedComposition(
             ids=[], tokens=[], conditioning=conditioning, n_events=len(sounding)
         )
 
-        # Group events onto the grid, keeping channel order stable so the same
-        # music always produces the same sequence.
-        grid: dict[tuple[int, int], list[tuple[int, Note | Noise]]] = {}
         channel_order = {cid: i for i, cid in enumerate(self.config.channels)}
+        placed: list[tuple[int, str, Note | Noise]] = []
         for event in sounding:
             if event.channel_id not in channel_order:
                 result.warnings.append(
@@ -193,12 +283,48 @@ class RseTokenizer:
                     f"{event.channel_id} value {value} is outside the vocabulary; dropped"
                 )
                 continue
-            step = int(round(event.tick / step_ticks))
-            error = abs(event.tick - step * step_ticks)
-            result.max_start_error_ticks = max(result.max_start_error_ticks, error)
-            result.total_start_error_ticks += error
+            step = fit.row_of(event.tick)
+            error = abs(event.tick - fit.tick_of(step))
+            result.max_start_error_ticks = max(result.max_start_error_ticks, int(round(error)))
+            result.total_start_error_ticks += int(round(error))
+            placed.append((step, event.channel_id, event))
+
+        # Anchor the first sounding row at bar 0, position 0.
+        #
+        # Counting rows from the fitted phase instead is not stable: the phase
+        # is only defined modulo the row, so a fit can return a value just
+        # under a full row where another returns just over zero, shifting every
+        # position by one. Encoding the same music twice then gives two
+        # different sequences, which the round-trip check caught.
+        #
+        # The cost is that an anacrusis is lost — a piece starting on beat four
+        # is encoded as starting on a downbeat. That is acceptable because
+        # `detect_pulse` finds the row grid and not the downbeat, so bar 0
+        # position 0 already means "where the music starts" rather than "the
+        # notated downbeat". Pinning it to the first event at least makes that
+        # meaning consistent.
+        if placed:
+            lowest = min(step for step, _, _ in placed)
+            placed = [(step - lowest, cid, event) for step, cid, event in placed]
+
+        # Collapse to one note per channel per row. A tracker row holds a single
+        # note per channel, so several source events inside one row are a
+        # vibrato or arpeggio effect rather than several notes — NES-MDB is a
+        # register-write transcription and carries them as separate events.
+        # Keeping the first and counting the rest is correct transcription, and
+        # it stops the encoder emitting a chord on a monophonic channel, which
+        # the hardware cannot play.
+        grid: dict[tuple[int, int], list[tuple[int, Note | Noise]]] = {}
+        taken: set[tuple[int, str]] = set()
+        for step, cid, event in sorted(
+            placed, key=lambda item: (item[0], channel_order[item[1]], item[2].tick)
+        ):
+            if (step, cid) in taken:
+                result.n_rows_collapsed += 1
+                continue
+            taken.add((step, cid))
             key = (step // steps_per_bar, step % steps_per_bar)
-            grid.setdefault(key, []).append((channel_order[event.channel_id], event))
+            grid.setdefault(key, []).append((channel_order[cid], event))
 
         tokens: list[str] = [
             BOS,
@@ -379,8 +505,28 @@ class RseTokenizer:
         return cls(vocabulary=Vocabulary.from_dict(read_json(Path(path))))
 
 
+def _bar_count(composition: Composition, config: TokenizerConfig, fit: GridFit | None) -> int:
+    """How many bars a composition occupies.
+
+    Counted from the last row carrying an onset rather than from the end tick.
+    An end tick includes the final note's duration, which quantizes
+    independently, so rounding it up gave a bar count that moved by one between
+    a piece and its own decoded copy — and since `encode` pads out to this
+    count, that put a trailing `Bar` in one encoding and not the other.
+    """
+    sounding = composition.sounding_events()
+    if not sounding:
+        return 1
+    if fit is None:
+        ticks_per_bar = composition.ticks_per_beat * config.beats_per_bar
+        return max(1, int(-(-composition.end_tick // ticks_per_bar)))
+    rows = [fit.row_of(event.tick) for event in sounding]
+    # `encode` anchors the first sounding row at bar 0, so measure the span.
+    return max(1, (max(rows) - min(rows)) // config.steps_per_bar + 1)
+
+
 def conditioning_from_composition(
-    composition: Composition, config: TokenizerConfig
+    composition: Composition, config: TokenizerConfig, *, fit: GridFit | None = None
 ) -> Conditioning:
     """Read conditioning out of a composition's own metadata.
 
@@ -392,14 +538,17 @@ def conditioning_from_composition(
     tempo_bpm = 120.0
     if composition.tempo_map:
         tempo_bpm = 60_000_000 / composition.tempo_map[0].us_per_beat
+    tempo_bpm = plan.get("tempo_bpm", tempo_bpm)
+    # On a fitted row the Tempo token is load-bearing: it is all `decode`
+    # has to turn rows back into seconds. NES-MDB's own tempo map is
+    # worthless here anyway, since every file claims 120 BPM.
+    if fit is not None and fit.aligned and fit.bpm > 0:
+        tempo_bpm = fit.bpm
 
-    ticks_per_bar = composition.ticks_per_beat * config.beats_per_bar
-    n_bars = plan.get("n_bars") or max(
-        1, -(-composition.end_tick // ticks_per_bar) if composition.end_tick else 1
-    )
+    n_bars = plan.get("n_bars") or _bar_count(composition, config, fit)
     return Conditioning(
         mood=plan.get("mood", "unknown"),
         energy=plan.get("energy", "unknown"),
-        tempo_bpm=plan.get("tempo_bpm", tempo_bpm),
+        tempo_bpm=tempo_bpm,
         n_bars=int(n_bars),
     )

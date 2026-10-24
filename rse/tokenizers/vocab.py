@@ -16,7 +16,7 @@ from typing import Any
 
 #: Bump when the vocabulary layout changes in a way that invalidates
 #: checkpoints trained against it.
-VOCAB_VERSION = "rse-vocab/1.2.0"
+VOCAB_VERSION = "rse-vocab/1.3.0"
 
 # Reserved tokens. PAD must be index 0 so padded positions are easy to mask.
 PAD = "<pad>"
@@ -37,9 +37,16 @@ class TokenizerConfig:
     """Everything that determines the vocabulary and the encoding."""
 
     profile_id: str = "nes"
-    #: Grid resolution: positions per bar. 16 is a sixteenth-note grid in 4/4.
+    #: Positions per bar. Fixed at 16 because that is the tracker
+    #: convention NES music is authored under: 4 rows per beat, 4 beats per
+    #: bar. This is a convention, not something to measure -- see
+    #: `RseTokenizer.fit_grid`.
     steps_per_bar: int = 16
     beats_per_bar: int = 4
+    #: Step on each piece's own tracker row, found by `detect_pulse`,
+    #: rather than treating one source frame as one step. False reproduces
+    #: the old encoding, which is what the training A/B compares against.
+    aligned_grid: bool = True
     #: Pitch range covered by PITCH tokens, inclusive.
     pitch_min: int = 21
     pitch_max: int = 108
@@ -51,13 +58,19 @@ class TokenizerConfig:
     #: Velocity is bucketed; the APU only has 16 volume levels anyway.
     velocity_buckets: int = 8
     #: Tempo buckets, in BPM.
-    tempo_min: int = 60
+    tempo_min: int = 40
     #: Reaches 360 because NES-MDB's exprsco grid is one frame per sixteenth at
     #: 24 Hz, which is exactly 360 BPM. Capping at a musical 220 silently
     #: relabelled every exprsco window as 220 and made sampled audio play at
     #: the wrong speed.
     tempo_max: int = 360
-    tempo_step: int = 10
+    #: Tempo buckets are geometric, not linear. A fitted row rate can imply
+    #: anything from ~50 to ~300 BPM, and a fixed 5 BPM step is a 10% error
+    #: at 50 BPM while being needlessly fine at 300 — one fixture's 52 BPM
+    #: row rounded to 50 and played the piece 4% slow. A constant ratio
+    #: spends tokens where the ear notices, bounding the error at ~1.5%
+    #: everywhere.
+    tempo_ratio: float = 1.03
     #: Bar counts offered as a conditioning token.
     lengths: tuple[int, ...] = (4, 8, 16, 32)
     #: Channels, in a fixed order. Defaults to the NES profile's channels.
@@ -98,6 +111,7 @@ class TokenizerConfig:
         return {
             "profile_id": self.profile_id,
             "steps_per_bar": self.steps_per_bar,
+            "aligned_grid": self.aligned_grid,
             "beats_per_bar": self.beats_per_bar,
             "pitch_min": self.pitch_min,
             "pitch_max": self.pitch_max,
@@ -107,7 +121,7 @@ class TokenizerConfig:
             "velocity_buckets": self.velocity_buckets,
             "tempo_min": self.tempo_min,
             "tempo_max": self.tempo_max,
-            "tempo_step": self.tempo_step,
+            "tempo_ratio": self.tempo_ratio,
             "lengths": list(self.lengths),
             "channels": list(self.channels),
             "unpitched_channels": list(self.unpitched_channels),
@@ -126,6 +140,7 @@ class TokenizerConfig:
         return cls(
             profile_id=data.get("profile_id", "nes"),
             steps_per_bar=int(data.get("steps_per_bar", 16)),
+            aligned_grid=bool(data.get("aligned_grid", True)),
             beats_per_bar=int(data.get("beats_per_bar", 4)),
             pitch_min=int(data.get("pitch_min", 21)),
             pitch_max=int(data.get("pitch_max", 108)),
@@ -133,9 +148,9 @@ class TokenizerConfig:
             noise_max=int(data.get("noise_max", 16)),
             max_duration_steps=int(data.get("max_duration_steps", 32)),
             velocity_buckets=int(data.get("velocity_buckets", 8)),
-            tempo_min=int(data.get("tempo_min", 60)),
+            tempo_min=int(data.get("tempo_min", 40)),
             tempo_max=int(data.get("tempo_max", 360)),
-            tempo_step=int(data.get("tempo_step", 10)),
+            tempo_ratio=float(data.get("tempo_ratio", 1.03)),
             lengths=tuple(data.get("lengths", (4, 8, 16, 32))),
             channels=tuple(data.get("channels", ("P1", "P2", "TR", "NO"))),
             unpitched_channels=tuple(data.get("unpitched_channels", ("NO",))),
@@ -146,7 +161,13 @@ class TokenizerConfig:
 
     @property
     def tempo_values(self) -> tuple[int, ...]:
-        return tuple(range(self.tempo_min, self.tempo_max + 1, self.tempo_step))
+        values, value = [], float(self.tempo_min)
+        while value <= self.tempo_max:
+            values.append(int(round(value)))
+            value *= self.tempo_ratio
+        if values and values[-1] != self.tempo_max:
+            values.append(self.tempo_max)
+        return tuple(dict.fromkeys(values))
 
     def is_pitched(self, channel_id: str) -> bool:
         return channel_id not in self.unpitched_channels
