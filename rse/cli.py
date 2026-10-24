@@ -280,7 +280,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sample.add_argument("--seed", type=int, default=None)
     sample.add_argument("--temperature", type=float, default=1.0)
-    sample.add_argument("--top-k", type=int, default=40)
+    sample.add_argument(
+        "--top-k",
+        type=int,
+        default=40,
+        help="keep only the k most likely tokens; 0 disables truncation. The "
+        "sweep found untruncated sampling lands inside the corpus repetition "
+        "band more often than the k=40 default does",
+    )
     sample.add_argument(
         "--noise-temperature",
         type=float,
@@ -294,7 +301,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=2048,
         help="token budget for one piece; 32 bars at full density needs ~2700",
     )
-    sample.add_argument("--top-p", type=float, default=0.95)
+    sample.add_argument(
+        "--top-p",
+        type=float,
+        default=0.95,
+        help="nucleus sampling threshold; 0 disables truncation",
+    )
     sample.add_argument(
         "--unconstrained",
         action="store_true",
@@ -991,8 +1003,11 @@ def cmd_sample(args: argparse.Namespace) -> int:
         seed=args.seed,
         temperature=args.temperature,
         channel_temperature=({"NO": args.noise_temperature} if args.noise_temperature else {}),
-        top_k=args.top_k,
-        top_p=args.top_p,
+        # 0 means disabled. SamplingConfig takes None for that, and rejects
+        # 0 outright, so there was no way to ask the CLI for untruncated
+        # sampling -- the setting the sweep's best configurations use.
+        top_k=args.top_k or None,
+        top_p=args.top_p or None,
         max_tokens=args.max_tokens,
         constrain_to_grammar=not args.unconstrained,
     )

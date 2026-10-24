@@ -482,3 +482,26 @@ def test_the_corpus_band_rejects_a_model_with_no_repetition():
     assert in_distribution(corpus, healthy, ("ngram_repetition_rate",))["ngram_repetition_rate"][
         "inside"
     ]
+
+
+def test_sampling_truncation_can_be_disabled_from_the_cli(tmp_path, monkeypatch):
+    """`--top-k 0 --top-p 0` must mean no truncation.
+
+    SamplingConfig takes None for that and rejects 0 outright, so there was no
+    way to ask the CLI for untruncated sampling -- the setting the sampling
+    sweep found lands inside the corpus repetition band most often, and the one
+    every earlier listening test could not have used.
+    """
+    from rse.generation.sampler import SamplingConfig
+
+    with pytest.raises(ValueError):
+        SamplingConfig(top_k=0)
+    with pytest.raises(ValueError):
+        SamplingConfig(top_p=0.0)
+    assert SamplingConfig(top_k=None, top_p=None).top_k is None
+
+    import argparse
+
+    args = argparse.Namespace(top_k=0, top_p=0.0)
+    assert (args.top_k or None) is None
+    assert (args.top_p or None) is None
