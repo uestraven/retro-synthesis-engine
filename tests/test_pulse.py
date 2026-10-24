@@ -10,6 +10,7 @@ from rse.events.pulse import (
     Composition,
     PulseEstimate,
     detect_pulse,
+    grid_error_ms,
     grid_index,
     on_grid_share,
     onset_ticks,
@@ -231,3 +232,36 @@ def test_the_rule_based_generators_grid_is_recovered(nes_profile):
         assert estimate.strength > 0.95, (seed, estimate.strength)
         drums = onset_ticks(composition, percussion_only=True)
         assert on_grid_share(drums, estimate) == pytest.approx(1.0), seed
+
+
+def test_an_absolute_tolerance_does_not_scale_with_the_period():
+    """Comparing two estimates whose periods differ needs a fixed tolerance.
+    At 10% of period these two look identical; in milliseconds they do not,
+    and the relative reading is what made exprsco look as tight as the MIDI
+    release when its attacks sit 8.75 ms off against 1.36 ms."""
+    # Every onset sits 30 ticks (31.25 ms) off a line of BOTH grids, so any
+    # honest measure must score the two the same.
+    ticks = [i * 480 + 30 for i in range(32)]
+    fine = PulseEstimate(240.0, 0.0, 0.99, 50.0, 32, SEC_PER_TICK)
+    coarse = PulseEstimate(480.0, 0.0, 0.99, 50.0, 32, SEC_PER_TICK)
+    assert grid_error_ms(ticks, fine) == pytest.approx(31.25)
+    assert grid_error_ms(ticks, coarse) == pytest.approx(31.25)
+
+    # A relative tolerance disagrees completely on identical timing: 10% of the
+    # fine period is 25 ms and rejects every onset, 10% of the coarse period is
+    # 50 ms and accepts every one.
+    assert on_grid_share(ticks, fine) == pytest.approx(0.0)
+    assert on_grid_share(ticks, coarse) == pytest.approx(1.0)
+
+    # An absolute tolerance gives the same verdict for both, which is correct.
+    assert on_grid_share(ticks, fine, tolerance_ms=40.0) == pytest.approx(1.0)
+    assert on_grid_share(ticks, coarse, tolerance_ms=40.0) == pytest.approx(1.0)
+    assert on_grid_share(ticks, coarse, tolerance_ms=5.0) == pytest.approx(0.0)
+
+
+def test_grid_error_is_reported_in_milliseconds():
+    estimate = PulseEstimate(240.0, 0.0, 0.99, 50.0, 4, SEC_PER_TICK)
+    errors = grid_error_ms([0, 96, 240], estimate)
+    assert errors[0] == pytest.approx(0.0)
+    assert errors[1] == pytest.approx(100.0)  # 96 ticks at 1/960 s per tick
+    assert errors[2] == pytest.approx(0.0)

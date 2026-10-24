@@ -28,15 +28,31 @@ fixed the direction of the bias but not the discreteness, and still put 30% of
 pieces on an implausible grid. The Rayleigh statistic below has no period bias
 at all: for random onsets E[R] is 1/sqrt(n) at every period.
 
-**exprsco's 24 Hz grid cannot represent this music.** The detected grid period
-has a median of 0.1034 s, which is 2.48 frames at 24 Hz. Only 18% of pieces sit
-within a tenth of a frame of a whole number of 24 Hz frames; the median miss is
-0.20 frames, and it accumulates across a piece. The NES renders at ~60.1 Hz and
-its music is written in whole video frames, so resampling to 24 Hz destroys the
-regularity — a pattern every 6 NES frames lands on 24 Hz indices 0, 2.4, 4.8,
-7.2, which round to 0, 2, 5, 7. This is a property of the release, not of the
-music, and it is why the tokenizer's position tokens are arbitrary. Timing must
-come from the MIDI release, whose ticks preserve the original sample clock.
+**exprsco's 24 Hz grid displaces the rhythm but does not destroy it.** An
+earlier revision of this docstring claimed it could not represent the music at
+all, reasoning that the median grid period of 0.1034 s is 2.48 frames at 24 Hz
+and that only 18% of pieces land near a whole number of those frames. That
+inference was wrong, and a listening test disproved it: a listener asked to
+judge steadiness on the piece predicted to be worst found it "very steady".
+
+Run on the exprsco records directly, this detector finds a grid in 80% of
+pieces at a median R of 0.980, against 86% and 0.970 for the MIDI release. The
+periodicity survives. What is lost is precision: at a fixed 5 ms tolerance,
+94.5% of MIDI-release attacks sit on a grid line against 32.3% of exprsco's,
+with median timing errors of 1.36 ms and 8.75 ms. Measure this with an absolute
+tolerance, never a fraction of the period — exprsco often fits a coarser grid,
+and a relative tolerance hands it proportionally more slack.
+
+The 8.75 ms displacement is deterministic rather than random: a rhythmic figure
+rounds the same way on each repetition, so it reads as a shifted groove and not
+as sloppiness. That is why it survives listening, and why "resampling adds
+jitter" was the wrong mental model.
+
+So the tokenizer's position tokens are not arbitrary because of the sample
+rate. They are arbitrary because `Position_x` was "frame index modulo 16",
+anchored to tick zero instead of to the piece's own phase. That is an alignment
+bug, and it is fixable on exprsco with the estimate below, keeping the official
+composer-disjoint splits and the APU-native velocity and duty values.
 
 Method
 ------
@@ -322,16 +338,41 @@ def quantize(tick: int | float, pulse: PulseEstimate) -> float:
     return pulse.phase_ticks + grid_index(tick, pulse) * pulse.period_ticks
 
 
-def on_grid_share(onsets: list[int], pulse: PulseEstimate, *, tolerance: float = 0.1) -> float:
-    """Fraction of onsets landing within `tolerance` of a grid line.
-
-    `tolerance` is a fraction of the grid period. The headline measure of
-    whether an estimate is any good: a grid that explains the music puts nearly
-    every onset on a line, and one that does not, does not.
-    """
+def grid_error_ms(onsets: list[int], pulse: PulseEstimate) -> np.ndarray:
+    """Each onset's distance to the nearest grid line, in milliseconds."""
     if not pulse.found or not onsets:
-        return 0.0
+        return np.empty(0)
     ticks = np.asarray(onsets, dtype=np.float64)
     offset = np.mod(ticks - pulse.phase_ticks, pulse.period_ticks)
     miss = np.minimum(offset, pulse.period_ticks - offset)
-    return float(np.mean(miss <= tolerance * pulse.period_ticks))
+    return miss * pulse.sec_per_tick * 1000.0
+
+
+def on_grid_share(
+    onsets: list[int],
+    pulse: PulseEstimate,
+    *,
+    tolerance: float = 0.1,
+    tolerance_ms: float | None = None,
+) -> float:
+    """Fraction of onsets landing close enough to a grid line.
+
+    The headline measure of whether an estimate is any good: a grid that
+    explains the music puts nearly every onset on a line, and one that does not,
+    does not.
+
+    `tolerance` is a fraction of the grid period, which is the right default for
+    asking whether one estimate fits one piece. **Pass `tolerance_ms` instead to
+    compare two estimates with different periods**, because a relative tolerance
+    scales with the period and so hands a coarser grid proportionally more slack.
+    Judging the exprsco and MIDI releases against each other at 10% of period
+    made them look equivalent at a median 100% on-grid; at a fixed 5 ms they are
+    32.3% and 94.5%, which is the real difference.
+    """
+    if not pulse.found or not onsets:
+        return 0.0
+    miss_ms = grid_error_ms(onsets, pulse)
+    if tolerance_ms is not None:
+        return float(np.mean(miss_ms <= tolerance_ms))
+    limit = tolerance * pulse.period_ticks * pulse.sec_per_tick * 1000.0
+    return float(np.mean(miss_ms <= limit))
