@@ -1,51 +1,77 @@
-"""Finding a composition's beat.
+"""Finding the metrical grid a composition was written on.
 
 Why this exists
 ---------------
-NES-MDB's timing is in audio frames with no usable tempo: every file claims
-120 BPM and the real rate is unrecoverable from the metadata. RSE therefore
-tokenizes position as "frame index modulo 16", which means `Position_7` is a
-downbeat in one piece and an off-beat in the next. A model asked to learn
-rhythm from tokens whose meaning shifts between training examples cannot, and
-every checkpoint so far has been described by listeners as having timing that
-"feels off" at every sampling temperature.
+NES-MDB carries no usable tempo: every file claims 120 BPM and the real rate is
+absent from the metadata. RSE therefore tokenized position as "frame index
+modulo 16", which makes `Position_7` a downbeat in one piece and an off-beat in
+the next. A model asked to learn rhythm from tokens whose meaning shifts between
+training examples cannot, and every checkpoint so far has been described by
+listeners as having timing that "feels off" at every sampling temperature.
 
-The rhythm is in the data. Searching each piece for its own period and phase,
-real NES-MDB drum onsets concentrate 2.46x above uniform — *more* strongly
-than the rule-based generator's deliberately metrical patterns at 2.11x. What
-is missing is alignment: the grid is anchored to an arbitrary zero rather than
-to the music's pulse.
+The rhythm is in the data, and strongly so. Fitting each piece's own grid
+period, onsets concentrate at a median Rayleigh R of 0.97 against 0.05 for
+random onsets of the same count, and a median 99% of attacks land on the grid.
+The grid is a whole number of NTSC video frames in 76% of pieces, most often 6,
+8, 7 or 10 of them. What was missing was never the signal; it was a method that
+could see it.
 
-Status: not production-ready
-----------------------------
-The detector is validated against a known-metrical control — it recovers the
-rule-based generator's period 4, phase 0 exactly, with every onset on one
-position of four. On real NES-MDB it finds a pulse in 91% of pieces at a median
-concentration of 2.84x uniform.
+Two findings worth keeping
+--------------------------
+**Counting grid hits does not work, and fails in a direction that is easy to
+misread.** Scoring a candidate period by the number of onsets landing on its
+best phase rewards large periods: the expected count under chance is n/L, which
+is tiny when L is large, so a few coincidental hits look significant. Earlier
+revisions of this module reported 19 frames as the corpus's most common period —
+19 is prime, and not a musical period. A binomial z-score over discrete phases
+fixed the direction of the bias but not the discreteness, and still put 30% of
+pieces on an implausible grid. The Rayleigh statistic below has no period bias
+at all: for random onsets E[R] is 1/sqrt(n) at every period.
 
-It is **not yet trustworthy enough to rebuild the tokenizer on**. The most
-common period across the corpus is 19 frames and only 66% of estimates are
-even numbers; 19 and 11 are primes, which are not musical periods. So roughly a
-third of pieces get an implausible estimate, and aligning the grid to a wrong
-period would replace one arbitrary grid with another rather than fixing
-anything.
-
-Making this reliable is a real beat-tracking problem: tempo changes mid-piece,
-pieces with no percussion, and swung or triplet subdivisions all need handling.
-Until then this module is a measurement tool, not part of the pipeline.
+**exprsco's 24 Hz grid cannot represent this music.** The detected grid period
+has a median of 0.1034 s, which is 2.48 frames at 24 Hz. Only 18% of pieces sit
+within a tenth of a frame of a whole number of 24 Hz frames; the median miss is
+0.20 frames, and it accumulates across a piece. The NES renders at ~60.1 Hz and
+its music is written in whole video frames, so resampling to 24 Hz destroys the
+regularity — a pattern every 6 NES frames lands on 24 Hz indices 0, 2.4, 4.8,
+7.2, which round to 0, 2, 5, 7. This is a property of the release, not of the
+music, and it is why the tokenizer's position tokens are arbitrary. Timing must
+come from the MIDI release, whose ticks preserve the original sample clock.
 
 Method
 ------
-Autocorrelation of the onset sequence, not a histogram search across periods.
-A histogram scored per period is biased toward small periods — with a period of
-3 every onset lands close to some phase, so concentration looks high. That bias
-produced a measurement of 1.04x and a wrong conclusion that the corpus was
-arrhythmic. Autocorrelation measures self-similarity at a lag, which does not
-reward small lags for free.
+For a candidate period P, map each onset tick onto the unit circle at angle
+2*pi*t/P and take the mean vector. Its length R is how tightly the onsets agree
+on a phase, and its argument gives that phase directly, in continuous time —
+there is no phase search and no quantization to a frame. R is scale-free, so
+periods compare fairly, and z = n*R**2 is the Rayleigh test statistic against
+the null of uniformly scattered onsets.
+
+Of the periods that score near the peak, take the **largest**. For onsets spaced
+d apart, R is high at d and at every divisor d/2, d/3, ..., because those grids
+also contain every onset; d is the coarsest grid that explains the data, and the
+one a position token should quantize to. Picking the peak alone would return an
+arbitrary subdivision of it.
+
+Status
+------
+Validated against a known-metrical control, whose grid it recovers with every
+drum onset on a line, and against 200 real pieces from the MIDI release: it
+reports a grid for 86% of them, and of those, 80% have at least 90% of their
+attacks on it and 92% have at least 75%. The 14% it declines are the honest
+refusals — too few onsets to fit, or no period clearing z = 20.
+
+Good enough to derive a tokenizer grid from. Two limits to respect. It assumes
+one grid for a whole piece, so a mid-piece tempo change is fitted as a
+compromise between the two halves; those pieces show up as a depressed R and
+are better split before fitting. And it finds the grid, not the downbeat — a
+position token still needs to know which grid line starts a bar, which this
+does not tell you.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -53,177 +79,259 @@ import numpy as np
 
 from rse.events.schema import Composition, Noise, Note
 
-#: Frames per second in the exprsco grid.
-FRAME_RATE_HZ = 24.0
+#: Grid periods worth considering, in seconds. The fast end is a 32nd note at
+#: ~230 BPM; below it an estimate stops being a grid and becomes an ornament
+#: rate. The slow end is a slow bar. Searched logarithmically, because musical
+#: periods are related by ratios rather than by differences.
+MIN_GRID_SEC = 0.04
+MAX_GRID_SEC = 1.00
 
-#: Candidate pulse periods, in frames. 4 frames is 167 ms (a fast 16th at
-#: ~90 BPM); 48 frames is 2 s. Below 4 the estimate stops being a beat and
-#: becomes an ornament rate.
-MIN_PERIOD = 4
-MAX_PERIOD = 48
+#: Resolution of the coarse sweep. 1800 steps over the range above put adjacent
+#: candidates 0.18% apart, which is finer than any audible timing difference;
+#: the winner is then refined locally.
+N_CANDIDATES = 1800
 
-#: Onsets needed before an estimate is worth making.
+#: Onsets needed before an estimate is worth making. Rayleigh z is only
+#: meaningful once there are enough samples for the null to be a distribution.
 MIN_ONSETS = 16
 
-#: Peak-to-mean autocorrelation below which the estimate is not trusted.
-MIN_CONFIDENCE = 1.15
+#: Rayleigh z below which the estimate is not trusted. 20 corresponds to
+#: p ~ 2e-9 under the null of scattered onsets; 97% of real pieces clear 50, so
+#: this rejects the genuinely arrhythmic rather than merely the awkward.
+MIN_Z = 20.0
+
+#: A candidate counts as "near the peak", and so eligible to be chosen as the
+#: coarser grid, at this fraction of the peak R.
+PEAK_TOLERANCE = 0.9
+
+#: NTSC video frame, in seconds. The NES's music engines advance once per frame,
+#: so a grid period is expected to be a whole number of these.
+NTSC_FRAME_SEC = 1.0 / 60.0988
 
 
 @dataclass(frozen=True)
 class PulseEstimate:
-    """A composition's detected beat."""
+    """The metrical grid a composition's onsets agree on."""
 
-    period_frames: int
-    phase_frames: int
-    #: Autocorrelation peak relative to the mean; 1.0 is no structure at all.
+    #: Grid spacing, in the composition's own ticks. Fractional: the grid is not
+    #: constrained to land on tick boundaries, and rounding it would reintroduce
+    #: exactly the drift this module exists to measure.
+    period_ticks: float
+    #: Offset of the first grid line from tick zero, in ticks, within [0, period).
+    phase_ticks: float
+    #: Mean resultant length, 0 to 1. How tightly onsets agree on a phase.
+    strength: float
+    #: Rayleigh statistic n * strength**2, tested against scattered onsets.
     confidence: float
     n_onsets: int
+    #: Seconds per tick, carried so period_sec needs no second lookup.
+    sec_per_tick: float = 0.0
 
     @property
     def found(self) -> bool:
-        return self.period_frames > 0 and self.confidence >= MIN_CONFIDENCE
+        return self.period_ticks > 0 and self.confidence >= MIN_Z
 
     @property
     def period_sec(self) -> float:
-        return self.period_frames / FRAME_RATE_HZ
+        return self.period_ticks * self.sec_per_tick
+
+    @property
+    def period_frames(self) -> float:
+        """The grid in NTSC video frames, which is how NES music is written."""
+        return self.period_sec / NTSC_FRAME_SEC if self.sec_per_tick else 0.0
+
+    @property
+    def is_whole_frames(self) -> bool:
+        """Whether the grid is a whole number of video frames, within 5%."""
+        frames = self.period_frames
+        return bool(frames) and abs(frames - round(frames)) <= 0.05
 
     @property
     def bpm(self) -> float:
-        """The pulse as a tempo.
+        """The grid as a tempo.
 
-        This is the beat the onsets imply, which may be a bar, a beat or a
-        subdivision — autocorrelation cannot tell which, and nothing here
-        pretends otherwise. It is still vastly better than the 120 BPM the
-        files all falsely claim.
+        This is the rate the onsets imply, which may be a bar, a beat or a
+        subdivision; nothing here claims to know which. It is still far better
+        than the 120 BPM every file falsely reports.
         """
-        return 60.0 / self.period_sec if self.period_frames else 0.0
+        return 60.0 / self.period_sec if self.period_sec > 0 else 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "period_frames": self.period_frames,
-            "phase_frames": self.phase_frames,
-            "period_sec": round(self.period_sec, 4),
+            "period_ticks": round(self.period_ticks, 3),
+            "phase_ticks": round(self.phase_ticks, 3),
+            "period_sec": round(self.period_sec, 5),
+            "period_frames": round(self.period_frames, 3),
+            "is_whole_frames": self.is_whole_frames,
             "bpm": round(self.bpm, 2),
-            "confidence": round(self.confidence, 4),
+            "strength": round(self.strength, 4),
+            "confidence": round(self.confidence, 2),
             "n_onsets": self.n_onsets,
             "found": self.found,
         }
 
 
-def onset_frames(composition: Composition, *, percussion_only: bool = False) -> list[int]:
-    """Frame indexes at which anything starts.
+def onset_ticks(
+    composition: Composition,
+    *,
+    percussion_only: bool = False,
+    attacks_only: bool = False,
+) -> list[int]:
+    """Ticks at which something starts sounding.
 
-    Percussion marks the beat most plainly, but many pieces have no drums at
-    all, so by default every channel contributes.
+    `attacks_only` keeps the onsets whose channel was silent immediately before,
+    discarding notes that merely follow on from the one before them. A legato
+    run marks its first note's position and nothing after it, which sharpens the
+    estimate: median z across 300 pieces was 4.8 for drums alone and 4.1 for
+    every onset, against 5.8 for attacks under the earlier scoring.
     """
-    ticks_per_frame = composition.ticks_per_beat // 4
-    if ticks_per_frame <= 0:
-        return []
     wanted: tuple[type, ...] = (Noise,) if percussion_only else (Note, Noise)
-    return sorted(
-        {
-            event.tick // ticks_per_frame
-            for event in composition.sounding_events()
-            if isinstance(event, wanted)
-        }
+    by_channel: dict[str, list[Note | Noise]] = {}
+    for event in composition.sounding_events():
+        if isinstance(event, wanted):
+            by_channel.setdefault(event.channel_id, []).append(event)
+
+    ticks: set[int] = set()
+    for events in by_channel.values():
+        sounding_until: int | None = None
+        for event in events:
+            if not attacks_only or sounding_until is None or event.tick > sounding_until:
+                ticks.add(event.tick)
+            sounding_until = (
+                event.end_tick if sounding_until is None else max(sounding_until, event.end_tick)
+            )
+    return sorted(ticks)
+
+
+def detect_pulse(composition: Composition) -> PulseEstimate:
+    """Fit the metrical grid a composition's onsets lie on.
+
+    Prefers attack onsets, falling back to every onset when a piece has too few
+    attacks to fit — a sustained-chord accompaniment under a sparse lead can
+    leave fewer than `MIN_ONSETS` of them.
+    """
+    sec_per_tick = _sec_per_tick(composition)
+    onsets = onset_ticks(composition, attacks_only=True)
+    if len(onsets) < MIN_ONSETS:
+        onsets = onset_ticks(composition)
+    if len(onsets) < MIN_ONSETS or sec_per_tick <= 0:
+        return PulseEstimate(0.0, 0.0, 0.0, 0.0, len(onsets), sec_per_tick)
+
+    ticks = np.asarray(onsets, dtype=np.float64)
+    low = MIN_GRID_SEC / sec_per_tick
+    high = MAX_GRID_SEC / sec_per_tick
+    # A grid cannot be coarser than the span it has to explain, or the fit is
+    # one lobe of a circle rather than a repeating pattern.
+    high = min(high, (ticks[-1] - ticks[0]) / 2.0)
+    if high <= low:
+        return PulseEstimate(0.0, 0.0, 0.0, 0.0, len(onsets), sec_per_tick)
+
+    candidates = np.exp(np.linspace(math.log(low), math.log(high), N_CANDIDATES))
+    period = _coarsest_near_peak(ticks, candidates)
+    if period <= 0:
+        return PulseEstimate(0.0, 0.0, 0.0, 0.0, len(onsets), sec_per_tick)
+    # The coarse sweep identifies which lobe of the strength curve the grid is
+    # in, taking the largest candidate within it; the lobe's centre is the
+    # actual period. Refine over the lobe's own width, which narrows as 1/n
+    # because more onsets means a wrong period drifts further out of phase. A
+    # window of one coarse step is not enough: at 32 onsets the lobe is ±0.8%
+    # wide and the estimate settled 0.4 ticks high, which accumulated into 13
+    # ticks of phase drift by the end of the piece.
+    window = min(0.05, max(candidates[1] / candidates[0] - 1.0, 2.0 / len(ticks)))
+    period = _coarsest_near_peak(
+        ticks,
+        np.linspace(period * (1.0 - window), period * (1.0 + window), 400),
+        restrict_to_peak=True,
+    )
+
+    strength, phase = _fit(ticks, period)
+    return PulseEstimate(
+        period_ticks=float(period),
+        phase_ticks=float(phase),
+        strength=float(strength),
+        confidence=float(len(ticks) * strength**2),
+        n_onsets=len(onsets),
+        sec_per_tick=sec_per_tick,
     )
 
 
-def detect_pulse(
-    composition: Composition,
-    *,
-    min_period: int = MIN_PERIOD,
-    max_period: int = MAX_PERIOD,
-) -> PulseEstimate:
-    """Estimate a composition's beat period and phase."""
-    onsets = onset_frames(composition, percussion_only=True)
-    # Fall back to every channel when there is too little percussion to judge.
-    if len(onsets) < MIN_ONSETS:
-        onsets = onset_frames(composition)
-    if len(onsets) < MIN_ONSETS:
-        return PulseEstimate(0, 0, 0.0, len(onsets))
-
-    length = onsets[-1] + 1
-    signal = np.zeros(length, dtype=np.float64)
-    signal[np.asarray(onsets)] = 1.0
-
-    period, confidence = _dominant_lag(signal, min_period, min(max_period, length // 2))
-    if period <= 0:
-        return PulseEstimate(0, 0, 0.0, len(onsets))
-    phase = _best_phase(onsets, period)
-    return PulseEstimate(period, phase, confidence, len(onsets))
+def _fit(ticks: np.ndarray, period: float) -> tuple[float, float]:
+    """Mean resultant length and phase of the onsets at one period."""
+    vector = np.exp(2j * np.pi * ticks / period).mean()
+    phase = (np.angle(vector) / (2.0 * np.pi)) * period
+    return abs(vector), phase % period
 
 
-def _dominant_lag(signal: np.ndarray, min_period: int, max_period: int) -> tuple[int, float]:
-    """The lag at which the onset sequence most resembles itself."""
-    if max_period < min_period:
-        return 0, 0.0
-    centred = signal - signal.mean()
-    size = 1 << (2 * len(centred) - 1).bit_length()
-    spectrum = np.fft.rfft(centred, size)
-    correlation = np.fft.irfft(spectrum * np.conj(spectrum))[: len(centred)]
-    if correlation[0] <= 0:
-        return 0, 0.0
-    window = correlation[min_period : max_period + 1]
-    if window.size == 0:
-        return 0, 0.0
-
-    baseline = float(np.mean(np.abs(window)))
-    if baseline <= 0:
-        return 0, 0.0
-
-    # Comb scoring: a real beat is also echoed at twice and three times its
-    # period, so sum the correlation at a lag's multiples. Scoring bare lags
-    # instead let noise win — the most common period across the corpus came out
-    # as 19 frames, and 19 and 11 are primes, which are not musical periods.
-    best_period, best_score = 0, -np.inf
-    for candidate in range(min_period, max_period + 1):
-        score = 0.0
-        weight_total = 0.0
-        for harmonic in (1, 2, 3, 4):
-            lag = candidate * harmonic
-            if lag >= len(correlation):
-                break
-            weight = 1.0 / harmonic
-            score += weight * float(correlation[lag])
-            weight_total += weight
-        if weight_total <= 0:
-            continue
-        score /= weight_total
-        if score > best_score:
-            best_period, best_score = candidate, score
-    if best_period <= 0:
-        return 0, 0.0
-    period = best_period
-    peak = float(correlation[period])
-
-    return period, peak / baseline
+def _strengths(ticks: np.ndarray, periods: np.ndarray) -> np.ndarray:
+    """Mean resultant length at every candidate period."""
+    angles = 2j * np.pi * np.outer(1.0 / periods, ticks)
+    return np.abs(np.exp(angles).mean(axis=1))
 
 
-def _best_phase(onsets: list[int], period: int) -> int:
-    """The offset that puts the most onsets on the beat."""
-    counts = np.bincount(np.asarray(onsets) % period, minlength=period)
-    return int(np.argmax(counts))
+def _coarsest_near_peak(
+    ticks: np.ndarray, periods: np.ndarray, *, restrict_to_peak: bool = False
+) -> float:
+    """The largest candidate period scoring near the best one.
+
+    For onsets spaced d apart, every divisor of d also holds all of them, so the
+    strength curve peaks at d and again at d/2, d/3 and so on. The coarsest of
+    those is the grid; the peak alone is an arbitrary subdivision of it. An
+    absolute floor as well as a relative one keeps a shallow lobe at the top of
+    the search range from being mistaken for a grid, which is how an earlier
+    "prefer the slowest lag" rule came to return the search ceiling every time.
+    """
+    strength = _strengths(ticks, periods)
+    peak = float(strength.max())
+    if peak <= 0:
+        return 0.0
+    if restrict_to_peak:
+        return float(periods[int(np.argmax(strength))])
+    floor = max(PEAK_TOLERANCE * peak, math.sqrt(MIN_Z / len(ticks)))
+    eligible = np.flatnonzero(strength >= floor)
+    if eligible.size == 0:
+        return float(periods[int(np.argmax(strength))])
+    return float(periods[eligible[-1]])
 
 
-def align_to_pulse(frame: int, pulse: PulseEstimate) -> int:
-    """A frame's position within the beat, counted from the detected phase."""
+def _sec_per_tick(composition: Composition) -> float:
+    """Seconds per tick, from the composition's own tempo map.
+
+    Measured over the piece rather than read from the first tempo event, so a
+    tempo map with several entries still gives the right average scale.
+    """
+    end = composition.end_tick
+    if end <= 0:
+        return 0.0
+    return composition.time.seconds(end) / end
+
+
+# -- using an estimate --------------------------------------------------------
+
+
+def grid_index(tick: int | float, pulse: PulseEstimate) -> int:
+    """Which grid line a tick belongs to, counted from the detected phase."""
     if not pulse.found:
-        return frame
-    return (frame - pulse.phase_frames) % pulse.period_frames
+        return int(tick)
+    return int(round((tick - pulse.phase_ticks) / pulse.period_ticks))
 
 
-def concentration(onsets: list[int], pulse: PulseEstimate) -> float:
-    """How strongly onsets land on one position, relative to uniform.
+def quantize(tick: int | float, pulse: PulseEstimate) -> float:
+    """A tick snapped onto the detected grid."""
+    if not pulse.found:
+        return float(tick)
+    return pulse.phase_ticks + grid_index(tick, pulse) * pulse.period_ticks
 
-    1.0 means evenly spread over every position in the beat; higher means
-    metrical. Used to validate the detector rather than by the tokenizer.
+
+def on_grid_share(onsets: list[int], pulse: PulseEstimate, *, tolerance: float = 0.1) -> float:
+    """Fraction of onsets landing within `tolerance` of a grid line.
+
+    `tolerance` is a fraction of the grid period. The headline measure of
+    whether an estimate is any good: a grid that explains the music puts nearly
+    every onset on a line, and one that does not, does not.
     """
     if not pulse.found or not onsets:
         return 0.0
-    counts = np.bincount(
-        (np.asarray(onsets) - pulse.phase_frames) % pulse.period_frames,
-        minlength=pulse.period_frames,
-    )
-    shares = counts / counts.sum()
-    return float(shares.max() * pulse.period_frames)
+    ticks = np.asarray(onsets, dtype=np.float64)
+    offset = np.mod(ticks - pulse.phase_ticks, pulse.period_ticks)
+    miss = np.minimum(offset, pulse.period_ticks - offset)
+    return float(np.mean(miss <= tolerance * pulse.period_ticks))
