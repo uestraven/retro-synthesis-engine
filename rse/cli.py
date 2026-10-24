@@ -187,6 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--corpus-limit", type=int, default=None, help="cap dataset compositions")
     train.add_argument("--window-bars", type=int, default=16)
     train.add_argument(
+        "--no-sections",
+        action="store_true",
+        help="do not emit Section tokens; the ablation arm for whether they "
+        "help, left unresolved by the 32-bar run",
+    )
+    train.add_argument(
         "--no-aligned-grid",
         action="store_true",
         help="step on one source frame per position instead of fitting each "
@@ -233,6 +239,12 @@ def build_parser() -> argparse.ArgumentParser:
     windows_cmd.add_argument("--corpus-size", type=int, default=200)
     windows_cmd.add_argument("--corpus-limit", type=int, default=None)
     windows_cmd.add_argument("--window-bars", type=int, default=16)
+    windows_cmd.add_argument(
+        "--no-sections",
+        action="store_true",
+        help="do not emit Section tokens; the ablation arm for whether they "
+        "help, left unresolved by the 32-bar run",
+    )
     windows_cmd.add_argument(
         "--no-aligned-grid",
         action="store_true",
@@ -751,6 +763,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         TokenizerConfig(
             profile_id=profile.profile_id,
             aligned_grid=not getattr(args, "no_aligned_grid", False),
+            emit_sections=not getattr(args, "no_sections", False),
         )
     )
 
@@ -855,6 +868,7 @@ def cmd_windows(args: argparse.Namespace) -> int:
         TokenizerConfig(
             profile_id=profile.profile_id,
             aligned_grid=not getattr(args, "no_aligned_grid", False),
+            emit_sections=not getattr(args, "no_sections", False),
         )
     )
 

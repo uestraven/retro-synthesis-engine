@@ -591,3 +591,42 @@ def test_encoding_is_stable_when_repeated():
     first = tokenizer.encode(composition).tokens
     second = tokenizer.encode(tokenizer.decode(first).composition).tokens
     assert first == second
+
+
+def test_sections_can_be_turned_off_without_changing_the_vocabulary():
+    """The ablation must change the data and nothing else.
+
+    Dropping section_labels would shrink the vocabulary and confound the
+    comparison with a model-size change, so the tokens stay and simply never
+    fire.
+    """
+    from rse.events.schema import SectionSpan
+    from rse.tokenizers.vocab import TokenizerConfig, build_vocabulary
+
+    on = TokenizerConfig()
+    off = TokenizerConfig(emit_sections=False)
+    assert len(build_vocabulary(on)) == len(build_vocabulary(off))
+    assert "Section_A" in build_vocabulary(off).tokens
+
+    composition = row_composition(240, 64)
+    composition.sections = [SectionSpan(0, "A"), SectionSpan(2, "B")]
+    with_sections = RseTokenizer(on).encode(composition).tokens
+    without = RseTokenizer(off).encode(composition).tokens
+    assert any(t.startswith("Section_") for t in with_sections)
+    assert not any(t.startswith("Section_") for t in without)
+
+
+def test_turning_sections_off_leaves_the_notes_alone():
+    """Only the Section tokens may differ, or the ablation measures two things."""
+    from rse.events.schema import SectionSpan
+    from rse.tokenizers.vocab import TokenizerConfig
+
+    composition = row_composition(240, 64)
+    composition.sections = [SectionSpan(0, "A"), SectionSpan(2, "B")]
+    with_sections = [
+        t
+        for t in RseTokenizer(TokenizerConfig()).encode(composition).tokens
+        if not t.startswith("Section_")
+    ]
+    without = RseTokenizer(TokenizerConfig(emit_sections=False)).encode(composition).tokens
+    assert with_sections == without

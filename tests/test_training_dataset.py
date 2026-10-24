@@ -218,3 +218,39 @@ def test_a_window_inherits_its_parents_row(nes_profile, tokenizer):
     for window in windows:
         tokens = [tokenizer.vocabulary.token_of(i) for i in window.ids]
         assert tempo in tokens
+
+
+def test_section_segments_divide_the_window_at_least_twice(tokenizer):
+    """A lone Section_A at bar 0 is a constant, and ablating a constant proves
+    nothing. With the default 8-bar segment an 8-bar window held exactly one
+    segment, and every window in a 120-piece sample emitted precisely one
+    Section token. Segments must divide the window at least twice for the form
+    to be expressible at all."""
+    from rse.events.schema import Note
+
+    row, rows_per_bar = 240, tokenizer.config.steps_per_bar
+    bar_ticks = row * rows_per_bar
+    events = []
+    for bar in range(8):
+        # Two contrasting halves, so a form is there to find.
+        pitches = (60, 64, 67, 72) if bar < 4 else (48, 50, 53, 55)
+        for step in range(0, rows_per_bar, 4):
+            events.append(
+                Note(
+                    channel_id="P1",
+                    tick=bar * bar_ticks + step * row,
+                    pitch=pitches[(step // 4) % len(pitches)],
+                    duration=row,
+                    velocity=100,
+                )
+            )
+    composition = Composition(hardware_profile="nes", ticks_per_beat=480, events=events)
+
+    windows = windows_from_composition(composition, tokenizer, split=TRAIN, window_bars=8)
+    labels = {
+        tokenizer.vocabulary.token_of(i)
+        for w in windows
+        for i in w.ids
+        if tokenizer.vocabulary.token_of(i).startswith("Section_")
+    }
+    assert len(labels) > 1, f"sections never vary, so the ablation is vacuous: {labels}"

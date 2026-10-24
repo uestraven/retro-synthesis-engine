@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from rse.events.schema import Composition, Noise, Note
-from rse.events.structure import derive_sections
+from rse.events.structure import SEGMENT_BARS, derive_sections
 from rse.jsonio import read_jsonl, write_jsonl
 from rse.tokenizers.tokenizer import Conditioning, RseTokenizer, conditioning_from_composition
 
@@ -196,9 +196,20 @@ def windows_from_composition(
         # NES-MDB has no form annotation, so the window's sections are inferred
         # from its own repetition. Derived per window rather than per
         # composition, because a window's form is what its token stream claims.
-        if not sliced.sections:
+        if not sliced.sections and tokenizer.config.emit_sections:
+            # Four segments per window. The form analysis sets its
+            # threshold from the median pairwise similarity and needs at
+            # least three comparisons to have a baseline, so three
+            # segments is the floor and two produce a single comparison
+            # and no form at all. With the default 8-bar segment an 8-bar
+            # window held one segment and every window emitted a lone
+            # Section_A, making the token a constant and its ablation
+            # meaningless.
             sliced.sections = derive_sections(
-                sliced, beats_per_bar=beats_per_bar, n_bars=window_bars
+                sliced,
+                segment_bars=max(1, min(SEGMENT_BARS, window_bars // 4)),
+                beats_per_bar=beats_per_bar,
+                n_bars=window_bars,
             )
         # Pass the fit: without it the tempo falls back to the source file's
         # own value while positions and durations are counted in fitted rows,

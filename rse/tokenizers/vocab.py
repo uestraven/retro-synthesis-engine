@@ -82,6 +82,12 @@ class TokenizerConfig:
     #: says "the form returns here", which is the one thing the first model
     #: could not learn from `Bar` tokens alone.
     section_labels: tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
+    #: Emit Section tokens. Turning this off leaves them in the vocabulary
+    #: but never produces one, so the ablation changes the data and nothing
+    #: else — same vocabulary size, same embedding table, same architecture.
+    #: Dropping the labels instead would shrink the vocabulary and confound
+    #: the comparison with a model-size change.
+    emit_sections: bool = True
     #: Reserved: controller events are preserved in the data but not yet
     #: modelled. See docs/tokenizer.md for why.
     include_controllers: bool = False
@@ -126,6 +132,7 @@ class TokenizerConfig:
             "channels": list(self.channels),
             "unpitched_channels": list(self.unpitched_channels),
             "section_labels": list(self.section_labels),
+            "emit_sections": self.emit_sections,
             "include_controllers": self.include_controllers,
             "vocab_version": self.vocab_version,
         }
@@ -155,6 +162,7 @@ class TokenizerConfig:
             channels=tuple(data.get("channels", ("P1", "P2", "TR", "NO"))),
             unpitched_channels=tuple(data.get("unpitched_channels", ("NO",))),
             section_labels=tuple(data.get("section_labels", ("A", "B", "C", "D", "E", "F"))),
+            emit_sections=bool(data.get("emit_sections", True)),
             include_controllers=bool(data.get("include_controllers", False)),
             vocab_version=version or VOCAB_VERSION,
         )

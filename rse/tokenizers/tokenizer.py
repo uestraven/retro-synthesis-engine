@@ -349,11 +349,15 @@ class RseTokenizer:
         n_bars = max(n_bars, conditioning.n_bars)
         # Sections are announced at the bar they open. Empty means the form is
         # unknown, and the stream simply carries no Section tokens.
-        section_at_bar = {
-            span.start_bar: span.label
-            for span in composition.sections
-            if span.label in self.config.section_labels
-        }
+        section_at_bar = (
+            {
+                span.start_bar: span.label
+                for span in composition.sections
+                if span.label in self.config.section_labels
+            }
+            if self.config.emit_sections
+            else {}
+        )
         for bar in range(n_bars):
             if bar in section_at_bar:
                 tokens.append(f"{SECTION}{section_at_bar[bar]}")
