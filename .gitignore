@@ -25,3 +25,7 @@ htmlcov/
 *.wav
 *.ogg
 /out/
+
+# Window caches: large, derived from research-only data, and rebuildable
+# with `rse windows`. Never publish these.
+caches/
