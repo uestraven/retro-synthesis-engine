@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +67,56 @@ def eligible_grams(composition: Any) -> int:
     pitches = melody_pitches(composition, "P1") or melody_pitches(composition)
     intervals = max(0, len(pitches) - 1)
     return max(0, intervals - REPETITION_NGRAM + 1)
+
+
+def exact_ngram_repetition_rate(composition: Any, n: int = REPETITION_NGRAM) -> float:
+    """Share of absolute-pitch n-grams that recur. Supplementary only.
+
+    The project's long-standing `ngram_repetition_rate` is already
+    interval-based and therefore transposition-invariant: a motif restated a
+    fifth higher counts as recurrence. This is the stricter exact-pitch
+    companion, so the two together separate "the same shape elsewhere" from
+    "the same notes again". Exact-pitch recurrence should be the lower of the
+    two; a large gap means the music transposes its motifs.
+    """
+    pitches = melody_pitches(composition, "P1") or melody_pitches(composition)
+    if len(pitches) < n:
+        return 0.0
+    grams = [tuple(pitches[i : i + n]) for i in range(len(pitches) - n + 1)]
+    if not grams:
+        return 0.0
+    counts = Counter(grams)
+    return sum(c for c in counts.values() if c > 1) / len(grams)
+
+
+def bar_reuse(composition: Any) -> dict[str, float]:
+    """Separate consecutive bar duplication from non-adjacent bar reuse.
+
+    These are musically opposite. A bar repeated immediately is a stalled
+    loop; the same bar returning after two others is form. Both raise a plain
+    repeated-bar count, which is why that count could not tell the model's
+    locked loops from the corpus's motif reuse.
+    """
+    signatures = bar_signatures(composition)
+    if len(signatures) < 2:
+        return {"consecutive": 0.0, "nonconsecutive": 0.0, "longest_run": 0.0}
+    consecutive = sum(1 for i in range(1, len(signatures)) if signatures[i] == signatures[i - 1])
+    nonconsecutive = 0
+    for i in range(len(signatures)):
+        for j in range(i + 2, len(signatures)):
+            if signatures[i] == signatures[j]:
+                nonconsecutive += 1
+                break
+    longest = run = 0
+    for i in range(1, len(signatures)):
+        run = run + 1 if signatures[i] == signatures[i - 1] else 0
+        longest = max(longest, run + 1 if run else 0)
+    span = len(signatures)
+    return {
+        "consecutive": consecutive / (span - 1),
+        "nonconsecutive": nonconsecutive / span,
+        "longest_run": float(longest),
+    }
 
 
 def longest_run(composition: Any) -> int:
@@ -135,166 +186,189 @@ def main() -> int:
     )
     print(f"loaded {len(entries)} pieces from '{args.split}'", flush=True)
 
-    pieces: list[dict[str, Any]] = []
-    windows: list[dict[str, Any]] = []
-    skipped_short = 0
+    rows: list[dict[str, Any]] = []
+    excluded = 0
 
-    for index, (composition, _split, _cid) in enumerate(entries):
+    def measure(comp: Any, piece: str, kind: str, piece_bars: int) -> dict[str, Any] | None:
+        nonlocal excluded
+        if not comp.sounding_events():
+            return None
+        grams = eligible_grams(comp)
+        m = evaluate_composition(comp, profile)
+        reuse = bar_reuse(comp)
+        row = {
+            "piece": piece,
+            "kind": kind,
+            "piece_bars": piece_bars,
+            "eligible_grams": grams,
+            "ngram_interval": m.ngram_repetition_rate,
+            "ngram_exact": exact_ngram_repetition_rate(comp),
+            "unique_bar_fraction": m.unique_bar_fraction,
+            "bars_consecutive_dup": reuse["consecutive"],
+            "bars_nonconsecutive_reuse": reuse["nonconsecutive"],
+            "longest_run": reuse["longest_run"],
+            "stepwise": m.stepwise_fraction,
+            "pitch_entropy": m.pitch_class_entropy,
+            "in_scale": m.in_scale_fraction,
+            "notes_per_second": m.n_notes / max(comp.time.seconds(comp.end_tick), 1e-9),
+            "excluded": grams < MIN_GRAMS,
+        }
+        if row["excluded"]:
+            excluded += 1
+        return row
+
+    for index, (composition, _split, cid) in enumerate(entries):
         if index and index % 250 == 0:
             print(f"  {index}/{len(entries)}", flush=True)
         if not composition.sounding_events():
             continue
+        piece = str(cid)
         fit = tokenizer.fit_grid(composition)
         ticks_per_bar = fit.step_ticks * tokenizer.config.steps_per_bar
         total_bars = bar_count(composition, ticks_per_bar=ticks_per_bar)
 
-        grams = eligible_grams(composition)
-        metrics = evaluate_composition(composition, profile)
-        record = {
-            "bars": total_bars,
-            "eligible_grams": grams,
-            "ngram": metrics.ngram_repetition_rate,
-            "unique_bar_fraction": metrics.unique_bar_fraction,
-            "longest_run": longest_run(composition),
-            "stepwise": metrics.stepwise_fraction,
-            "notes_per_second": (
-                metrics.n_notes / max(composition.time.seconds(composition.end_tick), 1e-9)
-            ),
-            "kind": "original",
-        }
-        if grams < MIN_GRAMS:
-            skipped_short += 1
-            record["excluded"] = True
-        pieces.append(record)
-
+        for row in (measure(composition, piece, "orig_piece", total_bars),):
+            if row:
+                rows.append(row)
         if not args.skip_roundtrip:
             decoded = tokenizer.decode(tokenizer.encode(composition).ids).composition
-            if decoded.sounding_events():
-                rt = evaluate_composition(decoded, profile)
-                pieces.append(
-                    {
-                        "bars": total_bars,
-                        "eligible_grams": eligible_grams(decoded),
-                        "ngram": rt.ngram_repetition_rate,
-                        "unique_bar_fraction": rt.unique_bar_fraction,
-                        "longest_run": longest_run(decoded),
-                        "stepwise": rt.stepwise_fraction,
-                        "notes_per_second": (
-                            rt.n_notes / max(decoded.time.seconds(decoded.end_tick), 1e-9)
-                        ),
-                        "kind": "roundtrip",
-                        "excluded": eligible_grams(decoded) < MIN_GRAMS,
-                    }
-                )
+            row = measure(decoded, piece, "rt_piece", total_bars)
+            if row:
+                rows.append(row)
 
-        # Windows, only where the piece is long enough to hold one without
-        # padding. A padded window's repetition is not a musical measurement.
+        # Equivalent 8-bar windows for original and round-trip. Only where the
+        # piece can hold a whole window: a padded window's repetition is not a
+        # musical measurement.
         if total_bars >= args.window_bars:
-            for start in range(0, total_bars - args.window_bars + 1, args.window_bars):
+            for start_bar in range(0, total_bars - args.window_bars + 1, args.window_bars):
                 window = slice_bars(
-                    composition, start, args.window_bars, ticks_per_bar=ticks_per_bar
+                    composition, start_bar, args.window_bars, ticks_per_bar=ticks_per_bar
                 )
-                if not window.sounding_events():
-                    continue
-                wg = eligible_grams(window)
-                wm = evaluate_composition(window, profile)
-                windows.append(
-                    {
-                        "piece_bars": total_bars,
-                        "eligible_grams": wg,
-                        "ngram": wm.ngram_repetition_rate,
-                        "unique_bar_fraction": wm.unique_bar_fraction,
-                        "longest_run": longest_run(window),
-                        "stepwise": wm.stepwise_fraction,
-                        "excluded": wg < MIN_GRAMS,
-                    }
-                )
+                row = measure(window, piece, "orig_window", total_bars)
+                if row:
+                    rows.append(row)
+                if not args.skip_roundtrip:
+                    rt = tokenizer.decode(tokenizer.encode(window).ids).composition
+                    row = measure(rt, piece, "rt_window", total_bars)
+                    if row:
+                        rows.append(row)
 
-    def usable(rows: list[dict[str, Any]], kind: str | None = None) -> list[dict[str, Any]]:
-        return [
-            r for r in rows if not r.get("excluded") and (kind is None or r.get("kind") == kind)
-        ]
+    def usable(kind: str, **where: Any) -> list[dict[str, Any]]:
+        out = [r for r in rows if r["kind"] == kind and not r["excluded"]]
+        for key, (low, high) in where.items():
+            out = [r for r in out if low <= r[key] <= high]
+        return out
+
+    def uniq(subset: list[dict[str, Any]]) -> int:
+        return len({r["piece"] for r in subset})
 
     report: dict[str, Any] = {
         "split": args.split,
         "window_bars": args.window_bars,
         "min_eligible_grams": MIN_GRAMS,
         "n_pieces_loaded": len(entries),
-        "n_pieces_excluded_too_little_material": skipped_short,
+        "n_rows_excluded_too_little_material": excluded,
+        "note_on_metrics": (
+            "ngram_interval is the long-standing metric and is already "
+            "transposition-invariant; ngram_exact is the stricter absolute-pitch "
+            "companion. bars_consecutive_dup is a stalled loop, "
+            "bars_nonconsecutive_reuse is form -- both raise a plain repeated-bar "
+            "count, which is why that count could not separate them."
+        ),
+        "generated_material": (
+            "absent: no checkpoint available locally, so the generated arm of the "
+            "comparison is not included and must be run against a trained model"
+        ),
     }
 
-    orig = usable(pieces, "original")
+    print(f"\n{'=' * 78}")
     print(
-        f"\n{'=' * 72}\nPER COMPOSITION (original), n={len(orig)} usable, "
-        f"{skipped_short} excluded for under {MIN_GRAMS} eligible 4-grams"
+        f"{'group':14}{'n':>7}{'pieces':>8}{'interval':>10}{'exact':>8}"
+        f"{'uniqbar':>9}{'consec':>8}{'nonconsec':>11}{'run':>6}"
     )
-    report["per_composition_original"] = describe("original", [r["ngram"] for r in orig])
-    for name, value in report["per_composition_original"].items():
-        if name != "label":
-            print(f"  {name:20} {value}")
+    for kind in ("orig_piece", "rt_piece", "orig_window", "rt_window"):
+        subset = usable(kind)
+        if not subset:
+            continue
+        stats = describe(kind, [r["ngram_interval"] for r in subset])
+        report[kind] = {
+            **stats,
+            "unique_pieces": uniq(subset),
+            "ngram_exact_median": round(statistics.median([r["ngram_exact"] for r in subset]), 4),
+            "unique_bar_fraction_median": round(
+                statistics.median([r["unique_bar_fraction"] for r in subset]), 4
+            ),
+            "bars_consecutive_dup_median": round(
+                statistics.median([r["bars_consecutive_dup"] for r in subset]), 4
+            ),
+            "bars_nonconsecutive_reuse_median": round(
+                statistics.median([r["bars_nonconsecutive_reuse"] for r in subset]), 4
+            ),
+            "longest_run_mean": round(statistics.fmean([r["longest_run"] for r in subset]), 3),
+        }
+        r = report[kind]
+        print(
+            f"{kind:14}{r['n']:>7}{r['unique_pieces']:>8}{r['median']:>10.3f}"
+            f"{r['ngram_exact_median']:>8.3f}{r['unique_bar_fraction_median']:>9.3f}"
+            f"{r['bars_consecutive_dup_median']:>8.3f}"
+            f"{r['bars_nonconsecutive_reuse_median']:>11.3f}"
+            f"{r['longest_run_mean']:>6.2f}"
+        )
 
-    print("\n  histogram of n-gram repetition, three bin widths:")
+    print("\nDISTRIBUTION of interval repetition, rt_window (what the model saw)")
+    target = usable("rt_window") or usable("rt_piece")
     for bins in (5, 10, 20):
-        counts = histogram([r["ngram"] for r in orig], bins)
-        peak = max(c for _, c in counts)
-        print(f"    {bins} bins: " + "  ".join(f"{lab}:{c}" for lab, c in counts if c))
-        report[f"histogram_{bins}"] = counts
-        del peak
-
-    if not args.skip_roundtrip:
-        rt = usable(pieces, "roundtrip")
-        report["per_composition_roundtrip"] = describe("roundtrip", [r["ngram"] for r in rt])
-        print(f"\nPER COMPOSITION (round-trip), n={len(rt)}")
-        for name, value in report["per_composition_roundtrip"].items():
-            if name != "label":
-                print(f"  {name:20} {value}")
-
-    win = usable(windows)
-    report["per_window"] = describe("windows", [r["ngram"] for r in win])
-    print(f"\nPER {args.window_bars}-BAR WINDOW (unpadded only), n={len(win)}")
-    for name, value in report["per_window"].items():
-        if name != "label":
-            print(f"  {name:20} {value}")
-
-    print("\nSTRATIFIED BY PIECE LENGTH (original compositions)")
-    bands = (("under 8 bars", 0, 7), ("8-16 bars", 8, 16), ("over 16 bars", 17, 10**9))
-    report["by_length"] = {}
-    print(f"  {'band':16}{'n':>6}{'median':>9}{'zero%':>8}{'high%':>8}{'middle%':>9}")
-    for label, low, high in bands:
-        subset = [r for r in orig if low <= r["bars"] <= high]
-        stats = describe(label, [r["ngram"] for r in subset])
-        report["by_length"][label] = stats
-        if stats["n"]:
-            print(
-                f"  {label:16}{stats['n']:>6}{stats['median']:>9.3f}"
-                f"{100 * stats['zero_fraction']:>7.0f}%{100 * stats['high_fraction']:>7.0f}%"
-                f"{100 * stats['middle_fraction']:>8.0f}%"
-            )
-
-    # On ROUND-TRIPPED data. Bar signatures are exact (offset, channel,
-    # value) tuples, so unquantized MIDI micro-timing means no two bars ever
-    # match: unique_bar_fraction reads 1.000 and longest_run 0.00 in every
-    # band, telling us nothing. Quantizing is what makes bar-level structure
-    # visible, and the quantized form is also what the model was trained on.
-    joint_source = usable(pieces, "roundtrip") if not args.skip_roundtrip else orig
+        counts = histogram([r["ngram_interval"] for r in target], bins)
+        report[f"histogram_rt_window_{bins}"] = counts
+        print(f"  {bins:2} bins: " + " ".join(f"{lab}:{c}" for lab, c in counts if c))
+    stats = describe("rt_window", [r["ngram_interval"] for r in target])
+    report["rt_window_distribution"] = stats
     print(
-        "\nJOINT STRUCTURE on "
-        + ("round-tripped" if not args.skip_roundtrip else "original")
-        + " data: is high repetition motif reuse or literal looping?"
+        f"  zero {100 * stats['zero_fraction']:.0f}%  "
+        f"middle(.35-.65) {100 * stats['middle_fraction']:.0f}%  "
+        f"high(>=.8) {100 * stats['high_fraction']:.0f}%"
     )
+
+    print("\nSTRATIFIED BY PIECE LENGTH (rt_window)")
+    print(f"  {'band':14}{'n':>7}{'pieces':>8}{'median':>9}{'zero%':>7}{'mid%':>7}{'high%':>7}")
+    report["by_length"] = {}
+    for label, low, high in (
+        ("8-16 bars", 8, 16),
+        ("17-32 bars", 17, 32),
+        ("over 32 bars", 33, 10**9),
+    ):
+        subset = usable("rt_window", piece_bars=(low, high))
+        if not subset:
+            continue
+        stats = describe(label, [r["ngram_interval"] for r in subset])
+        report["by_length"][label] = {**stats, "unique_pieces": uniq(subset)}
+        print(
+            f"  {label:14}{stats['n']:>7}{uniq(subset):>8}{stats['median']:>9.3f}"
+            f"{100 * stats['zero_fraction']:>6.0f}%{100 * stats['middle_fraction']:>6.0f}%"
+            f"{100 * stats['high_fraction']:>6.0f}%"
+        )
+
+    print("\nJOINT: within each interval-repetition band, is it loop or form?")
     print(
-        f"  {'ngram band':14}{'n':>6}{'uniqbar':>9}"
-        f"{'longest run':>13}{'notes/sec':>11}{'stepwise':>10}"
+        f"  {'band':12}{'n':>7}{'pieces':>8}{'uniqbar':>9}{'consec':>8}"
+        f"{'nonconsec':>11}{'run':>6}{'n/sec':>7}{'step':>7}"
     )
     report["joint"] = {}
     for low, high in ((0.0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1.01)):
-        subset = [r for r in joint_source if low <= r["ngram"] < high]
+        subset = usable("rt_window", ngram_interval=(low, high - 1e-9))
         if not subset:
             continue
         row = {
             "n": len(subset),
+            "unique_pieces": uniq(subset),
             "unique_bar_fraction": round(
                 statistics.fmean(r["unique_bar_fraction"] for r in subset), 3
+            ),
+            "bars_consecutive_dup": round(
+                statistics.fmean(r["bars_consecutive_dup"] for r in subset), 3
+            ),
+            "bars_nonconsecutive_reuse": round(
+                statistics.fmean(r["bars_nonconsecutive_reuse"] for r in subset), 3
             ),
             "longest_run": round(statistics.fmean(r["longest_run"] for r in subset), 2),
             "notes_per_second": round(statistics.fmean(r["notes_per_second"] for r in subset), 1),
@@ -302,21 +376,21 @@ def main() -> int:
         }
         report["joint"][f"{low:.1f}-{high:.1f}"] = row
         print(
-            f"  {f'{low:.1f}-{high:.1f}':14}{row['n']:>6}{row['unique_bar_fraction']:>9.3f}"
-            f"{row['longest_run']:>13.2f}{row['notes_per_second']:>11.1f}"
-            f"{row['stepwise']:>10.3f}"
+            f"  {f'{low:.1f}-{high:.1f}':12}{row['n']:>7}{row['unique_pieces']:>8}"
+            f"{row['unique_bar_fraction']:>9.3f}{row['bars_consecutive_dup']:>8.3f}"
+            f"{row['bars_nonconsecutive_reuse']:>11.3f}{row['longest_run']:>6.2f}"
+            f"{row['notes_per_second']:>7.1f}{row['stepwise']:>7.3f}"
         )
 
-    report["pieces"] = pieces
-    report["windows"] = windows
+    report["rows"] = rows
     args.out.write_text(json.dumps(report, indent=2, default=str))
     print(f"\n  wrote {args.out}")
+    grams = [r["eligible_grams"] for r in usable("orig_piece")]
+    print(f"  eligible 4-grams per piece: median {statistics.median(grams or [0])}")
+    print(f"  excluded {excluded} rows for under {MIN_GRAMS} eligible 4-grams")
     print(
-        f"  eligible-gram counts: median {statistics.median([r['eligible_grams'] for r in orig])}"
-    )
-    print(
-        f"  excluded {skipped_short} of {len(entries)} pieces "
-        f"({100 * skipped_short / max(1, len(entries)):.0f}%) for insufficient material"
+        "  generated material is NOT in this report: no checkpoint is available "
+        "locally, so that arm must be measured against a trained model."
     )
     return 0
 
