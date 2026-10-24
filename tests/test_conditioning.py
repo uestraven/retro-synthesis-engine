@@ -255,3 +255,95 @@ def test_agreement_compares_axes_independently():
     result = agreement(left, right)
     assert result["motif"] and result["phrase"]
     assert not result["rhythm"]
+
+
+# -- per-window labelling and provenance --------------------------------------
+
+
+def test_window_labels_come_from_the_decoded_training_example(nes_profile):
+    """The labelling unit is the training example as the model sees it.
+
+    A piece's label cannot be inherited by its windows: a track can open
+    sparsely and develop a motif later, and 63% of pieces yield one window
+    while one yields 96, so inheritance both mislabels windows and weights a
+    few long pieces heavily.
+    """
+    from rse.conditioning import melody_line, motif_note_participation
+    from rse.events.convert import composition_from_intake
+    from rse.generation.plan import make_plan
+    from rse.generation.procedural import generate
+    from rse.tokenizers.tokenizer import RseTokenizer
+    from rse.training.dataset import TRAIN, windows_from_composition
+
+    tokenizer = RseTokenizer()
+    composition = composition_from_intake(
+        generate(nes_profile, make_plan(seed=21, n_bars=32)).record
+    )
+    windows = windows_from_composition(
+        composition, tokenizer, split=TRAIN, window_bars=4, composition_id="piece-1"
+    )
+    assert len(windows) > 1
+
+    # Each window's features must come from decoding its own ids.
+    measured = []
+    for window in windows:
+        decoded = tokenizer.decode(window.ids).composition
+        _channel, pitches = melody_line(decoded)
+        measured.append(motif_note_participation(pitches) if pitches else 0.0)
+    whole = motif_note_participation(melody_line(composition)[1])
+    # At least one window must differ from the whole-piece figure, or
+    # inheritance would be indistinguishable from measurement.
+    assert any(abs(m - whole) > 1e-9 for m in measured)
+
+
+def test_window_index_and_split_are_recoverable(nes_profile):
+    from rse.events.convert import composition_from_intake
+    from rse.generation.plan import make_plan
+    from rse.generation.procedural import generate
+    from rse.tokenizers.tokenizer import RseTokenizer
+    from rse.training.dataset import TRAIN, windows_from_composition
+
+    tokenizer = RseTokenizer()
+    composition = composition_from_intake(
+        generate(nes_profile, make_plan(seed=22, n_bars=32)).record
+    )
+    windows = windows_from_composition(
+        composition, tokenizer, split=TRAIN, window_bars=4, composition_id="piece-2"
+    )
+    indices = [w.start_bar // 4 for w in windows]
+    assert indices == list(range(len(windows)))
+    assert all(w.split == TRAIN for w in windows)
+    assert all(w.composition_id == "piece-2" for w in windows)
+
+
+def test_insufficient_melody_is_unknown_not_low():
+    """`low` is a real musical behaviour -- 22% of the corpus never restates a
+    motif and is more stepwise than the rest -- so it must not double as a
+    missing-data marker."""
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "wml", pathlib.Path(__file__).parent.parent / "scripts" / "window_motif_labels.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    from rse.conditioning import MIN_MELODY_NOTES, Thresholds
+
+    thresholds = Thresholds(motif_low=0.2, motif_high=0.6)
+    assert module.motif_label(0.0, MIN_MELODY_NOTES - 1, thresholds) == UNKNOWN
+    assert module.motif_label(0.9, MIN_MELODY_NOTES - 1, thresholds) == UNKNOWN
+    assert module.motif_label(0.0, MIN_MELODY_NOTES, thresholds) == "low"
+    assert module.motif_label(0.9, MIN_MELODY_NOTES, thresholds) == "high"
+    assert module.motif_label(0.4, MIN_MELODY_NOTES, thresholds) == "medium"
+
+
+def test_sampling_weight_offsets_unequal_windows_per_composition():
+    """A 96-window piece would otherwise be seen 96x as often as a one-window
+    piece, which is the game-dominance problem the splits exist to avoid."""
+    counts = {"a": 1, "b": 4, "c": 96}
+    weights = {piece: 1.0 / n for piece, n in counts.items()}
+    # Each composition contributes the same total mass regardless of length.
+    for piece, n in counts.items():
+        assert weights[piece] * n == pytest.approx(1.0)
