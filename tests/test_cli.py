@@ -455,3 +455,30 @@ def test_render_accepts_an_rse_ef_document(midi_path, tmp_path):
     samples, rate = read_wav(out)
     assert rate == 44_100
     assert np.abs(samples).max() > 0.1
+
+
+def test_the_corpus_band_rejects_a_model_with_no_repetition():
+    """The acceptance band must not pass output that repeats nothing.
+
+    An earlier p10-p90 band did exactly that: some real pieces score zero
+    n-gram repetition, so p10 was 0.0 and a model generating none counted as
+    inside the corpus distribution against a median of 0.5. The interquartile
+    range is the test that discriminates.
+    """
+    from rse.training.evaluate import Aggregate, in_distribution
+
+    corpus = Aggregate(
+        label="corpus",
+        n=30,
+        medians={"ngram_repetition_rate": 0.5},
+        p25={"ngram_repetition_rate": 0.174},
+        p75={"ngram_repetition_rate": 0.805},
+    )
+    silent = Aggregate(label="model", n=4, medians={"ngram_repetition_rate": 0.0})
+    verdict = in_distribution(corpus, silent, ("ngram_repetition_rate",))
+    assert verdict["ngram_repetition_rate"]["inside"] is False
+
+    healthy = Aggregate(label="model", n=4, medians={"ngram_repetition_rate": 0.45})
+    assert in_distribution(corpus, healthy, ("ngram_repetition_rate",))["ngram_repetition_rate"][
+        "inside"
+    ]

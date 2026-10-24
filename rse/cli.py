@@ -318,6 +318,21 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument(
         "--corpus-size", type=int, default=64, help="reference pieces for originality screening"
     )
+    evaluate.add_argument(
+        "--reference",
+        choices=("corpus", "procedural"),
+        default="corpus",
+        help="what to score against. 'corpus' uses real dataset music, both as "
+        "written and after a tokenizer round trip; 'procedural' uses the "
+        "rule-based generator, which understates the target badly -- its "
+        "n-gram repetition sits near 0.167 against the corpus's 0.628",
+    )
+    evaluate.add_argument("--dataset", default="nesmdb")
+    evaluate.add_argument("--release", default="midi")
+    evaluate.add_argument(
+        "--n-reference", type=int, default=60, help="real pieces to score against"
+    )
+    evaluate.add_argument("--datasets-dir", type=Path, default=None)
     evaluate.add_argument("--out", type=Path, default=None, help="write the full report here")
     evaluate.set_defaults(func=cmd_evaluate)
 
@@ -1027,6 +1042,18 @@ def cmd_sample(args: argparse.Namespace) -> int:
     return 0
 
 
+#: Metrics judged against the corpus distribution. Repetition and density
+#: first: those are where generated output diverges most from real music.
+_BAND_METRICS = (
+    "ngram_repetition_rate",
+    "notes_per_bar",
+    "pitch_class_entropy",
+    "in_scale_fraction",
+    "stepwise_fraction",
+    "n_channels_used",
+)
+
+
 def cmd_evaluate(args: argparse.Namespace) -> int:
     _require_torch()
     from rse.generation.plan import make_plan
@@ -1038,6 +1065,8 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         compare,
         corpus_fingerprints,
         evaluate_composition,
+        in_distribution,
+        reference_groups,
     )
     from rse.training.train import load_checkpoint
 
@@ -1048,6 +1077,21 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         profile, n=args.corpus_size, seed=args.seed, n_bars=args.bars
     )
     fingerprints = corpus_fingerprints([c for c, _, _ in reference], profile)
+
+    corpus_original = corpus_roundtrip = None
+    if args.reference == "corpus":
+        from rse.training.corpus import corpus_from_release
+
+        entries, _ci = corpus_from_release(
+            args.dataset,
+            args.release,
+            datasets_dir=args.datasets_dir,
+            limit=args.n_reference,
+            seed=args.seed,
+        )
+        corpus_original, corpus_roundtrip = reference_groups(
+            [c for c, _, _ in entries], tokenizer, profile, fingerprints=fingerprints
+        )
 
     model_metrics = []
     for index in range(args.n):
@@ -1099,6 +1143,12 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
                 "comparison": comparison,
                 "model_metrics": [m.to_dict() for m in model_metrics],
                 "baseline_metrics": [m.to_dict() for m in baseline_metrics],
+                "corpus_original": (
+                    corpus_original.to_dict() if corpus_original is not None else None
+                ),
+                "corpus_roundtrip": (
+                    corpus_roundtrip.to_dict() if corpus_roundtrip is not None else None
+                ),
             },
         )
 
@@ -1108,8 +1158,35 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
 
     baseline = comparison["baseline"]
     candidate = comparison["candidate"]
-    print(f"{args.n} samples each, {args.bars} bars\n")
-    print(f"  {'metric':<26}{'baseline':>12}{'model':>12}{'delta':>10}")
+    print(f"{args.n} samples, {args.bars} bars\n")
+
+    if corpus_original is not None and corpus_roundtrip is not None:
+        model_aggregate = aggregate("model", model_metrics)
+        print("  medians over pieces. 'round-trip' is the ceiling the representation allows.\n")
+        print(
+            f"  {'metric':<26}{'corpus':>10}{'round-trip':>12}"
+            f"{'model':>10}{'corpus IQR':>18}{'ok':>4}"
+        )
+        band = in_distribution(corpus_original, model_aggregate, _BAND_METRICS)
+        for name in _BAND_METRICS:
+            verdict = band.get(name)
+            mark = "" if verdict is None else ("ok" if verdict["inside"] else "NO")
+            band_text = (
+                "" if verdict is None else f"{verdict['band'][0]:.3f}-{verdict['band'][1]:.3f}"
+            )
+            print(
+                f"  {name:<26}"
+                f"{corpus_original.medians.get(name, 0.0):>10.3f}"
+                f"{corpus_roundtrip.medians.get(name, 0.0):>12.3f}"
+                f"{model_aggregate.medians.get(name, 0.0):>10.3f}"
+                f"{band_text:>18}"
+                f"{mark:>4}"
+            )
+        inside = sum(1 for v in band.values() if v["inside"])
+        print(f"\n  inside the corpus interquartile range: {inside}/{len(band)} metrics")
+        print(f"  corpus n={corpus_original.n}, round-trip n={corpus_roundtrip.n}\n")
+
+    print(f"  {'metric':<26}{'rule-based':>12}{'model':>12}{'delta':>10}")
     for name in sorted(baseline["means"]):
         base_value = baseline["means"].get(name, 0.0)
         model_value = candidate["means"].get(name, 0.0)

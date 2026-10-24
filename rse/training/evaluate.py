@@ -16,6 +16,7 @@ learning has not earned its place. `compare` is that test.
 from __future__ import annotations
 
 import math
+import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
@@ -301,6 +302,17 @@ class Aggregate:
     n: int = 0
     means: dict[str, float] = field(default_factory=dict)
     rates: dict[str, float] = field(default_factory=dict)
+    #: Per-metric distribution, not just the mean. A mean over 37 reference
+    #: tracks hides that real pieces differ widely from each other, and the
+    #: question is whether generated output falls inside the corpus spread
+    #: rather than whether it matches an average no real piece exhibits.
+    medians: dict[str, float] = field(default_factory=dict)
+    #: Interquartile range, not p10-p90. The wider band was useless as an
+    #: acceptance test: some real pieces score zero n-gram repetition, so
+    #: p10 was 0.0 and a model generating *no* repetition counted as inside
+    #: the corpus distribution against a median of 0.5.
+    p25: dict[str, float] = field(default_factory=dict)
+    p75: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -308,6 +320,9 @@ class Aggregate:
             "n": self.n,
             "means": {k: round(v, 4) for k, v in self.means.items()},
             "rates": {k: round(v, 4) for k, v in self.rates.items()},
+            "medians": {k: round(v, 4) for k, v in self.medians.items()},
+            "p25": {k: round(v, 4) for k, v in self.p25.items()},
+            "p75": {k: round(v, 4) for k, v in self.p75.items()},
         }
 
 
@@ -337,14 +352,53 @@ _RATE_FIELDS = (
 )
 
 
+def _quantile(sorted_values: list[float], q: float) -> float:
+    """Linear-interpolated quantile. Defined for a single sample."""
+    if not sorted_values:
+        return 0.0
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    position = q * (len(sorted_values) - 1)
+    low = int(math.floor(position))
+    high = min(low + 1, len(sorted_values) - 1)
+    return sorted_values[low] + (sorted_values[high] - sorted_values[low]) * (position - low)
+
+
+def in_distribution(
+    reference: Aggregate, candidate: Aggregate, keys: tuple[str, ...]
+) -> dict[str, Any]:
+    """Whether the candidate's median falls inside the reference's IQR.
+
+    The first milestone for generated music is occupying roughly the
+    corpus's distribution, not hitting its mean: real NES tracks vary a
+    great deal, so an aggregate mean is not a target any single piece meets.
+    """
+    out: dict[str, Any] = {}
+    for key in keys:
+        low = reference.p25.get(key)
+        high = reference.p75.get(key)
+        value = candidate.medians.get(key)
+        if low is None or high is None or value is None:
+            continue
+        out[key] = {
+            "value": round(value, 4),
+            "band": [round(low, 4), round(high, 4)],
+            "inside": bool(low <= value <= high),
+        }
+    return out
+
+
 def aggregate(label: str, metrics: list[MusicMetrics]) -> Aggregate:
     """Average a set of per-composition metrics."""
     result = Aggregate(label=label, n=len(metrics))
     if not metrics:
         return result
     for name in _MEAN_FIELDS:
-        values = [float(getattr(m, name)) for m in metrics]
+        values = sorted(float(getattr(m, name)) for m in metrics)
         result.means[name] = sum(values) / len(values)
+        result.medians[name] = statistics.median(values)
+        result.p25[name] = _quantile(values, 0.25)
+        result.p75[name] = _quantile(values, 0.75)
     for name in _RATE_FIELDS:
         values = [bool(getattr(m, name)) for m in metrics]
         result.rates[name] = sum(values) / len(values)
@@ -383,3 +437,41 @@ def compare(baseline: Aggregate, candidate: Aggregate) -> dict[str, Any]:
         "technical_bar": technical_bar,
         "clears_technical_bar": all(technical_bar.values()),
     }
+
+
+def reference_groups(
+    compositions: list[Composition],
+    tokenizer: Any,
+    profile: HardwareProfile,
+    *,
+    fingerprints: list[set[int]] | None = None,
+) -> tuple[Aggregate, Aggregate]:
+    """Metrics for real music, as written and as the model can see it.
+
+    Two references, because they answer different questions. The original is
+    the musical target. The round trip is the ceiling the model could reach
+    given its representation, and the gap between them is representation loss
+    measured rather than assumed — currently about 20-30% of notes.
+
+    Comparing generated output against a rule-based generator instead of these
+    was actively misleading: the procedural baseline has an n-gram repetition
+    rate near 0.167 where real NES-MDB sits near 0.628, so a model at 0.157
+    looked on target while being four times short.
+    """
+    original: list[MusicMetrics] = []
+    roundtrip: list[MusicMetrics] = []
+    for composition in compositions:
+        if not composition.sounding_events():
+            continue
+        original.append(
+            evaluate_composition(composition, profile, corpus_fingerprints=fingerprints)
+        )
+        decoded = tokenizer.decode(tokenizer.encode(composition).ids).composition
+        if decoded.sounding_events():
+            roundtrip.append(
+                evaluate_composition(decoded, profile, corpus_fingerprints=fingerprints)
+            )
+    return (
+        aggregate("corpus original", original),
+        aggregate("corpus round-trip", roundtrip),
+    )
