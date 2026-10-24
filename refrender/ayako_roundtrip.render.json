@@ -1,0 +1,29 @@
+{
+  "renderer_id": "nes_apu/0.1.0",
+  "sample_rate": 44100,
+  "duration_sec": 28.859274,
+  "n_samples": 1272694,
+  "channels_rendered": [
+    "NO",
+    "P1",
+    "P2",
+    "TR"
+  ],
+  "settings": {
+    "sample_rate": 44100,
+    "oversample": 4,
+    "peak": 0.89,
+    "apply_output_filters": true,
+    "default_noise_decay": true,
+    "tail_sec": 0.25
+  },
+  "warnings": [],
+  "composition_id": null,
+  "name": null,
+  "hardware_profile": "nes",
+  "duty_by_channel": {
+    "P1": 2,
+    "P2": 1
+  },
+  "n_notes": 470
+}

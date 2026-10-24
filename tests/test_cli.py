@@ -436,3 +436,22 @@ def test_a_dot_in_the_basename_does_not_eat_the_extension(midi_path, tmp_path):
     assert main(["render", "--file", str(midi_path), "--out", str(second)]) == 0
     assert (tmp_path / "piece_t0.7.wav").is_file()
     assert (tmp_path / "piece_t0.9.wav").is_file()
+
+
+def test_render_accepts_an_rse_ef_document(midi_path, tmp_path):
+    """`validate --record` took both record shapes and `render --record` did not.
+
+    That blocked the most important validation available: rendering a decoded
+    composition through the same path generated music takes, to tell a broken
+    representation apart from a badly trained model.
+    """
+    from rse.events.convert import composition_from_midi
+    from rse.jsonio import write_json
+
+    composition = composition_from_midi(midi_path, paths_profile())
+    record = write_json(tmp_path / "ef.json", composition.to_dict())
+    out = tmp_path / "ef.wav"
+    assert main(["render", "--record", str(record), "--out", str(out)]) == 0
+    samples, rate = read_wav(out)
+    assert rate == 44_100
+    assert np.abs(samples).max() > 0.1

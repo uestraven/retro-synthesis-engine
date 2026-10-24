@@ -130,10 +130,36 @@ class Renderer(Protocol):
     ) -> RenderResult: ...
 
 
+def _ticks_per_beat(record: dict[str, Any]) -> int:
+    """Resolution, from either record shape.
+
+    An intake record nests it under `midi`; an RSE-EF document carries it at
+    the top level. `validate --record` already accepted both and `render`
+    did not, which blocked the one validation that matters most: rendering a
+    decoded composition through the same path generated music takes.
+    """
+    midi = record.get("midi")
+    if isinstance(midi, dict) and "ticks_per_beat" in midi:
+        return int(midi["ticks_per_beat"])
+    return int(record["ticks_per_beat"])
+
+
+def _channel_of(event: dict[str, Any]) -> str | None:
+    """Channel id, from either record shape (`ch` or `channel_id`)."""
+    return event.get("ch") or event.get("channel_id")
+
+
+def _duration_of(event: dict[str, Any]) -> int:
+    """Note length in ticks, from either record shape."""
+    if "dur_ticks" in event:
+        return int(event["dur_ticks"])
+    return int(event.get("duration", 0))
+
+
 def musical_time_from_record(record: dict[str, Any]) -> MusicalTime:
-    """Rebuild the timing map stored in an intake record."""
+    """Rebuild the timing map stored in an intake record or RSE-EF document."""
     return MusicalTime(
-        record["midi"]["ticks_per_beat"],
+        _ticks_per_beat(record),
         [TempoChange(t["tick"], t["us_per_beat"]) for t in record.get("tempo_map", ())],
         [
             TimeSignatureChange(s["tick"], s["numerator"], s["denominator"])
@@ -159,7 +185,7 @@ def envelopes_from_record(record: dict[str, Any]) -> dict[str, list[EnvelopePoin
     for event in record.get("events", ()):
         if event.get("type") != "control" or event.get("control") != VOLUME_CONTROLLER:
             continue
-        channel_id = event.get("ch")
+        channel_id = _channel_of(event)
         if channel_id is None:
             continue
         gain = max(0.0, min(1.0, event.get("value", 0) / 127.0))
@@ -189,10 +215,10 @@ def notes_from_record(record: dict[str, Any]) -> list[RenderNote]:
         pitched = event_type == "note"
         value = event["pitch"] if pitched else event["value"]
         start_tick = event["tick"]
-        end_tick = start_tick + event.get("dur_ticks", 0)
+        end_tick = start_tick + _duration_of(event)
         notes.append(
             RenderNote(
-                channel_id=event["ch"],
+                channel_id=_channel_of(event),
                 start_sec=time.seconds(start_tick),
                 end_sec=time.seconds(end_tick),
                 value=value,
