@@ -218,6 +218,15 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--layers", type=int, default=6)
     train.add_argument("--heads", type=int, default=8)
     train.add_argument("--width", type=int, default=256, help="d_model")
+    train.add_argument(
+        "--patience",
+        type=int,
+        default=5,
+        help="stop after this many evaluations without a validation "
+        "improvement; raise it to compare two runs at an equal step budget, "
+        "since an arm that plateaus early otherwise trains far less than its "
+        "comparator and looks worse for a reason that is not its encoding",
+    )
     train.add_argument("--seed", type=int, default=0)
     train.add_argument("--device", default=None, help="cpu, cuda, or omit to detect")
     train.add_argument(
@@ -830,6 +839,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         batch_size=args.batch_size,
         seq_len=args.seq_len,
         learning_rate=args.learning_rate,
+        patience=args.patience,
         device=args.device,
     )
     _model, history, report = train(
