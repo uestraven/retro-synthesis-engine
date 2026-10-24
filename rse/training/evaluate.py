@@ -445,24 +445,57 @@ def reference_groups(
     profile: HardwareProfile,
     *,
     fingerprints: list[set[int]] | None = None,
+    window_bars: int | None = None,
+    min_bars: int | None = None,
 ) -> tuple[Aggregate, Aggregate]:
     """Metrics for real music, as written and as the model can see it.
 
     Two references, because they answer different questions. The original is
     the musical target. The round trip is the ceiling the model could reach
     given its representation, and the gap between them is representation loss
-    measured rather than assumed — currently about 20-30% of notes.
+    measured rather than assumed.
 
     Comparing generated output against a rule-based generator instead of these
     was actively misleading: the procedural baseline has an n-gram repetition
-    rate near 0.167 where real NES-MDB sits near 0.628, so a model at 0.157
-    looked on target while being four times short.
+    rate near 0.167 where real NES-MDB sits near 0.531 over eight bars, so a
+    model at 0.157 looked on target while being more than three times short.
+
+    `window_bars` slices each piece into windows of that many of its own bars
+    before measuring. Pass the length the model generates: n-gram repetition is
+    sequence-length sensitive, and the reference items are complete pieces of a
+    median 20 seconds, so a whole-song figure is not the target for an eight-bar
+    sample. Measured on the train split, the median runs 0.592 over full songs,
+    0.572 over sixteen bars and 0.531 over eight.
+
+    `min_bars` drops pieces too short to fill a window. Some NES-MDB entries
+    last a second and carry almost no n-grams, which drags the reference down
+    for a reason that has nothing to do with the music.
     """
-    original: list[MusicMetrics] = []
-    roundtrip: list[MusicMetrics] = []
+    from rse.training.dataset import bar_count, slice_bars
+
+    originals: list[Composition] = []
     for composition in compositions:
         if not composition.sounding_events():
             continue
+        if window_bars is None and min_bars is None:
+            originals.append(composition)
+            continue
+        fit = tokenizer.fit_grid(composition)
+        ticks_per_bar = fit.step_ticks * tokenizer.config.steps_per_bar
+        total = bar_count(composition, ticks_per_bar=ticks_per_bar)
+        if min_bars is not None and total < min_bars:
+            continue
+        if window_bars is None:
+            originals.append(composition)
+            continue
+        for start in range(0, max(1, total - window_bars + 1), window_bars):
+            window = slice_bars(composition, start, window_bars, ticks_per_bar=ticks_per_bar)
+            if window.sounding_events():
+                originals.append(window)
+
+    original: list[MusicMetrics] = []
+    roundtrip: list[MusicMetrics] = []
+    for composition in originals:
         original.append(
             evaluate_composition(composition, profile, corpus_fingerprints=fingerprints)
         )

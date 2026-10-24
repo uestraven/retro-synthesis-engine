@@ -1,0 +1,414 @@
+"""Controlled sampling sweep: can sampling alone recover NES-MDB's structure?
+
+Fixes the checkpoints and varies only generation parameters, because the
+diagnostic question is whether the structure already present in the training
+representation can be sampled out of a trained model, or whether the model
+never learned it. Retraining would answer a different question and cost more.
+
+What it measures, and what may be compared with what
+----------------------------------------------------
+Three groups are kept apart on purpose:
+
+- **corpus original** -- real music, the musical target.
+- **corpus round-trip** -- the same music after encode/decode, which is the
+  ceiling the representation allows. The gap to the original is representation
+  loss, currently about 13% of n-gram repetition and 26% of note density.
+- **generated** -- what the model produces.
+
+Reference windows match the generation length. N-gram repetition is
+sequence-length sensitive -- on the train split the median runs 0.592 over
+full songs, 0.572 over sixteen bars, 0.531 over eight -- and the reference
+items are complete pieces, so a whole-song figure is not a target for an
+eight-bar sample.
+
+Token-level numbers are reported in their own columns and must not be compared
+against the decoded musical metrics. Repetition over a token stream is a
+different quantity from repetition over pitches; it is comparable across
+sampling configurations and nothing else. `Channel_*` is a valid note-on count:
+verified equal to the decoded note count on 12 of 12 pieces.
+
+Density is reported per second as well as per bar. `notes_per_bar` uses nominal
+bars, which last 2.0 s for a MIDI-release reference at its fake 120 BPM but
+1.6 s for a sample decoded at Tempo_150, so the per-bar figures are not
+strictly like for like. Per-second density is representation-independent.
+
+Ranking
+-------
+Validity and memorization are filters, not scores. Among survivors the penalty
+is the weighted normalized distance *outside* each corpus interquartile range
+-- repetition 3x, note density 2x, stepwise motion 1x -- tie-broken by distance
+from the corpus median. Nothing is rewarded for exceeding the corpus on
+repetition: a literal loop would score perfectly on that metric alone, which is
+why unique-bar fraction and the longest run of identical consecutive bars are
+reported beside it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+from rse import paths
+from rse.hardware.constraints import ConstraintEngine
+from rse.hardware.profile import load_profile
+from rse.tokenizers.tokenizer import Conditioning
+from rse.training.evaluate import (
+    MEMORIZATION_THRESHOLD,
+    bar_signatures,
+    corpus_fingerprints,
+    evaluate_composition,
+    reference_groups,
+)
+
+#: Weights for the ranked metrics, per the review's scoring decision.
+WEIGHTS = {"ngram_repetition_rate": 3.0, "notes_per_bar": 2.0, "stepwise_fraction": 1.0}
+
+#: Reported but never ranked on: a model can satisfy these while producing
+#: nothing musical, so they catch regressions rather than indicate success.
+GUARDRAILS = ("pitch_class_entropy", "in_scale_fraction", "n_channels_used")
+
+
+def token_metrics(tokens: list[str], n: int = 4) -> dict[str, float]:
+    """Repetition and note-on density over the raw token stream.
+
+    Comparable across sampling configurations only. A token n-gram spans
+    position, channel, pitch, velocity and duration tokens together, so its
+    repetition rate is not the pitch n-gram rate and the two must not be put in
+    the same column.
+    """
+    bars = max(1, sum(1 for t in tokens if t == "Bar"))
+    note_ons = sum(1 for t in tokens if t.startswith("Channel_"))
+    grams = [tuple(tokens[i : i + n]) for i in range(max(0, len(tokens) - n + 1))]
+    repeated = 0
+    if grams:
+        counts = Counter(grams)
+        repeated = sum(c for c in counts.values() if c > 1)
+    return {
+        "token_ngram_repetition": repeated / len(grams) if grams else 0.0,
+        "token_note_ons_per_bar": note_ons / bars,
+        "n_tokens": float(len(tokens)),
+        "token_bars": float(bars),
+    }
+
+
+def structure_metrics(composition: Any) -> dict[str, float]:
+    """Trivial-loop detection: how long an identical bar runs unbroken."""
+    signatures = bar_signatures(composition)
+    longest = run = 0
+    for index in range(1, len(signatures)):
+        run = run + 1 if signatures[index] == signatures[index - 1] else 0
+        longest = max(longest, run + 1 if run else 0)
+    return {"longest_identical_bar_run": float(longest)}
+
+
+def outside(value: float, low: float, high: float) -> float:
+    """Normalized distance outside a band; zero when inside it."""
+    width = high - low
+    if width <= 0:
+        return 0.0
+    if value < low:
+        return (low - value) / width
+    if value > high:
+        return (value - high) / width
+    return 0.0
+
+
+def score(row: dict[str, Any], reference: Any) -> tuple[float, float]:
+    """(primary penalty, tiebreaker). Lower is better for both."""
+    penalty = tie = 0.0
+    for metric, weight in WEIGHTS.items():
+        low = reference.p25.get(metric)
+        high = reference.p75.get(metric)
+        median = reference.medians.get(metric)
+        value = row.get(metric)
+        if low is None or high is None or value is None or median is None:
+            continue
+        penalty += weight * outside(value, low, high)
+        width = high - low
+        tie += weight * (abs(value - median) / width if width > 0 else 0.0)
+    return penalty, tie
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--checkpoints", type=Path, nargs="+", required=True)
+    parser.add_argument(
+        "--temperatures", type=float, nargs="+", default=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    )
+    parser.add_argument("--seeds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
+    parser.add_argument("--top-k", type=int, nargs="*", default=[])
+    parser.add_argument("--top-p", type=float, nargs="*", default=[])
+    parser.add_argument("--bars", type=int, default=8)
+    parser.add_argument("--max-tokens", type=int, default=2048)
+    parser.add_argument("--dataset", default="nesmdb")
+    parser.add_argument("--release", default="midi")
+    parser.add_argument("--reference-split", default="train")
+    parser.add_argument("--n-reference", type=int, default=60)
+    parser.add_argument("--datasets-dir", type=Path, default=None)
+    parser.add_argument("--configs-dir", type=Path, default=None)
+    parser.add_argument("--out", type=Path, required=True, help="output directory")
+    parser.add_argument(
+        "--keep-events",
+        type=int,
+        default=3,
+        help="save this many generated event files per checkpoint, best-scoring first",
+    )
+    args = parser.parse_args()
+
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.training.corpus import corpus_from_release
+    from rse.training.train import load_checkpoint
+
+    args.out.mkdir(parents=True, exist_ok=True)
+    profile = load_profile("nes", configs_dir=args.configs_dir or paths.HARDWARE_CONFIGS_DIR)
+    engine = ConstraintEngine(profile)
+
+    # --- references, computed once ----------------------------------------
+    print("reference : loading corpus...", flush=True)
+    entries, _info = corpus_from_release(
+        args.dataset,
+        args.release,
+        datasets_dir=args.datasets_dir,
+        limit=args.n_reference,
+        splits=None if args.reference_split == "all" else (args.reference_split,),
+        seed=0,
+    )
+    compositions = [c for c, _, _ in entries]
+    fingerprints = corpus_fingerprints(compositions, profile)
+
+    # The tokenizer for the reference round trip comes from the first
+    # checkpoint, since the round trip is only meaningful for a given encoding.
+    _m0, tokenizer0, _p0 = load_checkpoint(args.checkpoints[0])
+    corpus_original, corpus_roundtrip = reference_groups(
+        compositions,
+        tokenizer0,
+        profile,
+        fingerprints=fingerprints,
+        window_bars=args.bars,
+        min_bars=args.bars,
+    )
+    print(
+        f"reference : {corpus_original.n} windows of {args.bars} bars from "
+        f"{args.reference_split}; ngram median "
+        f"{corpus_original.medians['ngram_repetition_rate']:.3f} "
+        f"IQR {corpus_original.p25['ngram_repetition_rate']:.3f}-"
+        f"{corpus_original.p75['ngram_repetition_rate']:.3f}",
+        flush=True,
+    )
+
+    # --- the sweep ---------------------------------------------------------
+    # The sampler's own defaults are top_k=40 and top_p=0.95, so every sample
+    # taken so far has had both active. Each arm below therefore states all
+    # three values explicitly: the temperature arm holds the default nucleus
+    # settings fixed, and the top_k and top_p arms disable the other truncation
+    # so their effects stay identifiable rather than compounding.
+    configs: list[dict[str, Any]] = [
+        {"kind": "temperature", "temperature": t, "top_k": 40, "top_p": 0.95}
+        for t in args.temperatures
+    ]
+    configs += [
+        {"kind": "top_k", "temperature": 1.0, "top_k": k, "top_p": None} for k in args.top_k
+    ]
+    configs += [
+        {"kind": "top_p", "temperature": 1.0, "top_k": None, "top_p": p} for p in args.top_p
+    ]
+
+    rows: list[dict[str, Any]] = []
+    # Kept so the best-scoring configurations can be written out for
+    # listening; a ranked table is not a substitute for hearing it.
+    produced: dict[tuple, Any] = {}
+    for checkpoint in args.checkpoints:
+        model, tokenizer, _payload = load_checkpoint(checkpoint)
+        label = checkpoint.stem
+        for config in configs:
+            for seed in args.seeds:
+                kwargs: dict[str, Any] = {
+                    "seed": seed,
+                    "temperature": config["temperature"],
+                    "max_tokens": args.max_tokens,
+                    "top_k": config["top_k"],
+                    "top_p": config["top_p"],
+                }
+                result = sample(
+                    model,
+                    tokenizer,
+                    conditioning=Conditioning(n_bars=args.bars),
+                    config=SamplingConfig(**kwargs),
+                )
+                tokens = [tokenizer.vocabulary.token_of(i) for i in result.ids]
+                raw_ok = not engine.validate(result.composition)
+                playable, _repair = engine.apply(result.composition)
+                metrics = evaluate_composition(playable, profile, corpus_fingerprints=fingerprints)
+                seconds = playable.time.seconds(playable.end_tick) or 1e-9
+                notes = playable.sounding_events()
+                rests = sum(
+                    1 for channel in profile.channel_ids if not playable.sounding_events(channel)
+                )
+                durations = [e.duration for e in notes]
+                row: dict[str, Any] = {
+                    "checkpoint": label,
+                    "kind": config["kind"],
+                    "temperature": config["temperature"],
+                    "top_k": config["top_k"] or 0,
+                    "top_p": config["top_p"] or 0.0,
+                    "seed": seed,
+                    **{k: getattr(metrics, k) for k in WEIGHTS},
+                    **{k: getattr(metrics, k) for k in GUARDRAILS},
+                    "notes_per_second": len(notes) / seconds,
+                    "n_notes": metrics.n_notes,
+                    "n_bars": metrics.n_bars,
+                    "unique_bar_fraction": metrics.unique_bar_fraction,
+                    "mean_note_duration_ticks": (
+                        sum(durations) / len(durations) if durations else 0.0
+                    ),
+                    "silent_channels": rests,
+                    "raw_hardware_compliant": raw_ok,
+                    "hardware_compliant": metrics.hardware_compliant,
+                    "loop_ok": metrics.loop_ok,
+                    "flagged_as_memorized": bool(
+                        metrics.max_corpus_similarity is not None
+                        and metrics.max_corpus_similarity >= MEMORIZATION_THRESHOLD
+                    ),
+                    "max_corpus_similarity": metrics.max_corpus_similarity or 0.0,
+                    "hit_token_limit": bool(getattr(result, "hit_token_limit", False)),
+                    **token_metrics(tokens),
+                    **structure_metrics(playable),
+                }
+                for channel in profile.channel_ids:
+                    row[f"onsets_per_sec_{channel}"] = (
+                        len(playable.sounding_events(channel)) / seconds
+                    )
+                produced[
+                    (
+                        label,
+                        config["kind"],
+                        config["temperature"],
+                        config["top_k"] or 0,
+                        config["top_p"] or 0.0,
+                        seed,
+                    )
+                ] = playable
+                penalty, tie = score(row, corpus_original)
+                row["penalty"] = penalty
+                row["tiebreak"] = tie
+                rows.append(row)
+                print(
+                    f"  {label:22} {config['kind']:11} "
+                    f"t={config['temperature']:.1f} k={config['top_k']} "
+                    f"p={config['top_p']:.2f} seed={seed}  "
+                    f"ngram={row['ngram_repetition_rate']:.3f} "
+                    f"n/bar={row['notes_per_bar']:.1f} penalty={penalty:.2f}",
+                    flush=True,
+                )
+
+    # --- outputs -----------------------------------------------------------
+    fields = sorted({k for row in rows for k in row})
+    csv_path = args.out / "sweep.csv"
+    with csv_path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    report = {
+        "reference": {
+            "split": args.reference_split,
+            "window_bars": args.bars,
+            "original": corpus_original.to_dict(),
+            "roundtrip": corpus_roundtrip.to_dict(),
+        },
+        "weights": WEIGHTS,
+        "guardrails": list(GUARDRAILS),
+        "rows": rows,
+    }
+    (args.out / "sweep.json").write_text(json.dumps(report, indent=2, default=str))
+
+    # Rank configurations by mean penalty across seeds, after the filters.
+    groups: dict[tuple, list[dict[str, Any]]] = {}
+    for row in rows:
+        key = (row["checkpoint"], row["kind"], row["temperature"], row["top_k"], row["top_p"])
+        groups.setdefault(key, []).append(row)
+
+    ranked = []
+    for key, group in groups.items():
+        valid = [r for r in group if r["hardware_compliant"] and not r["flagged_as_memorized"]]
+        if not valid:
+            continue
+        means = {
+            metric: sum(r[metric] for r in valid) / len(valid)
+            for metric in (
+                *WEIGHTS,
+                *GUARDRAILS,
+                "notes_per_second",
+                "unique_bar_fraction",
+                "longest_identical_bar_run",
+                "token_ngram_repetition",
+                "penalty",
+                "tiebreak",
+            )
+        }
+        spread = max(r["ngram_repetition_rate"] for r in valid) - min(
+            r["ngram_repetition_rate"] for r in valid
+        )
+        ranked.append({"key": key, "n_valid": len(valid), "ngram_spread": spread, **means})
+    ranked.sort(key=lambda r: (r["penalty"], r["tiebreak"]))
+
+    print(
+        f"\n{'rank':>4} {'checkpoint':22}{'cfg':>14}{'ngram':>8}{'n/bar':>8}"
+        f"{'n/sec':>8}{'step':>7}{'uniqbar':>8}{'run':>5}{'pen':>7}{'spread':>8}"
+    )
+    for index, row in enumerate(ranked[:20], start=1):
+        ck, kind, t, k, p = row["key"]
+        cfg = (
+            f"t{t:.1f}" if kind == "temperature" else (f"k{k}" if kind == "top_k" else f"p{p:.2f}")
+        )
+        print(
+            f"{index:>4} {ck:22}{cfg:>14}"
+            f"{row['ngram_repetition_rate']:>8.3f}{row['notes_per_bar']:>8.1f}"
+            f"{row['notes_per_second']:>8.1f}{row['stepwise_fraction']:>7.3f}"
+            f"{row['unique_bar_fraction']:>8.3f}{row['longest_identical_bar_run']:>5.1f}"
+            f"{row['penalty']:>7.2f}{row['ngram_spread']:>8.3f}"
+        )
+    print(
+        f"\n  corpus target: ngram {corpus_original.medians['ngram_repetition_rate']:.3f} "
+        f"(IQR {corpus_original.p25['ngram_repetition_rate']:.3f}-"
+        f"{corpus_original.p75['ngram_repetition_rate']:.3f}), "
+        f"notes/bar {corpus_original.medians['notes_per_bar']:.1f} "
+        f"(IQR {corpus_original.p25['notes_per_bar']:.1f}-"
+        f"{corpus_original.p75['notes_per_bar']:.1f})"
+    )
+    # Representative output, best-scoring first, for listening.
+    if args.keep_events:
+        from rse.jsonio import write_json
+
+        events_dir = args.out / "events"
+        events_dir.mkdir(parents=True, exist_ok=True)
+        per_checkpoint: dict[str, int] = {}
+        for entry in ranked:
+            ck, kind, temperature, top_k, top_p = entry["key"]
+            if per_checkpoint.get(ck, 0) >= args.keep_events:
+                continue
+            seed = args.seeds[0]
+            composition = produced.get((ck, kind, temperature, top_k, top_p, seed))
+            if composition is None:
+                continue
+            per_checkpoint[ck] = per_checkpoint.get(ck, 0) + 1
+            if kind == "temperature":
+                tag = f"t{temperature:.1f}"
+            elif kind == "top_k":
+                tag = f"k{top_k}"
+            else:
+                tag = f"p{top_p:.2f}"
+            write_json(events_dir / f"{ck}_{tag}_s{seed}.json", composition.to_dict())
+        print(f"  wrote {sum(per_checkpoint.values())} event files to {events_dir}")
+        print("  render them with: rse render --record <file> --out <name>")
+
+    print(f"  wrote {csv_path} and {args.out / 'sweep.json'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

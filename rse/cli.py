@@ -1106,8 +1106,16 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
             ),
             seed=args.seed,
         )
+        # Match the reference window to what is being generated: n-gram
+        # repetition is sequence-length sensitive and the reference items
+        # are whole pieces.
         corpus_original, corpus_roundtrip = reference_groups(
-            [c for c, _, _ in entries], tokenizer, profile, fingerprints=fingerprints
+            [c for c, _, _ in entries],
+            tokenizer,
+            profile,
+            fingerprints=fingerprints,
+            window_bars=args.bars,
+            min_bars=args.bars,
         )
 
     model_metrics = []
