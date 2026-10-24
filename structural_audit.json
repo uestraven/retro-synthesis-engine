@@ -1,0 +1,220 @@
+{
+  "zero_population": {
+    "windows": 7862,
+    "excluded_insufficient_grams": 513,
+    "eligible": 7349,
+    "genuinely_zero": 1619,
+    "genuinely_zero_unique_pieces": 692,
+    "zero_grams": {
+      "n": 1619,
+      "p05": 8.0,
+      "p25": 13.0,
+      "median": 20.0,
+      "p75": 31.0,
+      "p95": 59.0,
+      "mean": 25.3305
+    },
+    "nonzero_grams": {
+      "n": 5730,
+      "p05": 17.0,
+      "p25": 33.0,
+      "median": 53.0,
+      "p75": 77.0,
+      "p95": 124.0,
+      "mean": 59.2229
+    }
+  },
+  "rhythmic_loss": {
+    "pieces": 549,
+    "median_notes_kept": 0.774,
+    "all_notes": {
+      "original": {
+        "n": 549,
+        "p05": 1.1379,
+        "p25": 1.8281,
+        "median": 2.2521,
+        "p75": 2.5769,
+        "p95": 2.9589,
+        "mean": 2.182
+      },
+      "roundtrip": {
+        "n": 549,
+        "p05": -0.0,
+        "p25": 0.0616,
+        "median": 0.5226,
+        "p75": 0.9957,
+        "p95": 1.6494,
+        "mean": 0.6176
+      }
+    },
+    "matched_notes": {
+      "original": {
+        "n": 549,
+        "p05": 1.0549,
+        "p25": 1.9273,
+        "median": 2.3576,
+        "p75": 2.7351,
+        "p95": 3.2772,
+        "mean": 2.2816
+      },
+      "roundtrip": {
+        "n": 549,
+        "p05": -0.0,
+        "p25": 0.1133,
+        "median": 0.6861,
+        "p75": 1.1484,
+        "p95": 1.9766,
+        "mean": 0.7366
+      }
+    },
+    "interpretation": "The gap on matched notes is quantization alone. The extra gap on all notes is deletion of intra-row events."
+  },
+  "rhythm_distributions": {
+    "orig_ioi_entropy": {
+      "n": 4020,
+      "p05": 1.1433,
+      "p25": 1.8542,
+      "median": 2.2455,
+      "p75": 2.5702,
+      "p95": 3.0026,
+      "mean": 2.1868
+    },
+    "rt_ioi_entropy": {
+      "n": 4020,
+      "p05": -0.0,
+      "p25": 0.0472,
+      "median": 0.5226,
+      "p75": 0.9997,
+      "p95": 1.6734,
+      "mean": 0.6194
+    },
+    "orig_mean_ioi_seconds": {
+      "n": 4020,
+      "p05": 0.0183,
+      "p25": 0.035,
+      "median": 0.0578,
+      "p75": 0.0929,
+      "p95": 0.1787,
+      "mean": 0.074
+    },
+    "rt_mean_ioi_seconds": {
+      "n": 4020,
+      "p05": 0.091,
+      "p25": 0.1248,
+      "median": 0.1581,
+      "p75": 0.211,
+      "p95": 0.3556,
+      "mean": 0.1814
+    },
+    "orig_note_length_cv": {
+      "n": 4020,
+      "p05": 0.4644,
+      "p25": 0.9143,
+      "median": 1.2604,
+      "p75": 1.6842,
+      "p95": 2.6293,
+      "mean": 1.378
+    },
+    "rt_note_length_cv": {
+      "n": 4020,
+      "p05": 0.0,
+      "p25": 0.4965,
+      "median": 0.7867,
+      "p75": 1.0863,
+      "p95": 1.6179,
+      "mean": 0.8109
+    },
+    "orig_notes_per_second": {
+      "n": 4020,
+      "p05": 5.7981,
+      "p25": 11.3338,
+      "median": 17.9464,
+      "p75": 29.1344,
+      "p95": 55.256,
+      "mean": 22.8886
+    },
+    "rt_notes_per_second": {
+      "n": 4020,
+      "p05": 5.0551,
+      "p25": 9.3217,
+      "median": 13.9771,
+      "p75": 19.2312,
+      "p95": 28.1809,
+      "mean": 14.8467
+    }
+  },
+  "joint": {
+    "0.0-0.2": {
+      "n": 744,
+      "unique_pieces": 744,
+      "rt_ioi_entropy": 0.798,
+      "rt_bars_consecutive_dup": 0.0015,
+      "rt_bars_nonconsecutive_reuse": 0.0066,
+      "variation_rate": 0.228
+    },
+    "0.2-0.4": {
+      "n": 503,
+      "unique_pieces": 503,
+      "rt_ioi_entropy": 0.685,
+      "rt_bars_consecutive_dup": 0.0021,
+      "rt_bars_nonconsecutive_reuse": 0.0203,
+      "variation_rate": 0.2913
+    },
+    "0.4-0.6": {
+      "n": 773,
+      "unique_pieces": 773,
+      "rt_ioi_entropy": 0.636,
+      "rt_bars_consecutive_dup": 0.006,
+      "rt_bars_nonconsecutive_reuse": 0.052,
+      "variation_rate": 0.2317
+    },
+    "0.6-0.8": {
+      "n": 942,
+      "unique_pieces": 942,
+      "rt_ioi_entropy": 0.594,
+      "rt_bars_consecutive_dup": 0.0054,
+      "rt_bars_nonconsecutive_reuse": 0.0913,
+      "variation_rate": 0.1631
+    },
+    "0.8-1.0": {
+      "n": 1058,
+      "unique_pieces": 1058,
+      "rt_ioi_entropy": 0.473,
+      "rt_bars_consecutive_dup": 0.0198,
+      "rt_bars_nonconsecutive_reuse": 0.1676,
+      "variation_rate": 0.0557
+    }
+  },
+  "piece_weighted": {
+    "ngram_interval": {
+      "per_window_median": 0.3438,
+      "per_piece_median": 0.3928,
+      "ci95": [
+        0.375,
+        0.4082
+      ],
+      "n_pieces": 2633,
+      "n_windows": 7349
+    },
+    "notes_per_second": {
+      "per_window_median": 14.8,
+      "per_piece_median": 14.0677,
+      "ci95": [
+        13.763,
+        14.4792
+      ],
+      "n_pieces": 2633,
+      "n_windows": 7349
+    },
+    "stepwise": {
+      "per_window_median": 0.375,
+      "per_piece_median": 0.3704,
+      "ci95": [
+        0.362,
+        0.3787
+      ],
+      "n_pieces": 2633,
+      "n_windows": 7349
+    }
+  }
+}
