@@ -3,3 +3,48 @@ loaded 4437 pieces from 'train'
   500/4437
   750/4437
   1000/4437
+  1250/4437
+  1500/4437
+  1750/4437
+  2000/4437
+  2250/4437
+  2500/4437
+  2750/4437
+  3000/4437
+  3250/4437
+  3500/4437
+  3750/4437
+  4000/4437
+  4250/4437
+
+==============================================================================
+group               n  pieces  interval   exact  uniqbar  consec  nonconsec   run
+orig_piece       4020    4020     0.597   0.594    1.000   0.000      0.000  0.01
+rt_piece         3897    3897     0.491   0.510    1.000   0.000      0.000  0.15
+orig_window      7460    2648     0.486   0.500    1.000   0.000      0.000  0.00
+rt_window        7349    2633     0.344   0.379    1.000   0.000      0.000  0.10
+
+DISTRIBUTION of interval repetition, rt_window (what the model saw)
+   5 bins: 0.00-0.20:2755 0.20-0.40:1221 0.40-0.60:1106 0.60-0.80:1048 0.80-1.00:1219
+  10 bins: 0.00-0.10:2080 0.10-0.20:675 0.20-0.30:643 0.30-0.40:578 0.40-0.50:534 0.50-0.60:572 0.60-0.70:547 0.70-0.80:501 0.80-0.90:475 0.90-1.00:744
+  20 bins: 0.00-0.05:1722 0.05-0.10:358 0.10-0.15:352 0.15-0.20:323 0.20-0.25:300 0.25-0.30:343 0.30-0.35:304 0.35-0.40:274 0.40-0.45:293 0.45-0.50:241 0.50-0.55:315 0.55-0.60:257 0.60-0.65:289 0.65-0.70:258 0.70-0.75:258 0.75-0.80:243 0.80-0.85:267 0.85-0.90:208 0.90-0.95:298 0.95-1.00:446
+  zero 22%  middle(.35-.65) 23%  high(>=.8) 17%
+
+STRATIFIED BY PIECE LENGTH (rt_window)
+  band                n  pieces   median  zero%   mid%  high%
+  8-16 bars        1189    1104    0.463    11%    29%    19%
+  17-32 bars       2432    1006    0.378    17%    26%    16%
+  over 32 bars     3728     523    0.271    29%    19%    16%
+
+JOINT: within each interval-repetition band, is it loop or form?
+  band              n  pieces  uniqbar  consec  nonconsec   run  n/sec   step
+  0.0-0.2        2755    1187    0.990   0.002      0.009  0.02   13.6  0.413
+  0.2-0.4        1221     857    0.971   0.003      0.027  0.03   15.6  0.393
+  0.4-0.6        1106     796    0.942   0.008      0.052  0.09   16.1  0.374
+  0.6-0.8        1048     739    0.918   0.012      0.075  0.12   16.8  0.351
+  0.8-1.0        1219     639    0.843   0.040      0.140  0.31   17.5  0.301
+
+  wrote repetition_train.json
+  eligible 4-grams per piece: median 94.0
+  excluded 1872 rows for under 8 eligible 4-grams
+  generated material is NOT in this report: no checkpoint is available locally, so that arm must be measured against a trained model.

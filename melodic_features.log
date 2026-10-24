@@ -1,0 +1,74 @@
+train: 4437 pieces
+  train 300/4437
+  train 600/4437
+  train 900/4437
+  train 1200/4437
+  train 1500/4437
+  train 1800/4437
+  train 2100/4437
+  train 2400/4437
+  train 2700/4437
+  train 3000/4437
+  train 3300/4437
+  train 3600/4437
+  train 3900/4437
+  train 4200/4437
+valid: 398 pieces
+  valid 300/398
+test: 370 pieces
+  test 300/370
+
+==============================================================================
+FEATURE DISTRIBUTIONS, eligible pieces only
+feature                                   train        valid         test
+seconds                                  25.575       25.690       20.916
+n_notes                                 396.000      322.500      245.000
+n_channels_used                           4.000        4.000        4.000
+pitch_entropy                             2.884        2.793        2.792
+in_scale                                  0.892        0.909        0.923
+stepwise                                  0.391        0.450        0.433
+orig_mean_abs_interval                    4.224        3.338        3.637
+orig_direction_change_rate                0.574        0.564        0.556
+orig_melodic_span                        36.000       21.000       23.000
+orig_motif_interval                       0.597        0.651        0.558
+orig_motif_exact                          0.518        0.513        0.475
+orig_motif_transposed_gap                 0.003        0.006        0.000
+orig_variation_rate                       0.158        0.157        0.159
+orig_n_eligible_grams                    94.000       82.000       65.000
+rt_bar_diversity                          1.000        1.000        1.000
+rt_bars_consecutive_dup                   0.000        0.000        0.000
+rt_bars_nonconsecutive_reuse              0.000        0.000        0.000
+rt_longest_identical_run                  0.000        0.000        0.000
+orig_notes_per_second                    17.946       15.352       15.261
+orig_mean_note_seconds                    0.137        0.146        0.143
+orig_note_length_cv                       1.260        1.067        1.100
+orig_mean_ioi_seconds                     0.058        0.070        0.071
+orig_ioi_entropy                          2.246        2.235        1.981
+orig_rest_rate_per_second                 0.141        0.117        0.075
+rt_notes_per_second                      13.977       13.136       13.029
+rt_mean_note_seconds                      0.185        0.198        0.189
+rt_note_length_cv                         0.787        0.676        0.734
+rt_mean_ioi_seconds                       0.158        0.169        0.155
+rt_ioi_entropy                            0.523        0.538        0.546
+rt_rest_rate_per_second                   0.201        0.131        0.141
+
+==============================================================================
+CANDIDATE SELECTION RULES (derived from train, applied unchanged)
+These are illustrative thresholds to show how coverage responds.
+Weights and a final score wait on the distribution report and listening.
+
+rule      split    pieces  games  franchise  median s  8-bar win
+lenient   train      2053    273        262      35.3       4355
+lenient   valid       160     32          3      38.0        325
+lenient   test        140     33          0      31.9        243
+moderate  train      1260    251        169      38.0       2827
+moderate  valid       104     26          3      41.1        234
+moderate  test         90     28          0      35.1        179
+strict    train       606    209         81      39.0       1445
+strict    valid        50     18          2      49.3        138
+strict    test         34     18          0      39.1         84
+
+  wrote melodic_features.json
+  4666 of 5205 pieces have >= 8 eligible 4-grams
+  NOTE: thresholds above are illustrative. Nothing is tuned on valid or
+  test, and the test split stays reserved for final evaluation.
