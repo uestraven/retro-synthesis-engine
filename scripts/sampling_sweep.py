@@ -58,10 +58,12 @@ from rse.hardware.profile import load_profile
 from rse.tokenizers.tokenizer import Conditioning
 from rse.training.evaluate import (
     MEMORIZATION_THRESHOLD,
+    aggregate,
+    aggregate_by_piece,
     bar_signatures,
     corpus_fingerprints,
     evaluate_composition,
-    reference_groups,
+    reference_windows,
 )
 
 #: Weights for the ranked metrics, per the review's scoring decision.
@@ -105,6 +107,38 @@ def structure_metrics(composition: Any) -> dict[str, float]:
     return {"longest_identical_bar_run": float(longest)}
 
 
+def slice_seconds(composition: Any, start_sec: float, length_sec: float) -> Any:
+    """A window of real elapsed time, not of nominal bars.
+
+    The MIDI release's tempo metadata is fake -- every file claims 120 BPM --
+    so a nominal bar is 2.0 s there while a decoded sample's nominal bar lasts
+    whatever its Tempo token says. Slicing by seconds compares like with like
+    on density. Events are selected by their own mapped start time rather than
+    by assuming a constant tick rate.
+    """
+    from dataclasses import replace as dc_replace
+
+    time = composition.time
+    kept = []
+    offset = None
+    for event in composition.sorted_events():
+        at = time.seconds(event.tick)
+        if at < start_sec or at >= start_sec + length_sec:
+            continue
+        if offset is None:
+            offset = event.tick
+        kept.append(dc_replace(event, tick=event.tick - offset))
+    window = type(composition)(
+        hardware_profile=composition.hardware_profile,
+        ticks_per_beat=composition.ticks_per_beat,
+        events=kept,
+        tempo_map=list(composition.tempo_map[:1]),
+        time_signatures=list(composition.time_signatures[:1]),
+    )
+    window.normalize()
+    return window
+
+
 def outside(value: float, low: float, high: float) -> float:
     """Normalized distance outside a band; zero when inside it."""
     width = high - low
@@ -142,6 +176,13 @@ def main() -> int:
     parser.add_argument("--seeds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
     parser.add_argument("--top-k", type=int, nargs="*", default=[])
     parser.add_argument("--top-p", type=float, nargs="*", default=[])
+    parser.add_argument(
+        "--untruncated",
+        action="store_true",
+        help="add a control arm with top_k and top_p both disabled, at every "
+        "temperature. Establishes what the sampler's defaults of top_k=40 and "
+        "top_p=0.95 -- active in every sample taken so far -- actually contribute",
+    )
     parser.add_argument("--bars", type=int, default=8)
     parser.add_argument("--max-tokens", type=int, default=2048)
     parser.add_argument("--dataset", default="nesmdb")
@@ -183,7 +224,7 @@ def main() -> int:
     # The tokenizer for the reference round trip comes from the first
     # checkpoint, since the round trip is only meaningful for a given encoding.
     _m0, tokenizer0, _p0 = load_checkpoint(args.checkpoints[0])
-    corpus_original, corpus_roundtrip = reference_groups(
+    original_tagged, roundtrip_tagged = reference_windows(
         compositions,
         tokenizer0,
         profile,
@@ -191,12 +232,24 @@ def main() -> int:
         window_bars=args.bars,
         min_bars=args.bars,
     )
+    # Two aggregations of the same windows. Per-window pools every window
+    # equally, which lets long pieces dominate; per-piece gives each source
+    # piece one vote. The ranking uses per-piece.
+    corpus_by_window = aggregate("corpus original (per window)", [m for _, m in original_tagged])
+    corpus_original = aggregate_by_piece("corpus original (per piece)", original_tagged)
+    corpus_roundtrip = aggregate_by_piece("corpus round-trip (per piece)", roundtrip_tagged)
+    unique_pieces = len({piece for piece, _ in original_tagged})
     print(
-        f"reference : {corpus_original.n} windows of {args.bars} bars from "
-        f"{args.reference_split}; ngram median "
+        f"reference : {len(original_tagged)} windows of {args.bars} bars from "
+        f"{unique_pieces} unique pieces in '{args.reference_split}'",
+        flush=True,
+    )
+    print(
+        f"            ngram per piece "
         f"{corpus_original.medians['ngram_repetition_rate']:.3f} "
         f"IQR {corpus_original.p25['ngram_repetition_rate']:.3f}-"
-        f"{corpus_original.p75['ngram_repetition_rate']:.3f}",
+        f"{corpus_original.p75['ngram_repetition_rate']:.3f}   "
+        f"per window {corpus_by_window.medians['ngram_repetition_rate']:.3f}",
         flush=True,
     )
 
@@ -216,6 +269,11 @@ def main() -> int:
     configs += [
         {"kind": "top_p", "temperature": 1.0, "top_k": None, "top_p": p} for p in args.top_p
     ]
+    if args.untruncated:
+        configs += [
+            {"kind": "untruncated", "temperature": t, "top_k": None, "top_p": None}
+            for t in args.temperatures
+        ]
 
     rows: list[dict[str, Any]] = []
     # Kept so the best-scoring configurations can be written out for
@@ -259,6 +317,7 @@ def main() -> int:
                     **{k: getattr(metrics, k) for k in WEIGHTS},
                     **{k: getattr(metrics, k) for k in GUARDRAILS},
                     "notes_per_second": len(notes) / seconds,
+                    "seconds": seconds,
                     "n_notes": metrics.n_notes,
                     "n_bars": metrics.n_bars,
                     "unique_bar_fraction": metrics.unique_bar_fraction,
@@ -296,14 +355,66 @@ def main() -> int:
                 row["penalty"] = penalty
                 row["tiebreak"] = tie
                 rows.append(row)
+                truncation = (
+                    "untruncated"
+                    if config["top_k"] is None and config["top_p"] is None
+                    else f"k={config['top_k']} p={config['top_p']}"
+                )
                 print(
                     f"  {label:22} {config['kind']:11} "
-                    f"t={config['temperature']:.1f} k={config['top_k']} "
-                    f"p={config['top_p']:.2f} seed={seed}  "
+                    f"t={config['temperature']:.1f} {truncation:18} seed={seed}  "
                     f"ngram={row['ngram_repetition_rate']:.3f} "
                     f"n/bar={row['notes_per_bar']:.1f} penalty={penalty:.2f}",
                     flush=True,
                 )
+
+    # --- duration-matched sensitivity check -------------------------------
+    # The nominal-bar reference and the generated samples do not span the same
+    # elapsed time: a MIDI-release bar is 2.0 s at the release's fake 120 BPM,
+    # while a sample decoded at Tempo_150 has 1.6 s bars. Re-cut the reference
+    # to the median generated duration and re-read the density figures. If the
+    # verdict moves, the per-bar comparison was carrying a unit artifact.
+    median_seconds = sorted(row["seconds"] for row in rows)[len(rows) // 2] if rows else 0.0
+    duration_tagged: list[tuple[str, Any]] = []
+    if median_seconds > 0:
+        for index, composition in enumerate(compositions):
+            if not composition.sounding_events():
+                continue
+            piece = str(composition.source_metadata.get("composition_id") or f"piece{index}")
+            total = composition.time.seconds(composition.end_tick)
+            if total < median_seconds:
+                continue
+            start = 0.0
+            while start + median_seconds <= total:
+                window = slice_seconds(composition, start, median_seconds)
+                if window.sounding_events():
+                    duration_tagged.append(
+                        (
+                            piece,
+                            evaluate_composition(window, profile, corpus_fingerprints=fingerprints),
+                        )
+                    )
+                start += median_seconds
+    corpus_by_duration = (
+        aggregate_by_piece("corpus original (duration-matched)", duration_tagged)
+        if duration_tagged
+        else None
+    )
+    if corpus_by_duration is not None:
+        print(
+            f"\n  duration-matched reference: windows of {median_seconds:.1f}s "
+            f"(median generated length), {len(duration_tagged)} windows from "
+            f"{len({q for q, _ in duration_tagged})} pieces"
+        )
+        print(
+            f"    ngram {corpus_by_duration.medians['ngram_repetition_rate']:.3f} "
+            f"(IQR {corpus_by_duration.p25['ngram_repetition_rate']:.3f}-"
+            f"{corpus_by_duration.p75['ngram_repetition_rate']:.3f})   "
+            f"notes/bar {corpus_by_duration.medians['notes_per_bar']:.1f}   "
+            f"vs nominal-bar reference ngram "
+            f"{corpus_original.medians['ngram_repetition_rate']:.3f} / notes/bar "
+            f"{corpus_original.medians['notes_per_bar']:.1f}"
+        )
 
     # --- outputs -----------------------------------------------------------
     fields = sorted({k for row in rows for k in row})
@@ -317,9 +428,30 @@ def main() -> int:
         "reference": {
             "split": args.reference_split,
             "window_bars": args.bars,
-            "original": corpus_original.to_dict(),
-            "roundtrip": corpus_roundtrip.to_dict(),
+            "unique_source_pieces": unique_pieces,
+            "n_windows": len(original_tagged),
+            "window_selection": (
+                "consecutive non-overlapping windows of the piece's own fitted "
+                "bars from bar zero; tails shorter than a full window dropped; "
+                "empty windows dropped; pieces shorter than one window excluded"
+            ),
+            "aggregation": (
+                "per piece: each source piece contributes the mean of its own "
+                "windows, so one long piece does not outweigh several short ones"
+            ),
+            "original_per_piece": corpus_original.to_dict(),
+            "original_per_window": corpus_by_window.to_dict(),
+            "roundtrip_per_piece": corpus_roundtrip.to_dict(),
+            "duration_matched": (
+                corpus_by_duration.to_dict() if corpus_by_duration is not None else None
+            ),
+            "duration_matched_seconds": median_seconds,
         },
+        "ranking_is_diagnostic_only": (
+            "A rank orders configurations by distance from corpus statistics. "
+            "It does not certify musical quality: no metric here sees phrase "
+            "development, and listening remains required."
+        ),
         "weights": WEIGHTS,
         "guardrails": list(GUARDRAILS),
         "rows": rows,
@@ -362,9 +494,14 @@ def main() -> int:
     )
     for index, row in enumerate(ranked[:20], start=1):
         ck, kind, t, k, p = row["key"]
-        cfg = (
-            f"t{t:.1f}" if kind == "temperature" else (f"k{k}" if kind == "top_k" else f"p{p:.2f}")
-        )
+        if kind == "temperature":
+            cfg = f"t{t:.1f}"
+        elif kind == "untruncated":
+            cfg = f"raw t{t:.1f}"
+        elif kind == "top_k":
+            cfg = f"k{k}"
+        else:
+            cfg = f"p{p:.2f}"
         print(
             f"{index:>4} {ck:22}{cfg:>14}"
             f"{row['ngram_repetition_rate']:>8.3f}{row['notes_per_bar']:>8.1f}"

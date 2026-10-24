@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 import statistics
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any
 
 from rse.data import dedupe
@@ -437,6 +437,101 @@ def compare(baseline: Aggregate, candidate: Aggregate) -> dict[str, Any]:
         "technical_bar": technical_bar,
         "clears_technical_bar": all(technical_bar.values()),
     }
+
+
+def reference_windows(
+    compositions: list[Composition],
+    tokenizer: Any,
+    profile: HardwareProfile,
+    *,
+    fingerprints: list[set[int]] | None = None,
+    window_bars: int | None = None,
+    min_bars: int | None = None,
+) -> tuple[list[tuple[str, MusicMetrics]], list[tuple[str, MusicMetrics]]]:
+    """Per-window metrics tagged with the piece each window came from.
+
+    The tag matters for aggregation. A long piece yields many windows and a
+    short one yields a single window, so pooling windows as though they were
+    independent tracks lets a handful of long pieces dominate the reference.
+    Callers should report the number of unique source pieces beside the window
+    count, and weight per piece when the question is about music rather than
+    about windows.
+
+    Window selection, stated so results are reproducible: each piece is cut
+    into consecutive non-overlapping windows of `window_bars` of *its own*
+    fitted bars, starting at bar zero, discarding any tail shorter than a full
+    window; empty windows are dropped; pieces shorter than `min_bars` are
+    excluded entirely.
+    """
+    from rse.training.dataset import bar_count, slice_bars
+
+    tagged: list[tuple[str, Composition]] = []
+    for index, composition in enumerate(compositions):
+        if not composition.sounding_events():
+            continue
+        piece = str(composition.source_metadata.get("composition_id") or f"piece{index}")
+        if window_bars is None and min_bars is None:
+            tagged.append((piece, composition))
+            continue
+        fit = tokenizer.fit_grid(composition)
+        ticks_per_bar = fit.step_ticks * tokenizer.config.steps_per_bar
+        total = bar_count(composition, ticks_per_bar=ticks_per_bar)
+        if min_bars is not None and total < min_bars:
+            continue
+        if window_bars is None:
+            tagged.append((piece, composition))
+            continue
+        for start in range(0, max(1, total - window_bars + 1), window_bars):
+            window = slice_bars(composition, start, window_bars, ticks_per_bar=ticks_per_bar)
+            if window.sounding_events():
+                tagged.append((piece, window))
+
+    original: list[tuple[str, MusicMetrics]] = []
+    roundtrip: list[tuple[str, MusicMetrics]] = []
+    for piece, composition in tagged:
+        original.append(
+            (piece, evaluate_composition(composition, profile, corpus_fingerprints=fingerprints))
+        )
+        decoded = tokenizer.decode(tokenizer.encode(composition).ids).composition
+        if decoded.sounding_events():
+            roundtrip.append(
+                (piece, evaluate_composition(decoded, profile, corpus_fingerprints=fingerprints))
+            )
+    return original, roundtrip
+
+
+def aggregate_by_piece(label: str, tagged: list[tuple[str, MusicMetrics]]) -> Aggregate:
+    """Aggregate one value per source piece, not one per window.
+
+    Each piece contributes the mean of its own windows, so a long piece carries
+    no more weight than a short one.
+    """
+    grouped: dict[str, list[MusicMetrics]] = {}
+    for piece, metrics in tagged:
+        grouped.setdefault(piece, []).append(metrics)
+    collapsed: list[MusicMetrics] = []
+    for metrics_list in grouped.values():
+        if len(metrics_list) == 1:
+            collapsed.append(metrics_list[0])
+            continue
+        merged = MusicMetrics()
+        # Only real fields: several metrics are computed properties with no
+        # setter, and they recompute themselves from the merged values.
+        settable = {f.name for f in fields(MusicMetrics)}
+        for name in (*_MEAN_FIELDS, "max_corpus_similarity"):
+            if name not in settable:
+                continue
+            values = [
+                float(getattr(m, name)) for m in metrics_list if getattr(m, name, None) is not None
+            ]
+            if values:
+                setattr(merged, name, sum(values) / len(values))
+        for name in _RATE_FIELDS:
+            if name not in settable:
+                continue
+            setattr(merged, name, all(bool(getattr(m, name)) for m in metrics_list))
+        collapsed.append(merged)
+    return aggregate(label, collapsed)
 
 
 def reference_groups(
