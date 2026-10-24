@@ -347,3 +347,53 @@ def test_sampling_weight_offsets_unequal_windows_per_composition():
     # Each composition contributes the same total mass regardless of length.
     for piece, n in counts.items():
         assert weights[piece] * n == pytest.approx(1.0)
+
+
+def test_threshold_fitting_is_piece_weighted():
+    """One composition contributed 76 windows to the tercile calculation.
+
+    Pooling windows gave (0.5, 0.8) against (0.5091, 0.7536) piece-weighted --
+    a 6% shift in the `high` boundary set by a single long piece.
+    """
+    import statistics
+
+    # Nine pieces with one window each, plus one piece with ninety.
+    pooled_input = [0.9] * 90 + [0.1 * i for i in range(1, 10)]
+    per_piece = [0.9] + [0.1 * i for i in range(1, 10)]
+
+    def tercile(values, q):
+        ordered = sorted(values)
+        return ordered[int(q * (len(ordered) - 1))]
+
+    # Pooled, the 90-window piece drags both boundaries to its own value.
+    assert tercile(pooled_input, 0.33) == pytest.approx(0.9)
+    # Piece-weighted, it is one vote among ten.
+    assert tercile(per_piece, 0.33) < 0.9
+    assert statistics.fmean(per_piece) < statistics.fmean(pooled_input)
+
+
+def test_unknown_is_preserved_as_a_distinct_state():
+    """UNKNOWN must never collapse into LOW: 3168 of 9609 train windows carry
+    it, and reinterpreting them as LOW would nearly double that class with
+    examples that have no melodic evidence at all."""
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "wml", pathlib.Path(__file__).parent.parent / "scripts" / "window_motif_labels.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    from rse.conditioning import MIN_MELODY_NOTES, Thresholds
+
+    thresholds = Thresholds(motif_low=0.5091, motif_high=0.7536)
+    states = {
+        module.motif_label(p, n, thresholds)
+        for p, n in (
+            (0.0, 4),
+            (0.0, MIN_MELODY_NOTES),
+            (0.6, MIN_MELODY_NOTES),
+            (0.9, MIN_MELODY_NOTES),
+        )
+    }
+    assert states == {UNKNOWN, "low", "medium", "high"}

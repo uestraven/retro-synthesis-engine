@@ -142,26 +142,34 @@ def main() -> int:
 
     # --- labels under both threshold sets ----------------------------------
     train_rows = [r for r in rows if r["split"] == "train"]
-    eligible_train = [
-        r["motif_note_participation"] for r in train_rows if r["n_melody_notes"] >= MIN_MELODY_NOTES
-    ]
-    window_fitted = Thresholds(fitted_on="train-windows", n_fitted=len(train_rows))
-    nonzero = sorted(v for v in eligible_train if v > 0.01)
-    if len(nonzero) >= 10:
-        window_fitted.motif_low = round(nonzero[int(0.33 * (len(nonzero) - 1))], 4)
-        window_fitted.motif_high = round(nonzero[int(0.67 * (len(nonzero) - 1))], 4)
+    window_fitted = Thresholds(fitted_on="train-windows-piece-weighted", n_fitted=len(train_rows))
+    # Piece-weighted: each composition contributes the mean of its own eligible
+    # windows, so a piece supplying 76 windows does not set the boundaries for
+    # the corpus. Pooling windows gave (0.5, 0.8) against (0.5091, 0.7536)
+    # piece-weighted, a 6% shift in the `high` boundary.
+    per_piece: dict[str, list[float]] = defaultdict(list)
+    for r in train_rows:
+        if r["n_melody_notes"] >= MIN_MELODY_NOTES and r["motif_note_participation"] > 0.01:
+            per_piece[r["piece_id"]].append(r["motif_note_participation"])
+    piece_values = sorted(statistics.fmean(v) for v in per_piece.values())
+    if len(piece_values) >= 10:
+        window_fitted.motif_low = round(piece_values[int(0.33 * (len(piece_values) - 1))], 4)
+        window_fitted.motif_high = round(piece_values[int(0.67 * (len(piece_values) - 1))], 4)
     print(
-        f"train-window-fitted thresholds: low {window_fitted.motif_low}, "
-        f"high {window_fitted.motif_high}"
+        f"train-window-fitted (piece-weighted, n={len(piece_values)} pieces): "
+        f"low {window_fitted.motif_low}, high {window_fitted.motif_high}"
     )
 
     for row in rows:
         row["label_frozen_piece_thresholds"] = motif_label(
             row["motif_note_participation"], row["n_melody_notes"], frozen
         )
-        row["label_window_thresholds"] = motif_label(
+        # PRIMARY label for Gate 3 training.
+        row["label"] = motif_label(
             row["motif_note_participation"], row["n_melody_notes"], window_fitted
         )
+        row["label_window_thresholds"] = row["label"]
+        row["threshold_set"] = "train-windows-piece-weighted"
 
     report: dict[str, Any] = {
         "feature_version": FEATURE_VERSION,
@@ -264,6 +272,48 @@ def main() -> int:
         "longest_window_tokens": longest,
         "with_one_token_prefix": longest + 1,
     }
+
+    frozen_path = args.report.with_name("motif_thresholds_frozen.json")
+    frozen_path.write_text(
+        json.dumps(
+            {
+                # Motif only. The rhythm and phrase fields of Thresholds
+                # were NOT fitted here and must not appear as if they were:
+                # Gate 3 is a motif-only experiment, and rhythm labels are
+                # deferred pending the codec repair (driving recall 0.292).
+                "primary": {
+                    "motif_low": window_fitted.motif_low,
+                    "motif_high": window_fitted.motif_high,
+                    "fitted_on": window_fitted.fitted_on,
+                    "n_windows": window_fitted.n_fitted,
+                },
+                "provenance": (
+                    "terciles of the non-zero, eligible TRAIN window population, "
+                    "piece-weighted so each composition contributes the mean of its "
+                    "own windows; never fitted or tuned on validation or test"
+                ),
+                "historical_piece_fitted": {
+                    "motif_low": frozen.motif_low,
+                    "motif_high": frozen.motif_high,
+                    "fitted_on": frozen.fitted_on,
+                },
+                "historical_note": (
+                    "Gate 2 boundaries, fitted on whole pieces. Retained for audits "
+                    "and historical comparison only, not as an acceptance criterion."
+                ),
+                "labelling_unit": "decoded token ids of each 8-bar training window",
+                "required_seq_len": 2048,
+                "seq_len_note": (
+                    "At 2048 only 1 of 50 cropped windows changes label. At 1024, "
+                    "3900 windows crop and 1114 change label (29%), so labels would "
+                    "not describe the context the model receives."
+                ),
+                "feature_version": FEATURE_VERSION,
+            },
+            indent=2,
+        )
+    )
+    print(f"  froze thresholds to {frozen_path}")
 
     with args.out.open("w") as handle:
         for row in rows:

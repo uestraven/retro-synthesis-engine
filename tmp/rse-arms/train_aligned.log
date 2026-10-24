@@ -1,0 +1,52 @@
+nohup: ignoring input
+windows   : reusing cache caches/midi8_aligned.jsonl
+  step    100  train 1.7338  valid 1.7399  lr 3.00e-04
+  step    200  train 1.5647  valid 1.5374  lr 3.00e-04
+  step    300  train 1.4740  valid 1.4272  lr 3.00e-04
+  step    400  train 1.3562  valid 1.3742  lr 2.99e-04
+  step    500  train 1.3483  valid 1.3453  lr 2.99e-04
+  step    600  train 1.2827  valid 1.3109  lr 2.98e-04
+  step    700  train 1.2849  valid 1.2400  lr 2.98e-04
+  step    800  train 1.1882  valid 1.1835  lr 2.97e-04
+  step    900  train 1.1160  valid 1.1224  lr 2.96e-04
+  step   1000  train 1.1579  valid 1.0606  lr 2.95e-04
+  step   1100  train 1.1264  valid 1.0196  lr 2.93e-04
+  step   1200  train 1.0525  valid 0.9459  lr 2.92e-04
+  step   1300  train 1.0457  valid 0.9135  lr 2.90e-04
+  step   1400  train 0.9758  valid 0.8787  lr 2.89e-04
+  step   1500  train 0.9535  valid 0.8569  lr 2.87e-04
+  step   1600  train 0.8717  valid 0.8565  lr 2.85e-04
+  step   1700  train 0.8111  valid 0.8392  lr 2.83e-04
+  step   1800  train 0.8963  valid 0.8254  lr 2.81e-04
+  step   1900  train 0.9259  valid 0.8092  lr 2.79e-04
+  step   2000  train 0.9129  valid 0.7956  lr 2.76e-04
+  step   2100  train 0.8266  valid 0.7943  lr 2.74e-04
+  step   2200  train 0.7808  valid 0.7821  lr 2.71e-04
+  step   2300  train 0.8108  valid 0.7771  lr 2.68e-04
+  step   2400  train 0.7436  valid 0.7518  lr 2.66e-04
+  step   2500  train 0.8484  valid 0.7262  lr 2.63e-04
+  step   2600  train 0.7210  valid 0.7052  lr 2.60e-04
+  step   2700  train 0.6775  valid 0.6971  lr 2.57e-04
+  step   2800  train 0.6397  valid 0.6900  lr 2.53e-04
+  step   2900  train 0.7048  valid 0.6838  lr 2.50e-04
+  step   3000  train 0.8381  valid 0.6810  lr 2.47e-04
+  step   3100  train 0.6957  valid 0.6755  lr 2.43e-04
+  step   3200  train 0.7213  valid 0.6688  lr 2.40e-04
+  step   3300  train 0.7875  valid 0.6697  lr 2.36e-04
+  step   3400  train 0.7972  valid 0.6680  lr 2.33e-04
+  step   3500  train 0.7056  valid 0.6625  lr 2.29e-04
+  step   3600  train 0.7926  valid 0.6601  lr 2.25e-04
+  step   3700  train 0.7377  valid 0.6565  lr 2.21e-04
+  step   3800  train 0.6312  valid 0.6559  lr 2.17e-04
+  step   3900  train 0.7318  valid 0.6474  lr 2.13e-04
+  step   4000  train 0.7312  valid 0.6488  lr 2.09e-04
+  step   4100  train 0.7014  valid 0.6479  lr 2.05e-04
+  step   4200  train 0.6928  valid 0.6519  lr 2.01e-04
+  step   4300  train 0.8169  valid 0.6486  lr 1.97e-04
+  step   4400  train 0.6474  valid 0.6498  lr 1.93e-04
+corpus    : 0 compositions from cache:caches/midi8_aligned.jsonl
+windows   : 11027 ({'test': 673, 'train': 9609, 'valid': 745})
+model     : 5,372,928 parameters on cuda
+best loss : 0.6474 at step 3900 (stopped early)
+time      : 641.0s
+checkpoint: ckpt_aligned.pt
