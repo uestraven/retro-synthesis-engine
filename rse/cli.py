@@ -462,6 +462,19 @@ def _inspect_file(args: argparse.Namespace, profile) -> int:
     return 0
 
 
+def with_extension(base: Path, extension: str) -> Path:
+    """Append `extension` to a basename, replacing only a matching one.
+
+    `Path.with_suffix` replaces whatever follows the last dot, which silently
+    collides on a basename that contains one: `--out take_t0.7` and
+    `--out take_t0.9` both became `take_t0.wav`, so sampling two temperatures
+    wrote one file and the second overwrote the first with no warning.
+    """
+    if base.suffix.lower() == extension.lower():
+        return base
+    return base.with_name(base.name + extension)
+
+
 def cmd_render(args: argparse.Namespace) -> int:
     if (args.file is None) == (args.record is None):
         print(
@@ -516,8 +529,7 @@ def cmd_render(args: argparse.Namespace) -> int:
     # `generate` and `sample` treat --out as a basename and append extensions.
     # This took a literal path, so `--out piece` wrote a file called `piece`
     # with no suffix: a valid WAV the operating system would not open.
-    if not out_path.suffix:
-        out_path = out_path.with_suffix(".wav")
+    out_path = with_extension(out_path, ".wav")
     write_wav(out_path, result.samples, result.sample_rate)
     # A sidecar so any rendered file can be traced back to what produced it
     # (proposal 9.2).
@@ -581,9 +593,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     base = args.out or Path(f"rse_{plan.mood}_{plan.seed}")
     base.parent.mkdir(parents=True, exist_ok=True)
-    wav_path = base.with_suffix(".wav")
-    midi_path = base.with_suffix(".mid")
-    json_path = base.with_suffix(".json")
+    wav_path = with_extension(base, ".wav")
+    midi_path = with_extension(base, ".mid")
+    json_path = with_extension(base, ".json")
 
     renderer = NesApuRenderer(profile)
     # A looping piece must not end in silence, or the repeat leaves a gap.
@@ -965,8 +977,8 @@ def cmd_sample(args: argparse.Namespace) -> int:
         return 1
     rendered = renderer.render(notes, render_settings)
 
-    write_wav(base.with_suffix(".wav"), rendered.samples, rendered.sample_rate)
-    write_midi(base.with_suffix(".mid"), record)
+    write_wav(with_extension(base, ".wav"), rendered.samples, rendered.sample_rate)
+    write_midi(with_extension(base, ".mid"), record)
     loop_report = validate_loop(record, samples=rendered.samples, sample_rate=rendered.sample_rate)
     payload_summary = {
         **result.to_dict(),
@@ -974,10 +986,10 @@ def cmd_sample(args: argparse.Namespace) -> int:
         "loop": loop_report.to_dict(),
         "checkpoint": str(args.checkpoint),
         "trained_on": payload.get("report", {}).get("corpus", {}),
-        "wav": str(base.with_suffix(".wav")),
-        "midi": str(base.with_suffix(".mid")),
+        "wav": str(with_extension(base, ".wav")),
+        "midi": str(with_extension(base, ".mid")),
     }
-    write_json(base.with_suffix(".json"), {**record, "sample": payload_summary})
+    write_json(with_extension(base, ".json"), {**record, "sample": payload_summary})
 
     stem_paths: dict[str, Path] = {}
     if args.stems:
@@ -998,8 +1010,8 @@ def cmd_sample(args: argparse.Namespace) -> int:
     else:
         print(f"  hardware: repaired {constraint_report.counts()}")
     print("  loop: " + ("clean" if loop_report.ok else "; ".join(loop_report.issues)))
-    print(f"  wav : {base.with_suffix('.wav')}")
-    print(f"  midi: {base.with_suffix('.mid')}")
+    print(f"  wav : {with_extension(base, '.wav')}")
+    print(f"  midi: {with_extension(base, '.mid')}")
     for path in stem_paths.values():
         print(f"  stem: {path}")
     return 0

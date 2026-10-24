@@ -411,3 +411,28 @@ def test_render_respects_an_explicit_extension(midi_path, tmp_path):
     out = tmp_path / "explicit.wav"
     assert main(["render", "--file", str(midi_path), "--out", str(out)]) == 0
     assert out.is_file()
+
+
+def test_a_dot_in_the_basename_does_not_eat_the_extension(midi_path, tmp_path):
+    """`--out take_t0.7` and `--out take_t0.9` both became `take_t0.wav`.
+
+    Path.with_suffix replaces whatever follows the last dot, so sampling two
+    temperatures wrote one file and the second silently overwrote the first.
+    A whole A/B arm was lost to this.
+    """
+    from rse.cli import with_extension
+
+    assert with_extension(tmp_path / "take_t0.7", ".wav").name == "take_t0.7.wav"
+    assert with_extension(tmp_path / "take_t0.9", ".wav").name == "take_t0.9.wav"
+    # An extension that is already right is not doubled.
+    assert with_extension(tmp_path / "take.wav", ".wav").name == "take.wav"
+    assert with_extension(tmp_path / "take.WAV", ".wav").name == "take.WAV"
+    # A plain basename still gains one.
+    assert with_extension(tmp_path / "take", ".wav").name == "take.wav"
+
+    first = tmp_path / "piece_t0.7"
+    second = tmp_path / "piece_t0.9"
+    assert main(["render", "--file", str(midi_path), "--out", str(first)]) == 0
+    assert main(["render", "--file", str(midi_path), "--out", str(second)]) == 0
+    assert (tmp_path / "piece_t0.7.wav").is_file()
+    assert (tmp_path / "piece_t0.9.wav").is_file()
