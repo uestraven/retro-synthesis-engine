@@ -95,10 +95,19 @@ def test_window_length_conditioning_matches_the_window(composition, tokenizer):
     assert tokens.count("Bar") == 8
 
 
-def test_overlapping_windows_with_a_hop(composition, tokenizer):
-    windows = windows_from_composition(
-        composition, tokenizer, split=TRAIN, window_bars=8, hop_bars=4
-    )
+def test_overlapping_windows_with_a_hop(nes_profile, tokenizer):
+    """Needs a piece long enough in its own bars.
+
+    Windows are cut on the fitted row now, and this generator's onsets sit on
+    eighths, so a 32-bar plan is 16 fitted bars. Asking for 8-bar windows of
+    the 8-bar fixture gave exactly one window and never exercised the hop.
+    """
+    from rse.events.convert import composition_from_intake
+    from rse.generation.plan import make_plan
+    from rse.generation.procedural import generate
+
+    longer = composition_from_intake(generate(nes_profile, make_plan(seed=7, n_bars=32)).record)
+    windows = windows_from_composition(longer, tokenizer, split=TRAIN, window_bars=8, hop_bars=4)
     assert [w.start_bar for w in windows] == [0, 4, 8]
 
 
@@ -166,3 +175,46 @@ def test_a_tiny_corpus_stays_entirely_in_train():
 def test_impossible_fractions_are_refused():
     with pytest.raises(ValueError, match="leave something for training"):
         assign_splits(["a", "b", "c"], valid_fraction=0.6, test_fraction=0.5)
+
+
+def test_windows_are_cut_on_the_pieces_own_bars(nes_profile, tokenizer):
+    """Slicing used ticks_per_beat * 4, which is not a bar for a sampled
+    source: on exprsco it is 16 frames, about 0.67 s, against roughly 4 s for
+    a real bar. A 16-bar window then held a couple of fitted bars of music and
+    the encoder padded the rest, so Length_16 described almost nothing."""
+    from rse.events.convert import composition_from_intake
+    from rse.generation.plan import make_plan
+    from rse.generation.procedural import generate
+    from rse.training.dataset import bar_count
+
+    composition = composition_from_intake(
+        generate(nes_profile, make_plan(seed=11, n_bars=32)).record
+    )
+    fit = tokenizer.fit_grid(composition)
+    assert fit.aligned
+    fitted = bar_count(composition, ticks_per_bar=fit.step_ticks * tokenizer.config.steps_per_bar)
+    nominal = bar_count(composition)
+    assert fitted != nominal, "fixture cannot distinguish the two grids"
+
+    windows = windows_from_composition(composition, tokenizer, split=TRAIN, window_bars=4)
+    # Window starts must stop at the fitted bar count, not the nominal one.
+    assert max(w.start_bar for w in windows) < fitted
+
+
+def test_a_window_inherits_its_parents_row(nes_profile, tokenizer):
+    """A short slice can fit a different row from the piece it came from, and a
+    corpus whose windows disagree about the grid is the confusion the fitted
+    grid exists to remove."""
+    from rse.events.convert import composition_from_intake
+    from rse.generation.plan import make_plan
+    from rse.generation.procedural import generate
+
+    composition = composition_from_intake(
+        generate(nes_profile, make_plan(seed=13, n_bars=32)).record
+    )
+    parent = tokenizer.fit_grid(composition)
+    windows = windows_from_composition(composition, tokenizer, split=TRAIN, window_bars=4)
+    tempo = f"Tempo_{tokenizer.tempo_token_value(parent.bpm)}"
+    for window in windows:
+        tokens = [tokenizer.vocabulary.token_of(i) for i in window.ids]
+        assert tempo in tokens

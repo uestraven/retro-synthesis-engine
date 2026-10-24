@@ -254,9 +254,17 @@ class RseTokenizer:
         composition: Composition,
         *,
         conditioning: Conditioning | None = None,
+        fit: GridFit | None = None,
     ) -> EncodedComposition:
-        """Turn a composition into a token sequence."""
-        fit = self.fit_grid(composition)
+        """Turn a composition into a token sequence.
+
+        `fit` lets a caller supply the grid instead of having it refitted.
+        A training window should pass its parent composition's row: a short
+        slice can fit a different row from the piece it came from, and a
+        corpus whose windows disagree about the grid is the confusion this
+        change exists to remove.
+        """
+        fit = fit if fit is not None else self.fit_grid(composition)
         step_ticks = fit.step_ticks
         steps_per_bar = self.config.steps_per_bar
         sounding = composition.sounding_events()

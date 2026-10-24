@@ -13,7 +13,7 @@ memorization the originality screening is meant to catch.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -87,16 +87,21 @@ class WindowStats:
 
 
 def slice_bars(
-    composition: Composition, start_bar: int, n_bars: int, *, beats_per_bar: int = 4
+    composition: Composition,
+    start_bar: int,
+    n_bars: int,
+    *,
+    beats_per_bar: int = 4,
+    ticks_per_bar: float | None = None,
 ) -> Composition:
     """Extract `n_bars` bars starting at `start_bar`, rebased to tick zero.
 
     Notes are cut on bar lines rather than being allowed to hang over the end,
     so every window is self-contained and can be rendered on its own.
     """
-    ticks_per_bar = composition.ticks_per_beat * beats_per_bar
-    start_tick = start_bar * ticks_per_bar
-    end_tick = start_tick + n_bars * ticks_per_bar
+    per_bar = ticks_per_bar or composition.ticks_per_beat * beats_per_bar
+    start_tick = int(round(start_bar * per_bar))
+    end_tick = int(round(start_tick + n_bars * per_bar))
 
     events = []
     for event in composition.sorted_events():
@@ -124,7 +129,7 @@ def slice_bars(
         # A slice of a loop is not itself a loop unless it is the whole thing.
         loop_start_tick=0 if start_bar == 0 and composition.loop_start_tick is not None else None,
         loop_end_tick=(
-            n_bars * ticks_per_bar
+            int(round(n_bars * per_bar))
             if composition.loop_end_tick is not None
             and composition.loop_end_tick <= end_tick
             and start_bar == 0
@@ -136,11 +141,20 @@ def slice_bars(
     return window
 
 
-def bar_count(composition: Composition, *, beats_per_bar: int = 4) -> int:
-    ticks_per_bar = composition.ticks_per_beat * beats_per_bar
+def bar_count(
+    composition: Composition, *, beats_per_bar: int = 4, ticks_per_bar: float | None = None
+) -> int:
+    """Bars in a composition.
+
+    `ticks_per_bar` comes from the fitted row when the caller has one. The
+    nominal fallback, `ticks_per_beat * beats_per_bar`, is not a musical bar
+    for a sampled source: on NES-MDB's exprsco release it is 16 frames, or
+    0.67 s, against roughly 4 s for a real bar.
+    """
     if not composition.events:
         return 0
-    return -(-composition.end_tick // ticks_per_bar)
+    per_bar = ticks_per_bar or composition.ticks_per_beat * beats_per_bar
+    return max(1, int(-(-composition.end_tick // per_bar)))
 
 
 def windows_from_composition(
@@ -154,7 +168,12 @@ def windows_from_composition(
 ) -> list[Window]:
     """Cut one composition into overlapping bar-aligned windows."""
     beats_per_bar = tokenizer.config.beats_per_bar
-    total_bars = bar_count(composition, beats_per_bar=beats_per_bar)
+    # Cut windows on the piece's own bars. Slicing on the nominal
+    # ticks_per_beat * 4 put roughly 2.7 fitted bars of music in a window
+    # labelled Length_16, and the encoder padded the rest with empty bars.
+    fit = tokenizer.fit_grid(composition)
+    ticks_per_bar = fit.step_ticks * tokenizer.config.steps_per_bar
+    total_bars = bar_count(composition, beats_per_bar=beats_per_bar, ticks_per_bar=ticks_per_bar)
     if total_bars == 0:
         return []
     hop = hop_bars or window_bars
@@ -165,7 +184,13 @@ def windows_from_composition(
     # out by the bar tokens the tokenizer emits for empty bars.
     starts = list(range(0, max(1, total_bars - window_bars + 1), hop))
     for start in starts:
-        sliced = slice_bars(composition, start, window_bars, beats_per_bar=beats_per_bar)
+        sliced = slice_bars(
+            composition,
+            start,
+            window_bars,
+            beats_per_bar=beats_per_bar,
+            ticks_per_bar=ticks_per_bar,
+        )
         if not sliced.sounding_events():
             continue
         # NES-MDB has no form annotation, so the window's sections are inferred
@@ -175,14 +200,20 @@ def windows_from_composition(
             sliced.sections = derive_sections(
                 sliced, beats_per_bar=beats_per_bar, n_bars=window_bars
             )
-        base = conditioning_from_composition(composition, tokenizer.config)
+        # Pass the fit: without it the tempo falls back to the source file's
+        # own value while positions and durations are counted in fitted rows,
+        # so the Tempo token describes a different grid from the one the
+        # sequence uses and `decode` plays the window at the wrong speed.
+        base = conditioning_from_composition(composition, tokenizer.config, fit=fit)
         conditioning = Conditioning(
             mood=base.mood,
             energy=base.energy,
             tempo_bpm=base.tempo_bpm,
             n_bars=window_bars,
         )
-        encoded = tokenizer.encode(sliced, conditioning=conditioning)
+        encoded = tokenizer.encode(
+            sliced, conditioning=conditioning, fit=replace(fit, phase_ticks=0.0)
+        )
         out.append(
             Window(
                 ids=encoded.ids,

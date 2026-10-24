@@ -187,6 +187,13 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--corpus-limit", type=int, default=None, help="cap dataset compositions")
     train.add_argument("--window-bars", type=int, default=16)
     train.add_argument(
+        "--no-aligned-grid",
+        action="store_true",
+        help="step on one source frame per position instead of fitting each "
+        "piece's tracker row; the baseline arm of the grid comparison",
+    )
+
+    train.add_argument(
         "--windows",
         type=Path,
         default=None,
@@ -226,6 +233,13 @@ def build_parser() -> argparse.ArgumentParser:
     windows_cmd.add_argument("--corpus-size", type=int, default=200)
     windows_cmd.add_argument("--corpus-limit", type=int, default=None)
     windows_cmd.add_argument("--window-bars", type=int, default=16)
+    windows_cmd.add_argument(
+        "--no-aligned-grid",
+        action="store_true",
+        help="step on one source frame per position instead of fitting each "
+        "piece's tracker row; the baseline arm of the grid comparison",
+    )
+
     windows_cmd.add_argument("--hop-bars", type=int, default=None)
     windows_cmd.add_argument("--seed", type=int, default=0)
     windows_cmd.add_argument("--out", type=Path, required=True)
@@ -733,7 +747,12 @@ def cmd_train(args: argparse.Namespace) -> int:
     from rse.training.train import TrainConfig, train
 
     profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
-    tokenizer = RseTokenizer(TokenizerConfig(profile_id=profile.profile_id))
+    tokenizer = RseTokenizer(
+        TokenizerConfig(
+            profile_id=profile.profile_id,
+            aligned_grid=not getattr(args, "no_aligned_grid", False),
+        )
+    )
 
     cached = args.windows is not None and args.windows.is_file() and not args.rebuild_windows
     if cached:
@@ -832,7 +851,12 @@ def cmd_windows(args: argparse.Namespace) -> int:
     from rse.training.dataset import build_windows, save_windows
 
     profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
-    tokenizer = RseTokenizer(TokenizerConfig(profile_id=profile.profile_id))
+    tokenizer = RseTokenizer(
+        TokenizerConfig(
+            profile_id=profile.profile_id,
+            aligned_grid=not getattr(args, "no_aligned_grid", False),
+        )
+    )
 
     if args.source == "procedural":
         entries, corpus_info = corpus_from_procedural(
