@@ -1,0 +1,6 @@
+train: 4437 pieces
+valid: 398 pieces
+test: 370 pieces
+  train 300/4437
+  train 600/4437
+  train 900/4437
