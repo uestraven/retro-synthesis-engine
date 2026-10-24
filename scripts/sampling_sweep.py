@@ -139,6 +139,66 @@ def slice_seconds(composition: Any, start_sec: float, length_sec: float) -> Any:
     return window
 
 
+def event_fingerprint(composition: Any) -> set[tuple[int, str, int]]:
+    """A composition as a set of (time, channel, value), quantized to 24 Hz.
+
+    Quantized so that a millisecond of timing difference does not register as
+    different music, and compared as a set so order and duration do not.
+    """
+    from rse.events.schema import Note
+
+    time = composition.time
+    return {
+        (
+            int(round(time.seconds(event.tick) * 24)),
+            event.channel_id,
+            event.pitch if isinstance(event, Note) else event.value,
+        )
+        for event in composition.sounding_events()
+    }
+
+
+def inter_seed_similarity(compositions: list[Any]) -> float:
+    """Mean pairwise Jaccard similarity between a configuration's seeds.
+
+    The point of this is to catch a failure mode the repetition metric cannot
+    see: a low temperature can make every sample internally repetitive while
+    making every seed produce nearly the same piece. That raises the n-gram
+    rate without improving the generator at all, so a configuration scoring
+    well on repetition and also near 1.0 here has collapsed rather than
+    learned. 0.0 means the seeds share nothing; 1.0 means they are identical.
+    """
+    prints = [event_fingerprint(c) for c in compositions]
+    prints = [p for p in prints if p]
+    if len(prints) < 2:
+        return 0.0
+    scores = []
+    for i in range(len(prints)):
+        for j in range(i + 1, len(prints)):
+            union = prints[i] | prints[j]
+            if union:
+                scores.append(len(prints[i] & prints[j]) / len(union))
+    return sum(scores) / len(scores) if scores else 0.0
+
+
+def bootstrap_median(values: list[float], *, n: int = 1000, seed: int = 0) -> tuple[float, float]:
+    """95% confidence interval for a median, resampling the observations.
+
+    Resampled at the piece level by the caller. Twenty-six windows drawn from
+    fourteen songs are not twenty-six independent observations, and a reference
+    quoted without an interval invites treating a smoke-test population as a
+    settled target.
+    """
+    import random as _random
+    import statistics as _stats
+
+    if len(values) < 2:
+        return (values[0] if values else 0.0, values[0] if values else 0.0)
+    rng = _random.Random(seed)
+    medians = sorted(_stats.median(rng.choices(values, k=len(values))) for _ in range(n))
+    return (medians[int(0.025 * n)], medians[int(0.975 * n)])
+
+
 def outside(value: float, low: float, high: float) -> float:
     """Normalized distance outside a band; zero when inside it."""
     width = high - low
@@ -244,12 +304,24 @@ def main() -> int:
         f"{unique_pieces} unique pieces in '{args.reference_split}'",
         flush=True,
     )
+    # Piece-level resampling: windows from one song are correlated, so the
+    # interval is over pieces rather than over windows.
+    by_piece: dict[str, list[float]] = {}
+    for piece, metrics in original_tagged:
+        by_piece.setdefault(piece, []).append(metrics.ngram_repetition_rate)
+    piece_values = [sum(v) / len(v) for v in by_piece.values()]
+    ngram_ci = bootstrap_median(piece_values)
     print(
         f"            ngram per piece "
         f"{corpus_original.medians['ngram_repetition_rate']:.3f} "
         f"IQR {corpus_original.p25['ngram_repetition_rate']:.3f}-"
         f"{corpus_original.p75['ngram_repetition_rate']:.3f}   "
         f"per window {corpus_by_window.medians['ngram_repetition_rate']:.3f}",
+        flush=True,
+    )
+    print(
+        f"            95% CI for the per-piece median, resampling {len(piece_values)} "
+        f"pieces: {ngram_ci[0]:.3f}-{ngram_ci[1]:.3f}",
         flush=True,
     )
 
@@ -469,6 +541,12 @@ def main() -> int:
         valid = [r for r in group if r["hardware_compliant"] and not r["flagged_as_memorized"]]
         if not valid:
             continue
+        seed_compositions = [
+            produced[(key[0], key[1], key[2], key[3], key[4], r["seed"])]
+            for r in valid
+            if (key[0], key[1], key[2], key[3], key[4], r["seed"]) in produced
+        ]
+        diversity = 1.0 - inter_seed_similarity(seed_compositions)
         means = {
             metric: sum(r[metric] for r in valid) / len(valid)
             for metric in (
@@ -485,12 +563,21 @@ def main() -> int:
         spread = max(r["ngram_repetition_rate"] for r in valid) - min(
             r["ngram_repetition_rate"] for r in valid
         )
-        ranked.append({"key": key, "n_valid": len(valid), "ngram_spread": spread, **means})
+        ranked.append(
+            {
+                "key": key,
+                "n_valid": len(valid),
+                "ngram_spread": spread,
+                "seed_diversity": diversity,
+                "collapsed": bool(diversity < 0.5 and means["ngram_repetition_rate"] > 0.3),
+                **means,
+            }
+        )
     ranked.sort(key=lambda r: (r["penalty"], r["tiebreak"]))
 
     print(
-        f"\n{'rank':>4} {'checkpoint':22}{'cfg':>14}{'ngram':>8}{'n/bar':>8}"
-        f"{'n/sec':>8}{'step':>7}{'uniqbar':>8}{'run':>5}{'pen':>7}{'spread':>8}"
+        f"\n{'rank':>4} {'checkpoint':22}{'cfg':>12}{'ngram':>8}{'n/sec':>7}"
+        f"{'step':>7}{'uniqbar':>8}{'run':>5}{'div':>6}{'pen':>7}{'spread':>8}"
     )
     for index, row in enumerate(ranked[:20], start=1):
         ck, kind, t, k, p = row["key"]
@@ -503,12 +590,21 @@ def main() -> int:
         else:
             cfg = f"p{p:.2f}"
         print(
-            f"{index:>4} {ck:22}{cfg:>14}"
-            f"{row['ngram_repetition_rate']:>8.3f}{row['notes_per_bar']:>8.1f}"
-            f"{row['notes_per_second']:>8.1f}{row['stepwise_fraction']:>7.3f}"
+            f"{index:>4} {ck:22}{cfg:>12}"
+            f"{row['ngram_repetition_rate']:>8.3f}"
+            f"{row['notes_per_second']:>7.1f}{row['stepwise_fraction']:>7.3f}"
             f"{row['unique_bar_fraction']:>8.3f}{row['longest_identical_bar_run']:>5.1f}"
-            f"{row['penalty']:>7.2f}{row['ngram_spread']:>8.3f}"
+            f"{row['seed_diversity']:>6.2f}{row['penalty']:>7.2f}"
+            f"{row['ngram_spread']:>8.3f}"
+            f"{'  COLLAPSED' if row['collapsed'] else ''}"
         )
+    print(
+        "\n  div = cross-seed diversity: 1.0 = the seeds share nothing, 0.0 = they\n"
+        "  are identical. COLLAPSED marks repetition bought by every seed making\n"
+        "  the same piece, which lifts the metric without improving the generator.\n"
+        "  The rank orders distance from corpus statistics; it certifies nothing\n"
+        "  musical, since no metric here sees phrase development."
+    )
     print(
         f"\n  corpus target: ngram {corpus_original.medians['ngram_repetition_rate']:.3f} "
         f"(IQR {corpus_original.p25['ngram_repetition_rate']:.3f}-"
