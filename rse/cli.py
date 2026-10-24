@@ -332,6 +332,18 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument(
         "--n-reference", type=int, default=60, help="real pieces to score against"
     )
+    evaluate.add_argument(
+        "--reference-split",
+        default="train",
+        help="which dataset split the reference is drawn from, or 'all'. "
+        "Defaults to train because the diagnostic question is how much of "
+        "the structure present in its OWN training data a model recovers; "
+        "scoring against test conflates that with the splits differing, and "
+        "they differ a lot -- n-gram repetition medians 0.592 train against "
+        "0.422 test, and test's 25th percentile is 0.000, which makes the "
+        "acceptance band useless on the metric that matters most. Use test "
+        "for a generalization check, as a separate question",
+    )
     evaluate.add_argument("--datasets-dir", type=Path, default=None)
     evaluate.add_argument("--out", type=Path, default=None, help="write the full report here")
     evaluate.set_defaults(func=cmd_evaluate)
@@ -1087,6 +1099,11 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
             args.release,
             datasets_dir=args.datasets_dir,
             limit=args.n_reference,
+            splits=(
+                None
+                if args.reference_split == "all"
+                else tuple(part.strip() for part in args.reference_split.split(","))
+            ),
             seed=args.seed,
         )
         corpus_original, corpus_roundtrip = reference_groups(

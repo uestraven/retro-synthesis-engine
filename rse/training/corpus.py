@@ -106,6 +106,7 @@ def corpus_from_release(
     limit: int | None = None,
     exclude_duplicates: bool = True,
     require_compliant: bool = False,
+    splits: tuple[str, ...] | None = None,
     seed: int = 0,
 ) -> tuple[list[CorpusEntry], CorpusInfo]:
     """Load an ingested release as a corpus.
@@ -131,6 +132,7 @@ def corpus_from_release(
         "release_id": release_id,
         "exclude_duplicates": exclude_duplicates,
         "require_compliant": require_compliant,
+        "splits": list(splits) if splits else None,
     }
 
     selected: list[dict[str, Any]] = []
@@ -142,6 +144,11 @@ def corpus_from_release(
             info.n_skipped += 1
             continue
         if not row.get("record_path"):
+            info.n_skipped += 1
+            continue
+        # Filter before the limit, or asking for 60 pieces of the test split
+        # returns the handful that survive a corpus-wide truncation.
+        if splits and row.get("split") not in splits:
             info.n_skipped += 1
             continue
         selected.append(row)
