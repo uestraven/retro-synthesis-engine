@@ -7,6 +7,7 @@ produces good music; that is what `rse evaluate` is for.
 
 from __future__ import annotations
 
+import dataclasses
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -560,3 +561,49 @@ def test_train_passes_the_prefix_mask_to_validation(monkeypatch, tokenizer, wind
         mask_prefix=7,
     )
     assert seen and set(seen) == {7}
+
+
+def test_length_buckets_keep_window_sampling_uniform(windows):
+    """Bucketing is a batching change, not a distribution change. If it
+    shifted the sampling distribution the comparison against any earlier run
+    would be confounded by it."""
+    from collections import Counter
+
+    from rse.training.train import LengthBucketSampler
+
+    train = [w for w in windows if w.split == TRAIN]
+    sampler = LengthBucketSampler(train, n_buckets=2, seed=0)
+    draws = Counter()
+    for _ in range(4000):
+        draws.update(sampler.batch(4))
+    share = [draws[i] / sum(draws.values()) for i in range(len(train))]
+    expected = 1 / len(train)
+    assert all(abs(s - expected) < expected * 0.35 for s in share), share
+
+
+def test_piece_sampling_equalizes_composition_influence(windows):
+    """Uniform window sampling gives a long piece proportionally more weight;
+    measured on the real corpus the busiest piece took 4.08% of draws against
+    0.18% for the median, a factor of 23."""
+    from collections import Counter
+
+    from rse.training.train import LengthBucketSampler
+
+    train = [w for w in windows if w.split == TRAIN]
+    # Make one composition dominate the window count.
+    heavy = [dataclasses.replace(w, composition_id="heavy") for w in train]
+    pool = [*train, *heavy, *heavy]
+
+    by_window = LengthBucketSampler(pool, n_buckets=2, seed=1, sample_by="window")
+    by_piece = LengthBucketSampler(pool, n_buckets=2, seed=1, sample_by="piece")
+
+    def piece_share(sampler):
+        draws = Counter()
+        for _ in range(3000):
+            draws.update(str(pool[i].composition_id) for i in sampler.batch(4))
+        total = sum(draws.values())
+        return draws["heavy"] / total
+
+    assert piece_share(by_window) > piece_share(by_piece)
+    # One of several compositions, so its share should be far from dominant.
+    assert piece_share(by_piece) < 0.5

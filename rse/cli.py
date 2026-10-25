@@ -263,6 +263,13 @@ def build_parser() -> argparse.ArgumentParser:
         "mostly padding; 0 samples uniformly",
     )
     train.add_argument(
+        "--sample-by",
+        default="window",
+        choices=("window", "piece"),
+        help="uniform over windows (historical: a long piece gets more "
+        "influence, measured 23x the median) or over compositions",
+    )
+    train.add_argument(
         "--frozen-representation",
         action="store_true",
         help="use the frozen codec D4 / tempo 1.01 representation, its "
@@ -1137,6 +1144,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         init_state=init_state,
         mask_prefix=args.mask_prefix,
         length_buckets=args.length_buckets,
+        sample_by=args.sample_by,
     )
     report["corpus"] = corpus_info.to_dict()
     if cache_contract is not None:

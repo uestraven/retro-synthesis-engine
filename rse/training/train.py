@@ -184,9 +184,32 @@ class LengthBucketSampler:
     training distribution does not.
     """
 
-    def __init__(self, windows: list[Window], *, n_buckets: int = 8, seed: int = 0) -> None:
+    def __init__(
+        self,
+        windows: list[Window],
+        *,
+        n_buckets: int = 8,
+        seed: int = 0,
+        sample_by: str = "window",
+    ) -> None:
         if not windows:
             raise ValueError("cannot sample from an empty window list")
+        if sample_by not in ("window", "piece"):
+            raise ValueError(f"sample_by must be 'window' or 'piece', got {sample_by!r}")
+        # Per-window weight. Uniform over windows is the historical behaviour
+        # and what the previous foundation trained under, but it gives a long
+        # piece proportionally more influence: measured on this corpus the
+        # busiest piece takes 4.08% of all draws against 0.18% for the median,
+        # a factor of 23. Weighting by 1/windows-in-piece equalizes that while
+        # leaving the length buckets intact.
+        self.weights_of_window = [1.0] * len(windows)
+        if sample_by == "piece":
+            counts: dict[str, int] = {}
+            for window in windows:
+                key = str(window.composition_id)
+                counts[key] = counts.get(key, 0) + 1
+            self.weights_of_window = [1.0 / counts[str(w.composition_id)] for w in windows]
+        self.sample_by = sample_by
         order = sorted(range(len(windows)), key=lambda i: len(windows[i].ids))
         size = max(1, len(order) // max(1, n_buckets))
         self.buckets: list[list[int]] = [
@@ -196,12 +219,17 @@ class LengthBucketSampler:
         # degenerate, so it joins the previous one.
         if len(self.buckets) > 1 and len(self.buckets[-1]) < size:
             self.buckets[-2].extend(self.buckets.pop())
-        self.weights = [len(b) for b in self.buckets]
+        # Bucket chosen in proportion to the weight it holds, then a window
+        # within it in proportion to its own weight, so the marginal
+        # probability of each window is exactly its weight.
+        self.weights = [sum(self.weights_of_window[i] for i in b) for b in self.buckets]
+        self.bucket_weights = [[self.weights_of_window[i] for i in b] for b in self.buckets]
         self.rng = random.Random(seed)
 
     def batch(self, batch_size: int) -> list[int]:
-        bucket = self.rng.choices(self.buckets, weights=self.weights, k=1)[0]
-        return [bucket[self.rng.randrange(len(bucket))] for _ in range(batch_size)]
+        index = self.rng.choices(range(len(self.buckets)), weights=self.weights, k=1)[0]
+        bucket = self.buckets[index]
+        return self.rng.choices(bucket, weights=self.bucket_weights[index], k=batch_size)
 
     def padding_waste(self, windows: list[Window], batch_size: int, *, trials: int = 200) -> float:
         """Share of padded positions in a typical batch, for reporting."""
@@ -290,6 +318,7 @@ def train(
     init_state: dict[str, Any] | None = None,
     mask_prefix: int = 0,
     length_buckets: int = 0,
+    sample_by: str = "window",
 ) -> tuple[RseTransformer, TrainHistory, dict[str, Any]]:
     """Train a model, returning it with its history and a run report.
 
@@ -325,7 +354,12 @@ def train(
     model.train()
 
     sampler = (
-        LengthBucketSampler(train_windows, n_buckets=length_buckets, seed=config.seed)
+        LengthBucketSampler(
+            train_windows,
+            n_buckets=length_buckets,
+            seed=config.seed,
+            sample_by=sample_by,
+        )
         if length_buckets > 1
         else None
     )
@@ -445,6 +479,7 @@ def train(
         "amp": use_amp,
         "mask_prefix": mask_prefix,
         "length_buckets": length_buckets,
+        "sample_by": sample_by,
         "padding_waste": (
             round(sampler.padding_waste(train_windows, config.batch_size), 4)
             if sampler is not None
