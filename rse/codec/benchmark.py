@@ -134,14 +134,22 @@ def match_events(
     original: list[Note | Noise],
     reconstructed: list[Note | Noise],
     *,
-    tolerance_ticks: float,
+    tolerance: float,
+    original_scale: float = 1.0,
+    reconstructed_scale: float = 1.0,
 ) -> MatchResult:
     """Pair each original event with at most one reconstructed event.
 
-    Candidates must share a channel and a value, and lie within
-    `tolerance_ticks`. Pairs are taken in order of increasing displacement, so
-    the closest correspondences are fixed first; ties break on index order,
-    which makes the whole result deterministic for a given input.
+    The two scale factors convert each stream's ticks into a shared unit, and
+    `tolerance` is in that unit. They are not optional in practice: a source
+    piece runs at 44100 ticks per second while `decode` rebuilds on a nominal
+    480-ticks-per-beat grid, so matching raw tick differences compares a row of
+    4410 ticks against a row of 120 and pairs almost nothing. Passing seconds
+    for both is the intended use; the defaults exist for tick-space tests.
+
+    Candidates must share a channel and a value. Pairs are taken in order of
+    increasing displacement, so the closest correspondences are fixed first;
+    ties break on index order, which makes the result deterministic.
     """
     buckets: dict[tuple[str, int], list[int]] = {}
     for index, event in enumerate(reconstructed):
@@ -149,9 +157,10 @@ def match_events(
 
     candidates: list[tuple[float, int, int]] = []
     for oi, event in enumerate(original):
+        at = event.tick * original_scale
         for ri in buckets.get(_key(event), ()):
-            gap = abs(reconstructed[ri].tick - event.tick)
-            if gap <= tolerance_ticks:
+            gap = abs(reconstructed[ri].tick * reconstructed_scale - at)
+            if gap <= tolerance:
                 candidates.append((gap, oi, ri))
     candidates.sort()
 
@@ -241,7 +250,7 @@ def measure_fidelity(
     classes: list[str],
     original_sec_per_tick: float,
     reconstructed_sec_per_tick: float,
-    row_ticks: float,
+    row_sec: float,
     n_truncated: int = 0,
     n_tokens: int = 0,
 ) -> FidelityMetrics:
@@ -257,7 +266,13 @@ def measure_fidelity(
             f"got {len(classes)} class labels for {len(original)} original events; "
             "they must correspond one-to-one"
         )
-    result = match_events(original, reconstructed, tolerance_ticks=row_ticks * MATCH_TOLERANCE_ROWS)
+    result = match_events(
+        original,
+        reconstructed,
+        tolerance=row_sec * MATCH_TOLERANCE_ROWS,
+        original_scale=original_sec_per_tick,
+        reconstructed_scale=reconstructed_sec_per_tick,
+    )
 
     onset_errors: list[float] = []
     duration_errors: list[float] = []

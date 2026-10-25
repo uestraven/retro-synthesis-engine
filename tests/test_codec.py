@@ -270,7 +270,7 @@ def test_matching_is_one_to_one():
         Note(channel_id="P1", tick=t, pitch=60, duration=10, velocity=96) for t in (0, 10, 20, 30)
     ]
     reconstructed = [Note(channel_id="P1", tick=0, pitch=60, duration=10, velocity=96)]
-    result = match_events(original, reconstructed, tolerance_ticks=200)
+    result = match_events(original, reconstructed, tolerance=200)
     assert len(result.pairs) == 1
     assert len(result.unmatched_original) == 3
     assert result.spurious_reconstructed == []
@@ -284,7 +284,7 @@ def test_spurious_events_are_reported_separately_from_missing_ones():
         Note(channel_id="P1", tick=0, pitch=72, duration=10, velocity=96),
         Note(channel_id="P1", tick=50, pitch=74, duration=10, velocity=96),
     ]
-    result = match_events(original, reconstructed, tolerance_ticks=200)
+    result = match_events(original, reconstructed, tolerance=200)
     assert result.pairs == []
     assert len(result.unmatched_original) == 1
     assert len(result.spurious_reconstructed) == 2
@@ -297,7 +297,7 @@ def test_matching_requires_the_same_channel_and_value():
         match_events(
             original,
             [Note(channel_id="P2", tick=0, pitch=60, duration=10, velocity=96)],
-            tolerance_ticks=200,
+            tolerance=200,
         ).pairs
         == []
     )
@@ -305,7 +305,7 @@ def test_matching_requires_the_same_channel_and_value():
         match_events(
             original,
             [Note(channel_id="P1", tick=0, pitch=61, duration=10, velocity=96)],
-            tolerance_ticks=200,
+            tolerance=200,
         ).pairs
         == []
     )
@@ -320,7 +320,7 @@ def test_matching_prefers_the_closest_correspondence():
         Note(channel_id="P1", tick=95, pitch=60, duration=10, velocity=96),
         Note(channel_id="P1", tick=5, pitch=60, duration=10, velocity=96),
     ]
-    result = match_events(original, reconstructed, tolerance_ticks=200)
+    result = match_events(original, reconstructed, tolerance=200)
     assert result.pairs == [(0, 1), (1, 0)]
 
 
@@ -332,8 +332,8 @@ def test_matching_is_deterministic():
         Note(channel_id="P1", tick=t + 3, pitch=60, duration=10, velocity=96)
         for t in range(0, 200, 10)
     ]
-    first = match_events(original, reconstructed, tolerance_ticks=50)
-    second = match_events(original, reconstructed, tolerance_ticks=50)
+    first = match_events(original, reconstructed, tolerance=50)
+    second = match_events(original, reconstructed, tolerance=50)
     assert first.pairs == second.pairs
 
 
@@ -386,3 +386,25 @@ def test_motif_slot_is_present_in_every_codec():
     ):
         tokens = build_vocabulary(config).tokens
         assert any(t.startswith(MOTIF) for t in tokens)
+
+
+def test_matching_needs_a_shared_time_scale():
+    """The bug this guards against produced a 0.05 event recall and a 4.4
+    second onset error on real pieces. A source piece runs at 44100 ticks per
+    second while `decode` rebuilds on a nominal 480-ticks-per-beat grid, so
+    comparing raw ticks measures a unit difference, not a timing error."""
+    original = [Note(channel_id="P1", tick=44100, pitch=60, duration=4410, velocity=96)]
+    reconstructed = [Note(channel_id="P1", tick=480, pitch=60, duration=48, velocity=96)]
+
+    # Raw ticks: the same event looks 43620 ticks apart and matches nothing.
+    assert match_events(original, reconstructed, tolerance=1000).pairs == []
+
+    # In seconds, both are at 1.0 s and pair up.
+    paired = match_events(
+        original,
+        reconstructed,
+        tolerance=0.2,
+        original_scale=1.0 / 44100,
+        reconstructed_scale=1.0 / 480,
+    )
+    assert paired.pairs == [(0, 0)]
