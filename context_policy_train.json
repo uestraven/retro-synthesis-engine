@@ -1,0 +1,95 @@
+{
+  "corpus": {
+    "source": "dataset",
+    "n_compositions": 600,
+    "n_skipped": 841,
+    "per_split": {
+      "train": 600
+    },
+    "synthetic": false,
+    "detail": {
+      "dataset_id": "nesmdb",
+      "release_id": "midi",
+      "exclude_duplicates": true,
+      "require_compliant": false,
+      "splits": [
+        "train"
+      ],
+      "splits_from_index": true
+    }
+  },
+  "split": "train",
+  "codec": "D4",
+  "tempo_ratio": 1.01,
+  "window_bars": 8,
+  "vocab_size": 530,
+  "n_windows": 1173,
+  "n_declined_no_row": 70,
+  "tokens": {
+    "mean": 1185.0,
+    "median": 1071,
+    "p75": 1678,
+    "p90": 2141,
+    "p95": 2435,
+    "p99": 3153,
+    "max": 4757
+  },
+  "policies": {
+    "1024": {
+      "n_over": 629,
+      "share_over": 0.53623,
+      "median_density_inside": 151.0,
+      "median_density_excluded": 403,
+      "density_bias": 2.669,
+      "windows_if_split_in_half": 629
+    },
+    "1536": {
+      "n_over": 350,
+      "share_over": 0.29838,
+      "median_density_inside": 204,
+      "median_density_excluded": 526.5,
+      "density_bias": 2.581,
+      "windows_if_split_in_half": 350
+    },
+    "2048": {
+      "n_over": 135,
+      "share_over": 0.11509,
+      "median_density_inside": 247.0,
+      "median_density_excluded": 708,
+      "density_bias": 2.866,
+      "windows_if_split_in_half": 135
+    },
+    "2304": {
+      "n_over": 93,
+      "share_over": 0.07928,
+      "median_density_inside": 254.0,
+      "median_density_excluded": 777,
+      "density_bias": 3.059,
+      "windows_if_split_in_half": 93
+    },
+    "2560": {
+      "n_over": 43,
+      "share_over": 0.03666,
+      "median_density_inside": 263.0,
+      "median_density_excluded": 951,
+      "density_bias": 3.616,
+      "windows_if_split_in_half": 43
+    },
+    "3072": {
+      "n_over": 15,
+      "share_over": 0.01279,
+      "median_density_inside": 268.0,
+      "median_density_excluded": 1150,
+      "density_bias": 4.291,
+      "windows_if_split_in_half": 15
+    },
+    "4096": {
+      "n_over": 2,
+      "share_over": 0.00171,
+      "median_density_inside": 269,
+      "median_density_excluded": 1444.5,
+      "density_bias": 5.37,
+      "windows_if_split_in_half": 2
+    }
+  }
+}

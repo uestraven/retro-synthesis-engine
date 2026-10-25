@@ -45,6 +45,7 @@ from rse.conditioning import (
 from rse.events.pulse import detect_pulse
 from rse.events.schema import Note
 from rse.tokenizers.tokenizer import RseTokenizer
+from rse.tokenizers.vocab import TokenizerConfig
 
 AXES = ("motif", "rhythm", "phrase")
 
@@ -124,11 +125,29 @@ def main() -> int:
     parser.add_argument("--datasets-dir", type=Path, default=None)
     parser.add_argument("--out", type=Path, default=Path("conditioning_gate2.json"))
     parser.add_argument("--labels-out", type=Path, default=Path("conditioning_labels.jsonl"))
+    # Codec selection, so the round-trip diagnostics can be re-run against a
+    # new representation. D4 restores arpeggio and passage events that codec A
+    # dropped, which changes motif eligibility and rhythm features -- the old
+    # labels cannot simply be carried over.
+    parser.add_argument("--codec", default="A")
+    parser.add_argument("--k", type=int, default=4)
+    parser.add_argument("--tempo-ratio", type=float, default=1.03)
     args = parser.parse_args()
 
     from rse.training.corpus import corpus_from_release
 
-    tokenizer = RseTokenizer()
+    tokenizer = RseTokenizer(
+        TokenizerConfig(tempo_ratio=args.tempo_ratio)
+        if args.codec == "A"
+        else TokenizerConfig(
+            codec=args.codec, sub_row_divisions=args.k, tempo_ratio=args.tempo_ratio
+        )
+    )
+    print(
+        f"codec     : {args.codec}"
+        f"{'' if args.codec == 'A' else args.k}/{args.tempo_ratio}, vocab {len(tokenizer)}",
+        flush=True,
+    )
     loaded: dict[str, list[Any]] = {}
     for split in args.splits:
         entries, _info = corpus_from_release(
