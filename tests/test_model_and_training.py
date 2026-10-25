@@ -671,3 +671,198 @@ def test_checkpoints_carry_optimizer_state_for_a_clean_continuation(tmp_path, to
     # And it still loads through the normal path.
     model, loaded_tokenizer, _p = load_checkpoint(out, device="cpu")
     assert len(loaded_tokenizer) == len(tokenizer)
+
+
+def _structural_counts(composition):
+    """Channels sounding per occupied tick -- the saturation statistic."""
+    from collections import Counter
+
+    per_tick = Counter(e.tick for e in composition.sounding_events())
+    return (
+        sum(per_tick.values()) / len(per_tick) if per_tick else 0.0,
+        len(per_tick),
+    )
+
+
+def test_structural_temperature_defaults_to_existing_behaviour(tokenizer, tiny_config):
+    """An omitted option must change nothing: the whole experiment rests on
+    the baseline arm being the code that was already running."""
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    base = sample(
+        model,
+        tokenizer,
+        config=SamplingConfig(seed=7, temperature=0.9, max_tokens=400),
+    )
+    explicit_none = sample(
+        model,
+        tokenizer,
+        config=SamplingConfig(seed=7, temperature=0.9, max_tokens=400, structural_temperature=None),
+    )
+    assert base.ids == explicit_none.ids
+
+
+def test_structural_temperature_of_one_is_near_identical(tokenizer, tiny_config):
+    """Category-level temperature 1.0 is mathematically the same distribution
+    as token-level sampling over those categories, so it must not shift
+    behaviour materially -- that is what makes 1.0 a valid control arm."""
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    results = [
+        sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(
+                seed=seed,
+                temperature=0.9,
+                max_tokens=400,
+                structural_temperature=structural,
+            ),
+        )
+        for seed in (1, 2, 3)
+        for structural in (None, 1.0)
+    ]
+    # Compare event counts pairwise; the distributions agree even though the
+    # random draws are consumed in a different order.
+    baseline = [len(r.composition.events) for r in results[0::2]]
+    at_one = [len(r.composition.events) for r in results[1::2]]
+    assert sum(baseline) > 0
+    assert abs(sum(at_one) - sum(baseline)) <= max(4, 0.6 * sum(baseline))
+
+
+def test_greedy_structural_decisions_stay_grammatical(tokenizer, tiny_config):
+    """Structure-aware decoding must never emit a token the decoder cannot
+    read, however the category was chosen."""
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    for structural in (0.0, 0.25, 0.5, 1.0):
+        result = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(
+                seed=11,
+                temperature=0.9,
+                max_tokens=500,
+                structural_temperature=structural,
+            ),
+        )
+        assert result.n_grammar_rejections == 0
+        decoded = tokenizer.decode(result.ids)
+        assert decoded.n_tokens_skipped == 0, f"structural={structural}"
+
+
+def test_category_temperature_one_reproduces_the_models_own_mass():
+    """At 1.0 the category distribution must equal the model's aggregated
+    mass, which is what makes 1.0 a faithful control arm. For flat logits
+    that aggregate genuinely is 4/20 -- the model really does believe a
+    Position token is four times as likely, because it is indifferent among
+    twenty tokens of which sixteen are Positions."""
+    from rse.generation.sampler import sample_structural
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    channels = [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2", "TR", "NO")]
+    positions = [vocab.id_of(f"Position_{i}") for i in range(16)]
+    allowed = tuple(channels + positions)
+
+    logits = torch.zeros(len(vocab))
+    generator = torch.Generator(device="cpu").manual_seed(0)
+    picks = [
+        sample_structural(
+            logits,
+            allowed=allowed,
+            vocabulary=vocab,
+            structural_temperature=1.0,
+            music_temperature=1.0,
+            top_k=None,
+            top_p=None,
+            generator=generator,
+        )
+        for _ in range(600)
+    ]
+    share = sum(1 for p in picks if p in channels) / len(picks)
+    assert 0.13 < share < 0.27, share
+
+
+def test_sharpening_follows_probability_mass_not_token_count():
+    """The property the category-level design exists for. Channel_ holds two
+    tokens against Position_'s sixteen but carries more total mass, so
+    lowering the structural temperature must move toward Channel_. A
+    token-level temperature would instead sharpen within the larger family
+    and drift the other way."""
+    from rse.generation.sampler import sample_structural
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    channels = [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2")]
+    positions = [vocab.id_of(f"Position_{i}") for i in range(16)]
+    allowed = tuple(channels + positions)
+
+    # Two channel tokens carry 0.72 of the mass against sixteen position
+    # tokens' 0.28, so mass and token count point in opposite directions.
+    logits = torch.full((len(vocab),), float("-inf"))
+    for token_id in channels:
+        logits[token_id] = 4.0
+    for token_id in positions:
+        logits[token_id] = 0.0
+
+    def channel_share(structural: float) -> float:
+        generator = torch.Generator(device="cpu").manual_seed(3)
+        picks = [
+            sample_structural(
+                logits,
+                allowed=allowed,
+                vocabulary=vocab,
+                structural_temperature=structural,
+                music_temperature=1.0,
+                top_k=None,
+                top_p=None,
+                generator=generator,
+            )
+            for _ in range(400)
+        ]
+        return sum(1 for p in picks if p in channels) / len(picks)
+
+    warm = channel_share(1.0)
+    cool = channel_share(0.25)
+    assert cool > warm, (warm, cool)
+
+
+def test_greedy_structural_follows_the_model_not_the_token_count():
+    """At temperature 0 the chosen category must be the one holding the most
+    probability mass, regardless of how many tokens it contains."""
+    from rse.generation.sampler import sample_structural
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    channels = [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2")]
+    positions = [vocab.id_of(f"Position_{i}") for i in range(16)]
+    logits = torch.full((len(vocab),), -10.0)
+    # One channel token carries almost all the mass; 16 position tokens share
+    # a little. Greedy must pick the channel.
+    logits[channels[0]] = 5.0
+    for i in positions:
+        logits[i] = 0.0
+    chosen = sample_structural(
+        logits,
+        allowed=tuple(channels + positions),
+        vocabulary=vocab,
+        structural_temperature=0.0,
+        music_temperature=1.0,
+        top_k=None,
+        top_p=None,
+        generator=None,
+    )
+    assert chosen in channels

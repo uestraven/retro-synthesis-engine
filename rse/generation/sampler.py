@@ -19,18 +19,24 @@ import torch
 
 from rse.events.schema import Composition
 from rse.models.transformer import RseTransformer
-from rse.tokenizers.grammar import TokenGrammar
+from rse.tokenizers.grammar import State, TokenGrammar
 from rse.tokenizers.tokenizer import Conditioning, RseTokenizer
 from rse.tokenizers.vocab import (
     BAR,
     BOS,
+    CHANNEL,
     ENERGY,
+    EOS,
     HW,
     LENGTH,
+    LOOP_END,
     LOOP_START,
     MOOD,
     MOTIF,
+    POSITION,
+    SECTION,
     TEMPO,
+    Vocabulary,
 )
 
 
@@ -48,6 +54,20 @@ class SamplingConfig:
     #: percussion hotter than melody treats the actual problem rather than
     #: trading the whole piece's coherence away to fix the drums.
     channel_temperature: dict[str, float] = field(default_factory=dict)
+    #: Temperature for the structural decision alone -- "another note here"
+    #: against "move later", "next bar" or "stop". `None` leaves the existing
+    #: behaviour exactly, so an omitted option changes nothing.
+    #:
+    #: Separated from `temperature` because the teacher-forced audit showed
+    #: the model is already 88.8% correct on this choice given real musical
+    #: context, while sampling it at full temperature injects error into the
+    #: one decision that compounds: it puts 0.105 on "keep playing" when the
+    #: music moves on, and over the ~128 such decisions in eight bars a
+    #: spurious note becomes a certainty. Each one shifts the context
+    #: off-distribution and raises the error again, which is how a model with
+    #: correct one-step probabilities ends up sounding all four channels on
+    #: every row.
+    structural_temperature: float | None = None
     top_k: int | None = 40
     top_p: float | None = 0.95
     max_tokens: int = 2048
@@ -62,6 +82,11 @@ class SamplingConfig:
                 raise ValueError(
                     f"temperature for channel {channel_id!r} must be positive, got {value}"
                 )
+        if self.structural_temperature is not None and self.structural_temperature < 0:
+            raise ValueError(
+                f"structural_temperature must be non-negative (0 is greedy), got "
+                f"{self.structural_temperature}"
+            )
         if self.top_k is not None and self.top_k < 1:
             raise ValueError(f"top_k must be at least 1, got {self.top_k}")
         if self.top_p is not None and not 0 < self.top_p <= 1:
@@ -73,6 +98,7 @@ class SamplingConfig:
         return {
             "seed": self.seed,
             "temperature": self.temperature,
+            "structural_temperature": self.structural_temperature,
             "channel_temperature": dict(self.channel_temperature),
             "top_k": self.top_k,
             "top_p": self.top_p,
@@ -175,6 +201,96 @@ def filter_logits(
     return logits
 
 
+#: Structural categories, as the grammar's competing continuations after a
+#: complete note. Order is fixed so a report's columns are stable.
+STRUCTURAL_CATEGORIES = ("keep_playing", "position", "bar", "section", "stop")
+
+
+def structural_category(token: str) -> str | None:
+    """Which structural choice a token represents, or None if it is musical."""
+    if token.startswith(CHANNEL):
+        return "keep_playing"
+    if token.startswith(POSITION):
+        return "position"
+    if token == BAR:
+        return "bar"
+    if token.startswith(SECTION):
+        return "section"
+    if token in (EOS, LOOP_END):
+        return "stop"
+    return None
+
+
+def sample_structural(
+    logits: torch.Tensor,
+    *,
+    allowed: tuple[int, ...],
+    vocabulary: Vocabulary,
+    structural_temperature: float,
+    music_temperature: float,
+    top_k: int | None,
+    top_p: float | None,
+    generator: torch.Generator | None,
+) -> int:
+    """Choose a structural continuation by category, then a token within it.
+
+    Temperature is applied to the *category* probabilities, not the token
+    ones. That distinction is the whole point: `Position_` offers 64 legal
+    tokens against `Channel_`'s 4, so sharpening token logits would favour
+    whichever category happens to hold more ids. Measured on an untrained
+    checkpoint, uniform token mass puts 0.83 on "move later" purely by
+    counting -- so a token-level temperature would read as a rest preference
+    that is really an artifact of vocabulary size.
+
+    So: sum the mass per category, sharpen those five numbers, pick a
+    category, then pick a token inside it under the ordinary music
+    temperature and truncation. The grammar mask is respected throughout, so
+    an illegal token can never be chosen.
+    """
+    masked = torch.full_like(logits, float("-inf"))
+    index = torch.tensor(allowed, dtype=torch.long, device=logits.device)
+    masked[index] = logits[index]
+    probabilities = torch.softmax(masked, dim=-1)
+
+    members: dict[str, list[int]] = {}
+    for token_id in allowed:
+        name = structural_category(vocabulary.token_of(token_id))
+        if name is not None:
+            members.setdefault(name, []).append(token_id)
+    if len(members) < 2:
+        # Nothing to choose between; fall through to ordinary sampling.
+        return -1
+
+    names = [n for n in STRUCTURAL_CATEGORIES if n in members]
+    mass = torch.tensor([float(probabilities[torch.tensor(members[n])].sum()) for n in names])
+    if float(mass.sum()) <= 0:
+        return -1
+
+    if structural_temperature <= 0:
+        chosen = names[int(torch.argmax(mass))]
+    else:
+        # Sharpen in log space, which is temperature on the category
+        # distribution rather than on its members.
+        scaled = torch.log(mass.clamp_min(1e-12)) / structural_temperature
+        category_probs = torch.softmax(scaled, dim=-1)
+        chosen = names[int(torch.multinomial(category_probs, 1, generator=generator).item())]
+
+    inside = tuple(members[chosen])
+    if len(inside) == 1:
+        return inside[0]
+    within = filter_logits(
+        logits,
+        temperature=music_temperature,
+        top_k=top_k,
+        top_p=top_p,
+        allowed=inside,
+    )
+    weights = torch.softmax(within, dim=-1)
+    if not torch.isfinite(weights).all() or float(weights.sum()) <= 0:
+        return inside[0]
+    return int(torch.multinomial(weights, 1, generator=generator).item())
+
+
 @torch.no_grad()
 def sample(
     model: RseTransformer,
@@ -240,17 +356,35 @@ def sample(
         temperature = config.temperature
         if grammar.channel is not None:
             temperature = config.channel_temperature.get(grammar.channel, temperature)
-        filtered = filter_logits(
-            logits,
-            temperature=temperature,
-            top_k=config.top_k,
-            top_p=config.top_p,
-            allowed=allowed,
-        )
-        probabilities = torch.softmax(filtered, dim=-1)
-        if not torch.isfinite(probabilities).all() or float(probabilities.sum()) <= 0:
-            break
-        next_id = int(torch.multinomial(probabilities, 1, generator=generator).item())
+        next_id = -1
+        if (
+            config.structural_temperature is not None
+            and allowed is not None
+            and grammar.state is State.EXPECT_NOTE_OR_NEXT
+        ):
+            # The only state where "keep playing" competes with "leave space".
+            next_id = sample_structural(
+                logits,
+                allowed=allowed,
+                vocabulary=tokenizer.vocabulary,
+                structural_temperature=config.structural_temperature,
+                music_temperature=temperature,
+                top_k=config.top_k,
+                top_p=config.top_p,
+                generator=generator,
+            )
+        if next_id < 0:
+            filtered = filter_logits(
+                logits,
+                temperature=temperature,
+                top_k=config.top_k,
+                top_p=config.top_p,
+                allowed=allowed,
+            )
+            probabilities = torch.softmax(filtered, dim=-1)
+            if not torch.isfinite(probabilities).all() or float(probabilities.sum()) <= 0:
+                break
+            next_id = int(torch.multinomial(probabilities, 1, generator=generator).item())
 
         token = tokenizer.vocabulary.token_of(next_id)
         if not grammar.advance(token):

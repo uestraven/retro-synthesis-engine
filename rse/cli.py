@@ -373,6 +373,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="BPM; defaults to the tempo the checkpoint was trained on",
     )
+    sample.add_argument(
+        "--structural-temperature",
+        type=float,
+        default=None,
+        help="temperature for the keep-playing / move-on decision alone; "
+        "0 is greedy, omitted leaves existing behaviour unchanged",
+    )
     sample.add_argument("--seed", type=int, default=None)
     sample.add_argument("--temperature", type=float, default=1.0)
     sample.add_argument(
@@ -1324,6 +1331,7 @@ def cmd_sample(args: argparse.Namespace) -> int:
         # 0 means disabled. SamplingConfig takes None for that, and rejects
         # 0 outright, so there was no way to ask the CLI for untruncated
         # sampling -- the setting the sweep's best configurations use.
+        structural_temperature=args.structural_temperature,
         top_k=args.top_k or None,
         top_p=args.top_p or None,
         max_tokens=args.max_tokens,

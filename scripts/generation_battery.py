@@ -123,6 +123,13 @@ def main() -> int:
     parser.add_argument("--seeds", type=int, nargs="+", default=list(range(12)))
     parser.add_argument("--bars", type=int, default=8)
     parser.add_argument("--max-tokens", type=int, default=3072)
+    parser.add_argument(
+        "--structural-temperatures",
+        nargs="+",
+        default=["none"],
+        help="sweep the structural decision temperature. `none` omits the "
+        "option entirely, which is the true baseline arm; `0` is greedy",
+    )
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--render-dir", type=Path, default=Path("battery_audio"))
     parser.add_argument("--render", type=int, default=6)
@@ -162,98 +169,107 @@ def main() -> int:
     generated: dict[str, Counter] = {family: Counter() for family in FAMILIES}
     rendered = 0
 
-    for temperature in args.temperatures:
-        for seed in args.seeds:
-            result = sample(
-                model,
-                tokenizer,
-                conditioning=Conditioning(n_bars=args.bars, tempo_bpm=tempo),
-                config=SamplingConfig(
-                    seed=seed,
-                    temperature=temperature,
-                    top_k=None,
-                    top_p=None,
-                    max_tokens=args.max_tokens,
-                ),
-            )
-            for token_id in result.ids:
-                token = tokenizer.vocabulary.token_of(token_id)
-                for family in FAMILIES:
-                    if token.startswith(family):
-                        generated[family][token[len(family) :]] += 1
-                        break
+    structural_settings: list[float | None] = [
+        None if str(v).lower() == "none" else float(v) for v in args.structural_temperatures
+    ]
 
-            playable, _repair = engine.apply(result.composition)
-            final, _t = enforce_monophony(playable)
-            events = final.sounding_events()
-            metrics = evaluate_composition(final, profile)
-            _channel, melody = melody_line(final)
-            end = final.end_tick or 1
-            spt = (final.time.seconds(end) / end) if final.time.seconds(end) else 0.0
-            repeated_exact, unique_exact = repetition_metrics(bar_signatures(final))
-            repeated_row, unique_row = repetition_metrics(
-                bar_signatures(final, quantize_ticks=row_ticks)
-            )
-            by_channel = Counter(e.channel_id for e in events)
-            durations = Counter(e.duration for e in events)
-            onsets = sorted({e.tick for e in events})
-            iois = [b - a for a, b in zip(onsets, onsets[1:], strict=False)]
+    for structural in structural_settings:
+        for temperature in args.temperatures:
+            for seed in args.seeds:
+                result = sample(
+                    model,
+                    tokenizer,
+                    conditioning=Conditioning(n_bars=args.bars, tempo_bpm=tempo),
+                    config=SamplingConfig(
+                        seed=seed,
+                        temperature=temperature,
+                        structural_temperature=structural,
+                        top_k=None,
+                        top_p=None,
+                        max_tokens=args.max_tokens,
+                    ),
+                )
+                for token_id in result.ids:
+                    token = tokenizer.vocabulary.token_of(token_id)
+                    for family in FAMILIES:
+                        if token.startswith(family):
+                            generated[family][token[len(family) :]] += 1
+                            break
 
-            row = {
-                "temperature": temperature,
-                "seed": seed,
-                "n_tokens": len(result.ids),
-                "termination": classify_termination(
-                    result,
-                    max_tokens=args.max_tokens,
-                    bars_requested=args.bars,
-                    n_bars=metrics.n_bars,
-                ),
-                "n_bars": metrics.n_bars,
-                "completed_8_bars": metrics.n_bars >= args.bars,
-                "n_events": len(events),
-                "channels": {c: by_channel.get(c, 0) for c in ("P1", "P2", "TR", "NO")},
-                "n_channels_used": sum(1 for c in by_channel.values() if c),
-                "n_percussion": by_channel.get("NO", 0),
-                "notes_per_bar": round(metrics.notes_per_bar, 3),
-                "pitch_class_entropy": round(metrics.pitch_class_entropy, 4),
-                "stepwise_fraction": round(metrics.stepwise_fraction, 4),
-                "ngram_repetition_rate": round(metrics.ngram_repetition_rate, 4),
-                "motif_note_participation": round(motif_note_participation(melody), 4),
-                "repeated_bar_fraction_exact": round(repeated_exact, 4),
-                "repeated_bar_fraction_row_tolerant": round(repeated_row, 4),
-                "unique_bar_fraction_row_tolerant": round(unique_row, 4),
-                "ioi_entropy": round(ioi_entropy([e.tick * spt for e in events]), 4),
-                "n_distinct_iois": len(set(iois)),
-                "n_distinct_durations": len(durations),
-                "top_duration_share": (
-                    round(durations.most_common(1)[0][1] / len(events), 4) if events else 0.0
-                ),
-                # A hammered single pitch is the 10k failure; it must be
-                # detectable from the row alone.
-                "top_pitch_share": (
-                    round(
-                        Counter(e.pitch for e in events if hasattr(e, "pitch")).most_common(1)[0][1]
-                        / max(1, sum(1 for e in events if hasattr(e, "pitch"))),
-                        4,
-                    )
-                    if any(hasattr(e, "pitch") for e in events)
-                    else 0.0
-                ),
-            }
-            rows.append(row)
-            if rendered < args.render:
-                render_window(final, args.render_dir / f"t{temperature}_s{seed}.wav")
-                rendered += 1
-            print(
-                f"  t={temperature} s={seed:<2} {row['termination']:<24} "
-                f"bars {row['n_bars']:>2} ev {row['n_events']:>4} "
-                f"chan {row['n_channels_used']} perc {row['n_percussion']:>4} "
-                f"pcent {row['pitch_class_entropy']:.2f} "
-                f"ioiH {row['ioi_entropy']:.2f} "
-                f"ngram {row['ngram_repetition_rate']:.3f}",
-                flush=True,
-            )
+                playable, _repair = engine.apply(result.composition)
+                final, _t = enforce_monophony(playable)
+                events = final.sounding_events()
+                metrics = evaluate_composition(final, profile)
+                _channel, melody = melody_line(final)
+                end = final.end_tick or 1
+                spt = (final.time.seconds(end) / end) if final.time.seconds(end) else 0.0
+                repeated_exact, unique_exact = repetition_metrics(bar_signatures(final))
+                repeated_row, unique_row = repetition_metrics(
+                    bar_signatures(final, quantize_ticks=row_ticks)
+                )
+                by_channel = Counter(e.channel_id for e in events)
+                durations = Counter(e.duration for e in events)
+                onsets = sorted({e.tick for e in events})
+                iois = [b - a for a, b in zip(onsets, onsets[1:], strict=False)]
+
+                row = {
+                    "temperature": temperature,
+                    "structural_temperature": structural,
+                    "seed": seed,
+                    "n_tokens": len(result.ids),
+                    "termination": classify_termination(
+                        result,
+                        max_tokens=args.max_tokens,
+                        bars_requested=args.bars,
+                        n_bars=metrics.n_bars,
+                    ),
+                    "n_bars": metrics.n_bars,
+                    "completed_8_bars": metrics.n_bars >= args.bars,
+                    "n_events": len(events),
+                    "channels": {c: by_channel.get(c, 0) for c in ("P1", "P2", "TR", "NO")},
+                    "n_channels_used": sum(1 for c in by_channel.values() if c),
+                    "n_percussion": by_channel.get("NO", 0),
+                    "notes_per_bar": round(metrics.notes_per_bar, 3),
+                    "pitch_class_entropy": round(metrics.pitch_class_entropy, 4),
+                    "stepwise_fraction": round(metrics.stepwise_fraction, 4),
+                    "ngram_repetition_rate": round(metrics.ngram_repetition_rate, 4),
+                    "motif_note_participation": round(motif_note_participation(melody), 4),
+                    "repeated_bar_fraction_exact": round(repeated_exact, 4),
+                    "repeated_bar_fraction_row_tolerant": round(repeated_row, 4),
+                    "unique_bar_fraction_row_tolerant": round(unique_row, 4),
+                    "ioi_entropy": round(ioi_entropy([e.tick * spt for e in events]), 4),
+                    "n_distinct_iois": len(set(iois)),
+                    "n_distinct_durations": len(durations),
+                    "top_duration_share": (
+                        round(durations.most_common(1)[0][1] / len(events), 4) if events else 0.0
+                    ),
+                    # A hammered single pitch is the 10k failure; it must be
+                    # detectable from the row alone.
+                    "top_pitch_share": (
+                        round(
+                            Counter(e.pitch for e in events if hasattr(e, "pitch")).most_common(1)[
+                                0
+                            ][1]
+                            / max(1, sum(1 for e in events if hasattr(e, "pitch"))),
+                            4,
+                        )
+                        if any(hasattr(e, "pitch") for e in events)
+                        else 0.0
+                    ),
+                }
+                rows.append(row)
+                if rendered < args.render:
+                    render_window(final, args.render_dir / f"t{temperature}_s{seed}.wav")
+                    rendered += 1
+                print(
+                    f"  t={temperature} s={seed:<2} {row['termination']:<24} "
+                    f"bars {row['n_bars']:>2} ev {row['n_events']:>4} "
+                    f"chan {row['n_channels_used']} perc {row['n_percussion']:>4} "
+                    f"pcent {row['pitch_class_entropy']:.2f} "
+                    f"ioiH {row['ioi_entropy']:.2f} "
+                    f"ngram {row['ngram_repetition_rate']:.3f}",
+                    flush=True,
+                )
 
     def dist(key: str) -> dict[str, Any]:
         values = [r[key] for r in rows if isinstance(r.get(key), (int, float))]
@@ -288,6 +304,7 @@ def main() -> int:
         "n_samples": len(rows),
         "bars_requested": args.bars,
         "temperatures": args.temperatures,
+        "structural_temperatures": ["none" if v is None else v for v in structural_settings],
         "seeds": args.seeds,
         "summary": {
             key: dist(key)
