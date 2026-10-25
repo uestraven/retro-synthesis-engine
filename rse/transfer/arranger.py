@@ -18,11 +18,22 @@ register and movement.
 channel NES composers use for bass, and putting a lead there would sound wrong
 even though it is legal.
 
-**Polyphony is resolved by keeping the outer voice.** When a chord lands on one
-monophonic channel, the melody track keeps its highest note and an
-accompaniment track its lowest, because that is what carries the line and the
-harmonic root respectively. The discarded notes are counted as
-`n_polyphony_dropped`, never merged into the survivors.
+**Polyphony is arpeggiated, not discarded.** A chord cannot sound on one
+monophonic channel at once, but an NES composer does not throw the harmony
+away -- they cycle the channel through the chord tones fast enough that the ear
+hears it as a chord. That is the single most characteristic sound of the
+platform, and `rse.events.classify` measures it as 13.3% of all real NES-MDB
+events.
+
+So a chord is spread across the sub-row slots the frozen D4 grid already
+provides: with k=4 there are four onset positions per row, so up to four
+voices become an arpeggio within the row they arrived on. Notes beyond that
+are counted as `n_polyphony_dropped`. The previous behaviour kept the outer
+voice and dropped the rest, which cost a median 36 notes per piece and up to
+94 -- harmony the composer wrote and the hardware could have played.
+
+A chord whose notes must be reordered is rolled from the bottom up, which is
+how an arpeggio is normally voiced and keeps the root first.
 
 **Overlaps are resolved by voice stealing**, truncating the sounding note at
 the newcomer's onset, which is what the hardware does. Counted separately from
@@ -73,6 +84,7 @@ class ArrangeReport:
     n_events_in: int = 0
     n_events_out: int = 0
     n_polyphony_dropped: int = 0
+    n_polyphony_arpeggiated: int = 0
     n_stolen_truncated: int = 0
     n_transposed: int = 0
     n_out_of_range_dropped: int = 0
@@ -92,6 +104,7 @@ class ArrangeReport:
             "n_events_out": self.n_events_out,
             "retention": round(self.retention, 5),
             "n_polyphony_dropped": self.n_polyphony_dropped,
+            "n_polyphony_arpeggiated": self.n_polyphony_arpeggiated,
             "n_stolen_truncated": self.n_stolen_truncated,
             "n_transposed": self.n_transposed,
             "n_out_of_range_dropped": self.n_out_of_range_dropped,
@@ -158,6 +171,7 @@ def arrange_for_nes(
     *,
     row_sec: float,
     ticks_per_beat: int = 480,
+    divisions: int = 4,
 ) -> tuple[Composition, ArrangeReport]:
     """Collapse a general score onto P1, P2, TR and NO.
 
@@ -226,24 +240,38 @@ def arrange_for_nes(
             )
 
     events: list[Note | Noise] = []
+    # One row in destination ticks, and the sub-row slot an arpeggio steps by.
+    row_out = int(round(row_sec / out_spt)) if out_spt > 0 else 1
+    slot_out = max(1, row_out // max(1, divisions))
+
     for channel, group in per_channel.items():
         keep_high = channel == "P1"
-        # One note per onset: a chord on a monophonic channel keeps its outer
-        # voice and the rest are counted, never blended.
         by_tick: dict[int, list[tuple[int, int, int, int, bool]]] = {}
         for item in group:
             by_tick.setdefault(item[0], []).append(item)
+
         chosen: list[tuple[int, int, int, int, bool]] = []
         for tick in sorted(by_tick):
             candidates = by_tick[tick]
-            if len(candidates) > 1:
-                report.n_polyphony_dropped += len(candidates) - 1
-                candidates = [
-                    max(candidates, key=lambda c: c[1])
-                    if keep_high
-                    else min(candidates, key=lambda c: c[1])
-                ]
-            chosen.append(candidates[0])
+            if len(candidates) == 1:
+                chosen.append(candidates[0])
+                continue
+            # Roll the chord across the row's sub-row slots: the harmony is
+            # kept as an arpeggio instead of being thrown away.
+            ordered = sorted(candidates, key=lambda c: c[1], reverse=keep_high)
+            room = divisions
+            fits, overflow = ordered[:room], ordered[room:]
+            if overflow:
+                report.n_polyphony_dropped += len(overflow)
+            if len(fits) > 1:
+                report.n_polyphony_arpeggiated += len(fits) - 1
+            for step, item in enumerate(fits):
+                at = item[0] + step * slot_out
+                # An arpeggio note lasts until the next one, so the channel
+                # is never asked to sound two at once.
+                length = slot_out if step < len(fits) - 1 else item[2]
+                chosen.append((at, item[1], max(1, length), item[3], item[4]))
+        chosen.sort(key=lambda c: c[0])
 
         # Voice stealing: truncate at the next onset on this channel.
         for current, following in zip(chosen, chosen[1:] + [None], strict=False):

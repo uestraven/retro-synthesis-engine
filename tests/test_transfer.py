@@ -217,3 +217,81 @@ def test_conversion_is_deterministic():
     first, _ = composition_to_score(piece, ticks_per_quarter=24, tempo_bpm=150.0, row_sec=ROW_SEC)
     second, _ = composition_to_score(piece, ticks_per_quarter=24, tempo_bpm=150.0, row_sec=ROW_SEC)
     assert first.to_dict() == second.to_dict()
+
+
+def test_a_chord_becomes_an_arpeggio_rather_than_being_discarded():
+    """The single most characteristic NES sound, and the arranger's biggest
+    loss before this: it kept the outer voice and dropped the rest, costing a
+    median 36 notes per piece and up to 94. A monophonic channel cannot sound
+    a chord at once, but it can cycle the chord tones across the sub-row slots
+    the frozen D4 grid already provides."""
+    from rse.transfer.arranger import arrange_for_nes
+
+    score = Score(
+        ticks_per_quarter=24,
+        tempo_bpm=150.0,
+        tracks=[
+            Track(
+                role="melody",
+                program=80,
+                notes=[
+                    ScoreNote(tick=0, duration=24, pitch=60),
+                    ScoreNote(tick=0, duration=24, pitch=64),
+                    ScoreNote(tick=0, duration=24, pitch=67),
+                ],
+            )
+        ],
+    )
+    arranged, report = arrange_for_nes(score, row_sec=ROW_SEC, divisions=4)
+    assert report.n_polyphony_dropped == 0
+    assert report.n_polyphony_arpeggiated == 2
+    events = sorted(arranged.sounding_events(), key=lambda e: e.tick)
+    assert len(events) == 3
+    # Spread in time, not stacked, so the channel stays monophonic.
+    assert len({e.tick for e in events}) == 3
+    assert {e.pitch for e in events} == {60, 64, 67}
+
+
+def test_voices_beyond_the_available_slots_are_counted_not_hidden():
+    """With k sub-row slots only k voices fit in the row they arrived on.
+    Anything beyond that is a real loss and must be reported."""
+    from rse.transfer.arranger import arrange_for_nes
+
+    score = Score(
+        ticks_per_quarter=24,
+        tempo_bpm=150.0,
+        tracks=[
+            Track(
+                role="melody",
+                program=80,
+                notes=[ScoreNote(tick=0, duration=24, pitch=60 + i) for i in range(6)],
+            )
+        ],
+    )
+    _arranged, report = arrange_for_nes(score, row_sec=ROW_SEC, divisions=4)
+    assert report.n_polyphony_arpeggiated == 3
+    assert report.n_polyphony_dropped == 2
+
+
+def test_an_arpeggiated_chord_leaves_the_channel_monophonic():
+    """Arpeggiating must not create the overlap it exists to avoid."""
+    from rse.codec.benchmark import overlapping_events
+    from rse.transfer.arranger import arrange_for_nes
+
+    score = Score(
+        ticks_per_quarter=24,
+        tempo_bpm=150.0,
+        tracks=[
+            Track(
+                role="melody",
+                program=80,
+                notes=[
+                    ScoreNote(tick=t, duration=48, pitch=p)
+                    for t in (0, 24, 48)
+                    for p in (60, 64, 67)
+                ],
+            )
+        ],
+    )
+    arranged, _report = arrange_for_nes(score, row_sec=ROW_SEC, divisions=4)
+    assert overlapping_events(arranged) == []
