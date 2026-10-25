@@ -302,6 +302,12 @@ def build_parser() -> argparse.ArgumentParser:
     sample.add_argument("--checkpoint", type=Path, required=True)
     sample.add_argument("--mood", default="unknown")
     sample.add_argument("--energy", default="unknown")
+    sample.add_argument(
+        "--motif",
+        default="unspecified",
+        choices=TokenizerConfig().motif_values,
+        help="requested motif recurrence; 'unspecified' is the neutral value",
+    )
     sample.add_argument("--bars", type=int, default=16)
     sample.add_argument(
         "--tempo",
@@ -1123,7 +1129,7 @@ def cmd_sample(args: argparse.Namespace) -> int:
         # exprsco-trained output play at well under half speed.
         tempo = payload.get("report", {}).get("conditioning_tempo_bpm") or 120.0
     conditioning = Conditioning(
-        mood=args.mood, energy=args.energy, tempo_bpm=tempo, n_bars=args.bars
+        mood=args.mood, energy=args.energy, tempo_bpm=tempo, n_bars=args.bars, motif=args.motif
     )
     config = SamplingConfig(
         seed=args.seed,
