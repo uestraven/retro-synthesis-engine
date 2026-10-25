@@ -96,6 +96,15 @@ def main() -> int:
                         "scorable": len(pitches) >= MIN_MELODY_NOTES,
                         "motif_note_participation": motif_note_participation(pitches),
                         "n_notes": len(playable.sounding_events()),
+                        # The label is not a pure recurrence label: on train
+                        # windows `high` carries a median 64 melodic notes
+                        # against `low`'s 42, and 25% triangle leads against
+                        # 13%. So a token effect could show up as density or
+                        # register while recurrence stays flat, and reporting
+                        # only recurrence would miss a working channel with
+                        # the wrong label on it.
+                        "mean_pitch": st.mean(pitches) if pitches else None,
+                        "pitch_range": (max(pitches) - min(pitches)) if pitches else None,
                     }
                 )
 
@@ -110,12 +119,25 @@ def main() -> int:
                 if r["arm"] == arm and r["motif_requested"] == motif and r["scorable"]
             ]
             attempted = sum(1 for r in rows if r["arm"] == arm and r["motif_requested"] == motif)
+            cells = [
+                r
+                for r in rows
+                if r["arm"] == arm and r["motif_requested"] == motif and r["scorable"]
+            ]
             per_motif[motif] = {
                 "n_scorable": len(scored),
                 "n_attempted": attempted,
                 "mean": st.mean(scored) if scored else None,
                 "median": st.median(scored) if scored else None,
                 "stdev": st.stdev(scored) if len(scored) > 1 else None,
+                # Reported beside the mean because a difference smaller than
+                # the standard error is not a difference, and with 16 seeds
+                # these cells are noisy.
+                "stderr": (st.stdev(scored) / len(scored) ** 0.5) if len(scored) > 1 else None,
+                "mean_pitch": st.mean([c["mean_pitch"] for c in cells]) if cells else None,
+                "mean_melody_notes": st.mean([c["n_melody_notes"] for c in cells])
+                if cells
+                else None,
             }
         high, low = per_motif.get("high", {}), per_motif.get("low", {})
         separation = (
@@ -123,7 +145,24 @@ def main() -> int:
             if high.get("mean") is not None and low.get("mean") is not None
             else None
         )
-        summary[arm] = {"per_motif": per_motif, "high_minus_low": separation}
+        # Pooled standard error of the difference, so `high - low` can be read
+        # against what 16 seeds can actually resolve.
+        pooled = None
+        if high.get("stderr") is not None and low.get("stderr") is not None:
+            pooled = (high["stderr"] ** 2 + low["stderr"] ** 2) ** 0.5
+        summary[arm] = {
+            "per_motif": per_motif,
+            "high_minus_low": separation,
+            "high_minus_low_stderr": pooled,
+            "high_minus_low_in_stderrs": (
+                abs(separation) / pooled if separation is not None and pooled else None
+            ),
+            "pitch_high_minus_low": (
+                high["mean_pitch"] - low["mean_pitch"]
+                if high.get("mean_pitch") is not None and low.get("mean_pitch") is not None
+                else None
+            ),
+        }
 
     payload = {
         "thresholds": thresholds,
@@ -151,8 +190,16 @@ def main() -> int:
             else:
                 cell = f"{stats['mean']:.3f} ({stats['n_scorable']}/{stats['n_attempted']})"
                 cells.append(f"{cell:>14}")
-        sep = entry["high_minus_low"]
-        tail = f"   {sep:+.3f}" if sep is not None else "   n/a"
+        sep, se = entry["high_minus_low"], entry["high_minus_low_stderr"]
+        if sep is None:
+            tail = "   n/a"
+        elif se:
+            tail = f"   {sep:+.3f} +/-{se:.3f} ({abs(sep) / se:.1f} SE)"
+        else:
+            tail = f"   {sep:+.3f}"
+        pitch = entry["pitch_high_minus_low"]
+        if pitch is not None:
+            tail += f"   pitch {pitch:+.1f}st"
         print(f"{arm:<{width}}  " + "  ".join(cells) + tail)
     if thresholds:
         print(
