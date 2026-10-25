@@ -21,9 +21,12 @@ the only difference between them is the information in the prefix token.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
+
+if TYPE_CHECKING:
+    from rse.models.transformer import ModelConfig
 
 #: New rows are initialized like the model's own embeddings (see
 #: `RseTransformer._init_weights`), not left at zero: a zero row gives an
@@ -119,3 +122,38 @@ def migrate_checkpoint(
         out["model_config"] = replace(config, vocab_size=new_vocab, max_seq_len=new_positions)
     out["migration"] = report
     return out, report
+
+
+def geometry_for_finetune(
+    pretrained: ModelConfig,
+    requested: ModelConfig,
+    *,
+    needed_positions: int,
+) -> ModelConfig:
+    """The architecture a fine-tune must use, which is the checkpoint's own.
+
+    A position embedding is a trained tensor, so a fine-tuning run cannot size
+    one from its own data: a smaller window set would otherwise build a narrower
+    table and fail to load, and a larger one would index past what was trained.
+    Taking the geometry from the checkpoint also means every experimental arm
+    has the same architecture by construction rather than by matching flags.
+
+    Raises `ValueError` when the request cannot be served by this checkpoint —
+    a different architecture, or more positions than it has.
+    """
+    mismatch = {
+        name: (getattr(pretrained, name), getattr(requested, name))
+        for name in ("n_layers", "n_heads", "d_model", "vocab_size")
+        if getattr(pretrained, name) != getattr(requested, name)
+    }
+    if mismatch:
+        detail = ", ".join(
+            f"{name} {theirs} != {ours}" for name, (theirs, ours) in sorted(mismatch.items())
+        )
+        raise ValueError(f"checkpoint architecture does not match the requested one: {detail}")
+    if needed_positions > pretrained.max_seq_len:
+        raise ValueError(
+            f"this run needs {needed_positions} positions but the checkpoint has "
+            f"{pretrained.max_seq_len}"
+        )
+    return pretrained

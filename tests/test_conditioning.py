@@ -480,6 +480,41 @@ def test_migration_is_deterministic_so_arms_start_identically():
     assert torch.equal(a["token_embedding.weight"], b["token_embedding.weight"])
 
 
+def test_finetune_geometry_comes_from_the_checkpoint():
+    """A fine-tune on a window set shorter than the foundation's must keep the
+    foundation's position table, not size a narrower one from its own data."""
+    pytest.importorskip("torch")
+    from rse.models.transformer import ModelConfig
+    from rse.training.migrate import geometry_for_finetune
+
+    pretrained = ModelConfig(vocab_size=272, max_seq_len=2305)
+    requested = ModelConfig(vocab_size=272, max_seq_len=1781)
+    resolved = geometry_for_finetune(pretrained, requested, needed_positions=1781)
+    assert resolved.max_seq_len == 2305
+
+
+def test_finetune_refuses_a_different_architecture_or_a_longer_context():
+    """Loading mismatched weights fails deep inside `load_state_dict`; failing
+    here says which dimension disagrees, and keeps the arms identical."""
+    pytest.importorskip("torch")
+    from rse.models.transformer import ModelConfig
+    from rse.training.migrate import geometry_for_finetune
+
+    pretrained = ModelConfig(vocab_size=272, n_layers=6, max_seq_len=2305)
+    with pytest.raises(ValueError, match="n_layers 6 != 4"):
+        geometry_for_finetune(
+            pretrained,
+            ModelConfig(vocab_size=272, n_layers=4, max_seq_len=2305),
+            needed_positions=2305,
+        )
+    with pytest.raises(ValueError, match="needs 4097 positions"):
+        geometry_for_finetune(
+            pretrained,
+            ModelConfig(vocab_size=272, n_layers=6, max_seq_len=4097),
+            needed_positions=4097,
+        )
+
+
 def test_shuffling_preserves_label_prevalence():
     """If the shuffled arm saw a different label distribution it would differ
     from the true arm in two ways at once, and a null result would be
@@ -701,3 +736,26 @@ def test_prefix_masking_removes_only_prefix_targets():
     assert (targets[0, 6:] != 0).all()
     # The pad mask is untouched, so attention still attends to the prefix.
     assert mask[0].all()
+
+
+def test_validation_masks_the_prefix_too():
+    """If validation scored the prefix, an arm whose Motif token is constant
+    would win on predicting its own condition rather than on the music, and
+    the arm comparison would be biased before a single note was generated."""
+    torch = pytest.importorskip("torch")
+    from rse.models.transformer import ModelConfig, RseTransformer
+    from rse.training.train import TrainConfig, evaluate
+
+    @dataclasses.dataclass
+    class W:
+        ids: list[int]
+
+    # One window whose prefix is cheap to predict and whose body is not.
+    windows = [W([5] * 8 + list(range(9, 40)))]
+    model = RseTransformer(ModelConfig(vocab_size=64, n_layers=2, max_seq_len=64))
+    model.eval()
+    config = TrainConfig(batch_size=1, seq_len=48)
+    kwargs = {"pad_id": 0, "device": torch.device("cpu"), "max_batches": 1}
+    assert evaluate(model, windows, config, mask_prefix=7, **kwargs) != pytest.approx(
+        evaluate(model, windows, config, mask_prefix=0, **kwargs)
+    )

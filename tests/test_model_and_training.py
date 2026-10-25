@@ -532,3 +532,31 @@ def test_the_token_budget_is_configurable(tokenizer, tiny_config):
     longer = sample(model, tokenizer, config=SamplingConfig(seed=0, max_tokens=300))
     assert len(short.ids) <= 60
     assert len(longer.ids) > len(short.ids)
+
+
+def test_train_passes_the_prefix_mask_to_validation(monkeypatch, tokenizer, windows):
+    """The defect this guards against is a call site, not a signature: an
+    `evaluate` that accepts `mask_prefix` and a `train` that never passes it
+    reports an unmasked validation loss while training on a masked one, so an
+    arm whose conditioning token is constant scores better for predicting its
+    own prefix."""
+    from rse.training import train as train_module
+
+    seen: list[int | None] = []
+    real = train_module.evaluate
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("mask_prefix"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(train_module, "evaluate", spy)
+    train_module.train(
+        windows,
+        tokenizer,
+        model_config=ModelConfig(
+            vocab_size=len(tokenizer), n_layers=1, n_heads=2, d_model=32, max_seq_len=256
+        ),
+        config=TrainConfig(max_steps=1, batch_size=2, seq_len=64, eval_every=1),
+        mask_prefix=7,
+    )
+    assert seen and set(seen) == {7}

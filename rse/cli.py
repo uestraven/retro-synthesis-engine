@@ -18,7 +18,7 @@ from rse.data.datasets import DatasetError, acquire
 from rse.data.midi_io import MidiParseError, parse_midi
 from rse.data.normalize import build_intake_record
 from rse.data.pipeline import IngestConfig, ingest_release, processed_dir
-from rse.data.provenance import USE_UNKNOWN, describe_file
+from rse.data.provenance import USE_UNKNOWN, describe_file, sha256_file
 from rse.events.convert import (
     composition_from_intake,
     composition_from_midi,
@@ -218,6 +218,37 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--layers", type=int, default=6)
     train.add_argument("--heads", type=int, default=8)
     train.add_argument("--width", type=int, default=256, help="d_model")
+    train.add_argument(
+        "--arm",
+        choices=("A", "B", "C"),
+        default=None,
+        help="conditioning arm. A keeps Motif_unspecified, B substitutes the "
+        "window's true label, C substitutes a shuffled label. Requires "
+        "--labels. All three share one cache and differ in exactly one token",
+    )
+    train.add_argument(
+        "--labels",
+        type=Path,
+        default=None,
+        help="window motif label manifest from scripts/window_motif_labels.py",
+    )
+    train.add_argument("--label-field", default="label", help="manifest field to read")
+    train.add_argument("--shuffle-seed", type=int, default=0, help="fixed seed for arm C")
+    train.add_argument(
+        "--init-from",
+        type=Path,
+        default=None,
+        help="start from this checkpoint's weights so every arm begins from "
+        "byte-identical parameters",
+    )
+    train.add_argument(
+        "--mask-prefix",
+        type=int,
+        default=0,
+        help="exclude this many leading target positions from the loss; use 7 "
+        "for the conditioning header, or a conditioned arm is penalised for "
+        "having an informative prefix",
+    )
     train.add_argument(
         "--patience",
         type=int,
@@ -865,6 +896,61 @@ def cmd_train(args: argparse.Namespace) -> int:
         print("error: the corpus produced no training windows", file=sys.stderr)
         return 2
 
+    # --- conditioning arm: substitute one token per window ----------------
+    arm_report: dict[str, Any] | None = None
+    if args.arm:
+        if args.labels is None:
+            print("error: --arm requires --labels", file=sys.stderr)
+            return 2
+        from dataclasses import replace as dc_replace
+
+        from rse.conditioning import PREFIX_TOKENS
+        from rse.training.arms import apply_arm, load_plan, motif_token_ids
+
+        plan = load_plan(args.labels, seed=args.shuffle_seed, label_field=args.label_field)
+        token_ids = motif_token_ids(tokenizer.vocabulary)
+        position = PREFIX_TOKENS - 1
+        unmatched = 0
+        substituted = []
+        for window in windows:
+            key = (str(window.composition_id), int(window.start_bar))
+            if key not in plan.true_labels:
+                unmatched += 1
+            substituted.append(
+                dc_replace(
+                    window,
+                    ids=apply_arm(
+                        window,
+                        arm=args.arm,
+                        plan=plan,
+                        token_ids=token_ids,
+                        position=position,
+                    ),
+                )
+            )
+        if unmatched:
+            # A window with no label would silently train on `unspecified`,
+            # quietly turning part of arm B into arm A.
+            print(
+                f"error: {unmatched} of {len(windows)} windows have no label "
+                f"record in {args.labels}; refusing to train a partially "
+                f"conditioned arm",
+                file=sys.stderr,
+            )
+            return 2
+        windows = substituted
+        arm_report = {
+            "arm": args.arm,
+            "labels": str(args.labels),
+            "label_field": args.label_field,
+            "shuffle_seed": args.shuffle_seed,
+            "prevalence": plan.prevalence(),
+            "substitution_position": position,
+        }
+        print(f"arm       : {args.arm}, one token at position {position}", flush=True)
+
+    init_state = None
+    init_report: dict[str, Any] | None = None
     model_config = ModelConfig(
         vocab_size=len(tokenizer),
         n_layers=args.layers,
@@ -872,6 +958,40 @@ def cmd_train(args: argparse.Namespace) -> int:
         d_model=args.width,
         max_seq_len=max(args.seq_len + 1, window_stats.max_tokens),
     )
+    if args.init_from is not None:
+        import torch
+
+        from rse.training.migrate import geometry_for_finetune
+
+        payload = torch.load(args.init_from, map_location="cpu", weights_only=False)
+        init_state = payload["state_dict"]
+        pretrained = ModelConfig.from_dict(payload["model_config"])
+        try:
+            model_config = geometry_for_finetune(
+                pretrained,
+                model_config,
+                needed_positions=max(args.seq_len + 1, window_stats.max_tokens),
+            )
+        except ValueError as exc:
+            print(
+                f"error: --init-from {args.init_from}: {exc} "
+                f"(windows reach {window_stats.max_tokens} tokens, "
+                f"--seq-len {args.seq_len})",
+                file=sys.stderr,
+            )
+            return 2
+        # The digest, not just the path: it is what proves after the fact that
+        # three arms started from the same weights.
+        init_report = {
+            "path": str(args.init_from),
+            "sha256": sha256_file(args.init_from),
+            "model_config": pretrained.to_dict(),
+        }
+        print(
+            f"init      : weights from {args.init_from} "
+            f"({pretrained.max_seq_len} positions, vocab {pretrained.vocab_size})",
+            flush=True,
+        )
     train_config = TrainConfig(
         seed=args.seed,
         max_steps=args.steps,
@@ -888,8 +1008,14 @@ def cmd_train(args: argparse.Namespace) -> int:
         config=train_config,
         checkpoint_path=args.out,
         progress=not args.json,
+        init_state=init_state,
+        mask_prefix=args.mask_prefix,
     )
     report["corpus"] = corpus_info.to_dict()
+    if init_report is not None:
+        report["init_from"] = init_report
+    if arm_report is not None:
+        report["conditioning"] = arm_report
     report["windows"] = window_stats.to_dict()
     # The tempo the corpus was labelled with, so `rse sample` can default to it
     # instead of to a number that happens to be wrong for this checkpoint.

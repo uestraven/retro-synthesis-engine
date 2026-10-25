@@ -190,6 +190,7 @@ def evaluate(
     device: torch.device,
     max_batches: int | None = None,
     seed: int = 0,
+    mask_prefix: int = 0,
 ) -> float:
     """Mean cross-entropy over a fixed sample of windows.
 
@@ -211,7 +212,12 @@ def evaluate(
             break
         indices = order[start : start + config.batch_size]
         inputs, targets, mask = make_batch(
-            windows, indices, pad_id=pad_id, seq_len=config.seq_len, device=device
+            windows,
+            indices,
+            pad_id=pad_id,
+            seq_len=config.seq_len,
+            device=device,
+            mask_prefix=mask_prefix,
         )
         logits = model(inputs, mask)
         loss = nn.functional.cross_entropy(
@@ -236,8 +242,21 @@ def train(
     config: TrainConfig | None = None,
     checkpoint_path: Path | None = None,
     progress: bool = False,
+    init_state: dict[str, Any] | None = None,
+    mask_prefix: int = 0,
 ) -> tuple[RseTransformer, TrainHistory, dict[str, Any]]:
-    """Train a model, returning it with its history and a run report."""
+    """Train a model, returning it with its history and a run report.
+
+    `init_state` starts from existing weights instead of a fresh
+    initialization. Every arm of a controlled comparison must begin from
+    byte-identical weights, or the result measures initialization as well
+    as the variable under test.
+
+    `mask_prefix` excludes the first N target positions from the loss, for
+    a conditioning header. Without it an arm whose prefix carries
+    information is penalised against one whose prefix is constant, which
+    is exactly the property such an experiment is measuring.
+    """
     config = config or TrainConfig()
     set_seed(config.seed)
     device = resolve_device(config.device)
@@ -255,6 +274,8 @@ def train(
             f"tokenizer's {len(tokenizer)}"
         )
     model = RseTransformer(model_config).to(device)
+    if init_state is not None:
+        model.load_state_dict(init_state)
     model.train()
 
     optimizer = torch.optim.AdamW(
@@ -281,7 +302,12 @@ def train(
         for _ in range(config.grad_accum_steps):
             indices = [rng.randrange(len(train_windows)) for _ in range(config.batch_size)]
             inputs, targets, mask = make_batch(
-                train_windows, indices, pad_id=pad_id, seq_len=config.seq_len, device=device
+                train_windows,
+                indices,
+                pad_id=pad_id,
+                seq_len=config.seq_len,
+                device=device,
+                mask_prefix=mask_prefix,
             )
             with torch.amp.autocast(device.type, enabled=use_amp):
                 logits = model(inputs, mask)
@@ -309,6 +335,11 @@ def train(
                 device=device,
                 max_batches=config.eval_batches,
                 seed=config.seed,
+                # The same masking as training, or the reported number is not
+                # comparable across arms: an arm whose Motif token is constant
+                # would score better for predicting its own condition, which is
+                # not the thing being measured.
+                mask_prefix=mask_prefix,
             )
             history.steps.append(step + 1)
             history.train_loss.append(step_loss)
@@ -356,6 +387,8 @@ def train(
         "checkpoint_version": CHECKPOINT_VERSION,
         "device": str(device),
         "amp": use_amp,
+        "mask_prefix": mask_prefix,
+        "init_from_checkpoint": init_state is not None,
         "n_parameters": model.n_parameters,
         "n_train_windows": len(train_windows),
         "n_valid_windows": len(valid_windows),
