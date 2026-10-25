@@ -36,6 +36,7 @@ from collections import Counter
 from typing import Any
 
 from rse.codec.benchmark import enforce_monophony, ioi_entropy
+from rse.conditioning import melody_line, motif_note_participation
 from rse.events.pulse import detect_pulse
 from rse.events.schema import Composition, Noise, Note
 from rse.tokenizers.frozen import frozen_config
@@ -150,6 +151,26 @@ def window_stats(
     }
 
 
+def melodic_stats(composition: Composition, *, profile) -> dict[str, float]:
+    """The melodic measures the selection ranking scores against.
+
+    Computed by the same functions the generated pieces go through. A
+    reference assembled from a different implementation would differ in
+    definitions nobody wrote down -- and these are the metrics that tracked a
+    listener's preference, so the comparison has to be exact.
+    """
+    from rse.training.evaluate import evaluate_composition
+
+    metrics = evaluate_composition(composition, profile)
+    _channel, melody = melody_line(composition)
+    return {
+        "pitch_class_entropy": metrics.pitch_class_entropy,
+        "stepwise_fraction": metrics.stepwise_fraction,
+        "ngram_repetition_rate": metrics.ngram_repetition_rate,
+        "motif_note_participation": motif_note_participation(melody),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", default="nesmdb")
@@ -164,6 +185,9 @@ def main() -> int:
         print("error: the test split is reserved", file=sys.stderr)
         return 2
 
+    from rse.hardware.profile import load_profile
+
+    profile = load_profile("nes")
     tokenizer = RseTokenizer(frozen_config())
     rows_per_bar = tokenizer.config.steps_per_bar
     divisions = tokenizer.config.onset_divisions
@@ -213,6 +237,7 @@ def main() -> int:
                     n_bars=args.window_bars,
                 )
                 if stats:
+                    stats.update(melodic_stats(final, profile=profile))
                     collected.append(stats)
             if collected:
                 piece: dict[str, Any] = {"n_windows": len(collected)}
