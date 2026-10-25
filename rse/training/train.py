@@ -243,14 +243,41 @@ class LengthBucketSampler:
         return padded / total if total else 0.0
 
 
-def learning_rate_at(step: int, config: TrainConfig) -> float:
-    """Linear warmup then cosine decay to `min_learning_rate`."""
+def learning_rate_at(
+    step: int,
+    config: TrainConfig,
+    *,
+    resume_step: int = 0,
+    rewarmup_steps: int = 0,
+) -> float:
+    """Linear warmup then cosine decay to `min_learning_rate`.
+
+    `step` is absolute, so a continuation run evaluates the same schedule it
+    would have followed had the longer budget been planned from the start.
+    That matters: the first 100k run decayed to `min_learning_rate` by its own
+    final step, so resuming on a schedule recomputed from zero would either
+    re-warm to full peak (discarding what was learned) or sit at 3e-5 and
+    learn almost nothing. Extending `max_steps` instead puts step 100,000 at
+    roughly 78% of peak, which is where it would have been all along.
+
+    `rewarmup_steps` ramps from `min_learning_rate` up to the scheduled value
+    over the first few hundred steps after a resume. Without it the rate jumps
+    discontinuously, and the optimizer moments are gone -- the checkpoint
+    never stored them -- so Adam would take that jump with no second-moment
+    estimate to scale it.
+    """
     if config.warmup_steps > 0 and step < config.warmup_steps:
         return config.learning_rate * (step + 1) / config.warmup_steps
     remaining = max(1, config.max_steps - config.warmup_steps)
     progress = min(1.0, (step - config.warmup_steps) / remaining)
     cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
-    return config.min_learning_rate + (config.learning_rate - config.min_learning_rate) * cosine
+    scheduled = (
+        config.min_learning_rate + (config.learning_rate - config.min_learning_rate) * cosine
+    )
+    if rewarmup_steps > 0 and resume_step <= step < resume_step + rewarmup_steps:
+        ramp = (step - resume_step + 1) / rewarmup_steps
+        return config.min_learning_rate + (scheduled - config.min_learning_rate) * ramp
+    return scheduled
 
 
 @torch.no_grad()
@@ -319,6 +346,9 @@ def train(
     mask_prefix: int = 0,
     length_buckets: int = 0,
     sample_by: str = "window",
+    start_step: int = 0,
+    rewarmup_steps: int = 0,
+    optimizer_state: dict[str, Any] | None = None,
 ) -> tuple[RseTransformer, TrainHistory, dict[str, Any]]:
     """Train a model, returning it with its history and a run report.
 
@@ -353,6 +383,11 @@ def train(
         model.load_state_dict(init_state)
     model.train()
 
+    # Adam's moment estimates. Absent from every checkpoint written before
+    # continuation was supported, in which case the re-warmup above is what
+    # keeps the first few hundred steps stable.
+    resumed_optimizer = False
+
     sampler = (
         LengthBucketSampler(
             train_windows,
@@ -367,6 +402,9 @@ def train(
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
+    if optimizer_state is not None:
+        optimizer.load_state_dict(optimizer_state)
+        resumed_optimizer = True
     use_amp = config.amp and device.type == "cuda"
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
 
@@ -378,8 +416,8 @@ def train(
     best_state: dict[str, Tensor] | None = None
     evals_done = 0
 
-    for step in range(config.max_steps):
-        lr = learning_rate_at(step, config)
+    for step in range(start_step, config.max_steps):
+        lr = learning_rate_at(step, config, resume_step=start_step, rewarmup_steps=rewarmup_steps)
         for group in optimizer.param_groups:
             group["lr"] = lr
 
@@ -462,7 +500,15 @@ def train(
                 and config.checkpoint_every_evals
                 and evals_done % config.checkpoint_every_evals == 0
             ):
-                _write_interim(checkpoint_path, model, best_state, tokenizer, config, history)
+                _write_interim(
+                    checkpoint_path,
+                    model,
+                    best_state,
+                    tokenizer,
+                    config,
+                    history,
+                    optimizer=optimizer,
+                )
 
             if not improved and config.patience and since_improvement >= config.patience:
                 history.stopped_early = True
@@ -480,6 +526,9 @@ def train(
         "mask_prefix": mask_prefix,
         "length_buckets": length_buckets,
         "sample_by": sample_by,
+        "start_step": start_step,
+        "rewarmup_steps": rewarmup_steps,
+        "resumed_optimizer_state": resumed_optimizer,
         "padding_waste": (
             round(sampler.padding_waste(train_windows, config.batch_size), 4)
             if sampler is not None
@@ -495,7 +544,9 @@ def train(
         "history": history.to_dict(),
     }
     if checkpoint_path is not None:
-        save_checkpoint(checkpoint_path, model, tokenizer, config, history, report)
+        save_checkpoint(
+            checkpoint_path, model, tokenizer, config, history, report, optimizer=optimizer
+        )
         report["checkpoint"] = str(checkpoint_path)
     return model, history, report
 
@@ -507,6 +558,7 @@ def _write_interim(
     tokenizer: RseTokenizer,
     config: TrainConfig,
     history: TrainHistory,
+    optimizer: Any = None,
 ) -> None:
     """Save the best-so-far weights without disturbing the live model.
 
@@ -518,7 +570,7 @@ def _write_interim(
     live = model.state_dict()
     try:
         model.load_state_dict(best_state)
-        save_checkpoint(path, model, tokenizer, config, history)
+        save_checkpoint(path, model, tokenizer, config, history, optimizer=optimizer)
     except OSError as exc:  # pragma: no cover - depends on the filesystem
         print(f"  ! could not write interim checkpoint: {exc}", flush=True)
     finally:
@@ -532,8 +584,14 @@ def save_checkpoint(
     config: TrainConfig,
     history: TrainHistory,
     report: dict[str, Any] | None = None,
+    optimizer: Any = None,
 ) -> Path:
-    """Write weights, model config and vocabulary as one file."""
+    """Write weights, model config and vocabulary as one file.
+
+    `optimizer` is saved when given, so a continuation run can resume Adam's
+    moment estimates rather than restart them. The 100k foundation predates
+    this and has no such state, which is why `--rewarmup-steps` exists.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
@@ -546,6 +604,11 @@ def save_checkpoint(
             "vocabulary": tokenizer.vocabulary.to_dict(),
             "history": history.to_dict(),
             "report": report or {},
+            # Saved so a continuation run can resume Adam rather than restart
+            # it. Checkpoints written before this existed simply lack the key,
+            # and `--resume-from` reports that instead of failing.
+            "optimizer": optimizer.state_dict() if optimizer is not None else None,
+            "torch_rng_state": torch.get_rng_state(),
         },
         path,
     )

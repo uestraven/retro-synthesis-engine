@@ -13,6 +13,16 @@ before (or without) downloading the real dataset:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Importable when run as a file from a checkout where the package is not
+# installed, which is the normal state of a fresh GPU host: `python
+# scripts/x.py` puts `scripts/` on sys.path, not the repository root.
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 import argparse
 from pathlib import Path
 

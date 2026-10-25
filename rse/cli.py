@@ -263,6 +263,30 @@ def build_parser() -> argparse.ArgumentParser:
         "mostly padding; 0 samples uniformly",
     )
     train.add_argument(
+        "--resume-from",
+        type=Path,
+        default=None,
+        help="continue a run: loads weights and, when the checkpoint has it, "
+        "Adam's optimizer state. Combine with --start-step and --steps as the "
+        "TOTAL budget, so the schedule continues instead of restarting",
+    )
+    train.add_argument(
+        "--start-step",
+        type=int,
+        default=0,
+        help="absolute step to resume at; the learning-rate schedule is "
+        "evaluated here rather than from zero",
+    )
+    train.add_argument(
+        "--rewarmup-steps",
+        type=int,
+        default=0,
+        help="ramp the rate up to the scheduled value over this many steps "
+        "after a resume; needed when the checkpoint has no optimizer state, "
+        "since Adam would otherwise take a discontinuous jump with no "
+        "second-moment estimate",
+    )
+    train.add_argument(
         "--sample-by",
         default="window",
         choices=("window", "piece"),
@@ -1084,6 +1108,7 @@ def cmd_train(args: argparse.Namespace) -> int:
 
     init_state = None
     init_report: dict[str, Any] | None = None
+    optimizer_state = None
     model_config = ModelConfig(
         vocab_size=len(tokenizer),
         n_layers=args.layers,
@@ -1091,6 +1116,8 @@ def cmd_train(args: argparse.Namespace) -> int:
         d_model=args.width,
         max_seq_len=max(args.seq_len + 1, window_stats.max_tokens),
     )
+    if args.resume_from is not None and args.init_from is None:
+        args.init_from = args.resume_from
     if args.init_from is not None:
         import torch
 
@@ -1125,6 +1152,31 @@ def cmd_train(args: argparse.Namespace) -> int:
             f"({pretrained.max_seq_len} positions, vocab {pretrained.vocab_size})",
             flush=True,
         )
+        if args.resume_from is not None:
+            optimizer_state = payload.get("optimizer")
+            trained_to = payload.get("history", {}).get("best_step")
+            init_report["resume"] = {
+                "start_step": args.start_step,
+                "total_steps": args.steps,
+                "rewarmup_steps": args.rewarmup_steps,
+                "optimizer_state_present": optimizer_state is not None,
+                "checkpoint_best_step": trained_to,
+            }
+            if optimizer_state is None:
+                print(
+                    "resume    : this checkpoint has no optimizer state, so "
+                    "Adam restarts; --rewarmup-steps "
+                    f"{args.rewarmup_steps} smooths the rate step",
+                    flush=True,
+                )
+            if args.start_step >= args.steps:
+                print(
+                    f"error: --start-step {args.start_step} is not below "
+                    f"--steps {args.steps}; --steps is the TOTAL budget, not "
+                    f"the number of additional steps",
+                    file=sys.stderr,
+                )
+                return 2
     train_config = TrainConfig(
         seed=args.seed,
         max_steps=args.steps,
@@ -1145,6 +1197,9 @@ def cmd_train(args: argparse.Namespace) -> int:
         mask_prefix=args.mask_prefix,
         length_buckets=args.length_buckets,
         sample_by=args.sample_by,
+        start_step=args.start_step,
+        rewarmup_steps=args.rewarmup_steps,
+        optimizer_state=optimizer_state,
     )
     report["corpus"] = corpus_info.to_dict()
     if cache_contract is not None:

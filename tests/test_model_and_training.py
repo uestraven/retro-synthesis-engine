@@ -608,3 +608,66 @@ def test_piece_sampling_equalizes_composition_influence(windows):
     assert piece_share(by_window) > piece_share(by_piece)
     # One of several compositions, so its share should be far from dominant.
     assert piece_share(by_piece) < 0.5
+
+
+def test_the_schedule_continues_rather_than_restarting_on_resume():
+    """The failure this guards against would have wasted an hour of GPU. The
+    100k run decayed to `min_learning_rate` at its own final step, so a naive
+    resume either re-warms to full peak -- discarding what was learned -- or
+    sits at 3e-5 and learns almost nothing. Extending `max_steps` and
+    evaluating at the absolute step puts step 100,000 where it would have been
+    had the longer budget been planned from the start."""
+    from rse.training.train import learning_rate_at
+
+    short = TrainConfig(max_steps=100_000)
+    long = TrainConfig(max_steps=300_000)
+
+    # The original run ends at the floor.
+    assert learning_rate_at(99_999, short) == pytest.approx(short.min_learning_rate, rel=1e-3)
+    # A schedule recomputed from zero would re-warm.
+    assert learning_rate_at(0, long) < long.learning_rate / 10
+    # Continuing on the longer horizon gives a useful rate, and it decays.
+    at_resume = learning_rate_at(100_000, long)
+    assert at_resume > short.min_learning_rate * 5
+    assert at_resume < long.learning_rate
+    assert learning_rate_at(200_000, long) < at_resume
+    assert learning_rate_at(299_999, long) == pytest.approx(long.min_learning_rate, rel=1e-3)
+
+
+def test_rewarmup_ramps_from_the_floor_after_a_resume():
+    """Adam's moments are absent from any checkpoint written before
+    continuation was supported, so a discontinuous rate jump would be taken
+    with no second-moment estimate to scale it."""
+    from rse.training.train import learning_rate_at
+
+    config = TrainConfig(max_steps=300_000)
+    scheduled = learning_rate_at(100_000, config)
+    first = learning_rate_at(100_000, config, resume_step=100_000, rewarmup_steps=500)
+    middle = learning_rate_at(100_250, config, resume_step=100_000, rewarmup_steps=500)
+    after = learning_rate_at(100_600, config, resume_step=100_000, rewarmup_steps=500)
+    assert first < middle < scheduled
+    assert first == pytest.approx(config.min_learning_rate, rel=0.05)
+    assert after == pytest.approx(learning_rate_at(100_600, config))
+
+
+def test_checkpoints_carry_optimizer_state_for_a_clean_continuation(tmp_path, tokenizer, windows):
+    from rse.training.train import load_checkpoint, train
+
+    out = tmp_path / "ckpt.pt"
+    train(
+        windows,
+        tokenizer,
+        model_config=ModelConfig(
+            vocab_size=len(tokenizer), n_layers=1, n_heads=2, d_model=32, max_seq_len=256
+        ),
+        config=TrainConfig(max_steps=2, batch_size=2, seq_len=64, eval_every=1),
+        checkpoint_path=out,
+    )
+    import torch
+
+    payload = torch.load(out, map_location="cpu", weights_only=False)
+    assert payload["optimizer"] is not None
+    assert payload["torch_rng_state"] is not None
+    # And it still loads through the normal path.
+    model, loaded_tokenizer, _p = load_checkpoint(out, device="cpu")
+    assert len(loaded_tokenizer) == len(tokenizer)

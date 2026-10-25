@@ -50,3 +50,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Every script inserts the repository root on sys.path before importing `rse`,
+# so that `python scripts/x.py` works on a checkout where the package is not
+# installed -- the normal state of a fresh GPU host. The imports cannot
+# precede that by construction.
+"scripts/*.py" = ["E402"]
