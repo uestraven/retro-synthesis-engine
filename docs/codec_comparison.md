@@ -275,3 +275,88 @@ loss that was assumed to explain it.
 **Phrase is mixed and should not be read as improved**: preservation barely
 moves, `stable` recall rises 0.475 → 0.850 while `variation` recall falls
 0.745 → 0.588, on only 86–92 eligible pieces.
+
+---
+
+# The frozen representation
+
+`rse-repr/1.0.0-d4k4-tempo1.01` — `rse/tokenizers/frozen.py`.
+
+| | |
+|---|---|
+| codec | D, k=4 |
+| tempo ratio | 1.01 |
+| tempo range | 20–380 BPM |
+| window | 8 bars |
+| context | 3,072 tokens |
+| overflow | split at bar boundaries |
+| vocabulary | **555** |
+| parameters at 6×8×256 | 5,667,840 |
+
+Use it with `rse train --frozen-representation`. Codec A's defaults are
+unchanged, so the 272-token foundation and all Gate 3 artifacts remain
+reproducible as historical baselines. They are **not** checkpoint-compatible:
+the vocabulary, the context and the number of events in a window all differ.
+
+## Tempo coverage after widening
+
+`scripts/tempo_coverage.py`, full train and validation splits.
+
+| split | pieces | with a pulse | eligible 40–360 | eligible 20–380 | recovered |
+|---|---|---|---|---|---|
+| train | 4,437 | 3,862 | 3,706 (83.5%) | 3,845 (86.7%) | **139 (3.13%)** |
+| valid | 398 | 345 | 339 (85.2%) | 343 (86.2%) | 4 (1.00%) |
+
+Rejections for rate fall from 156 to 17 on train. Fitted rates run 14.74 to
+374.88 BPM, so the 17 that remain sit below 20 — widening further has sharply
+diminishing returns.
+
+Note the larger limitation this exposes: **575 train pieces (13%) have no
+fitted pulse at all**, which no tempo range addresses. That is a separate
+problem from the one Branch B solved.
+
+## Overflow splitting, measured
+
+On 300 NES-MDB pieces: 627 windows, of which **22 fragments from 11 split
+windows**. Longest window 3,035 tokens, none over 3,072, no duplicate cache
+keys, every fragment flagged so a label join cannot inherit its parent's
+label.
+
+`verify_split` runs inside the cache builder, not only in tests, and caught a
+real defect on first contact with real data: one event of 1,504 disappeared
+because `slot_of` rounds, so an event just inside the final bar rounded up
+into a bar no fragment covered. Clamped, with a regression test that asserts
+the fixture overshoots before checking the clamp.
+
+## Length-bucketed batching
+
+`make_batch` pads to the longest member of a batch, and window lengths span
+roughly 100 to 3,035 tokens, so a uniformly drawn batch is mostly padding.
+Measured on 564 real train windows at batch 8:
+
+| sampling | padding waste |
+|---|---|
+| uniform | **51.4%** |
+| 4 buckets | 22.7% |
+| 8 buckets | 12.7% |
+| 16 buckets | 6.7% |
+
+Buckets are weighted by size so every window remains equally likely: the batch
+composition changes, the training distribution does not. Use
+`--length-buckets 16`.
+
+## Memory feasibility at 3,072
+
+The attention uses `scaled_dot_product_attention`, so the S×S matrix is never
+materialized and activation memory is linear in context, not quadratic.
+Estimated fp16 activations for the 5.7M-parameter model:
+
+| batch | activations |
+|---|---|
+| 4 | ~0.50 GiB |
+| 8 | ~1.01 GiB |
+| 16 | ~2.02 GiB |
+
+Comfortable on a 24 GB RTX 3090 at batch 16 or well beyond. The small
+vocabulary keeps the output projection negligible (0.05 GiB of logits at batch
+16). This is an estimate from tensor shapes, not a measured GPU run.
