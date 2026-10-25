@@ -1,0 +1,11 @@
+4ca6a5db3a2d1510bad7acde4d313a9ad732fc91dcda4776f044c5b5bd8ea9b7  model.safetensors
+c46b2efa13bf01d9224fd7faa6cf8b53b2a90dc2940549a7a2c89df605d30b7a  config.json
+40ac92aa8a3683693e2bf725d46cf8a4825221185ed29a7fcec550deacf81224  tokenizer/vocab.json
+edd9083af2f7c4aa34efdd0df41ef46c8f424db34d35522d7107c489a6ea1a09  tokenizer/bpe.json
+9e9c628f86c68381d59fd1c8c0ca01f3a164d69fec75d001dd1103c586ec56e7  samples/promo_piano_concerto.mid
+ab26168b37d67039442478a25c56fcb39e19311647fc8049c7f01750794c21fc  samples/promo_rock.mid
+# haster/Fermata-0.2B-v1, revision 18b647098f579ee41db67c0ad4c7f7f39ce0eac1
+# 201,398,272 parameters, LlamaForCausalLM layout, vocab 9507 (2159 atomic)
+# No .py files in the repository: the encoder/decoder is a reconstruction,
+# rse-fermata-reconstruction/1.0.0, validated by perplexity on the repo's own
+# promo samples (NLL 0.2254 correct vs 10.75 shuffled, 9.22 field-swapped).
