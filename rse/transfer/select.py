@@ -42,11 +42,11 @@ WEIGHTS: dict[str, float] = {
     "pitch_class_entropy": 1.0,
 }
 
-#: A piece must clear these to be ranked at all. They are hard musical
-#: requirements rather than preferences: a piece with no percussion when the
-#: plan asked for drums, or one that uses a single channel, is not an NES
-#: arrangement regardless of how its metrics score.
-MIN_CHANNELS = 3
+#: Minimum events for a piece to be worth ranking at all. There is no
+#: channel-count gate: a blanket "at least three channels" rule discarded
+#: seven of sixty pieces for correctly obeying a two-track `sparse` prompt.
+#: Instrumentation is judged against the request, by
+#: `rse.transfer.ensemble.check_ensemble`, not against a global threshold.
 MIN_EVENTS = 40
 
 
@@ -113,12 +113,17 @@ def score_piece(
     weights = weights or WEIGHTS
     name = str(metrics.get("name", "?"))
 
-    channels = metrics.get("n_channels_used")
-    if channels is None:
-        channels = len(metrics.get("channels_used", []) or [])
     events = metrics.get("n_events", 0)
-    if channels < MIN_CHANNELS:
-        return Scored(name, float("inf"), False, f"only {channels} channels", metrics=metrics)
+    # `honours_request` comes from the ensemble check when the caller has run
+    # it; absent, the piece is ranked rather than assumed broken.
+    if metrics.get("honours_request") is False:
+        return Scored(
+            name,
+            float("inf"),
+            False,
+            "did not deliver the requested ensemble",
+            metrics=metrics,
+        )
     if events < MIN_EVENTS:
         return Scored(name, float("inf"), False, f"only {events} events", metrics=metrics)
 

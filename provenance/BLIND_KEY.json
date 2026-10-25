@@ -1,0 +1,62 @@
+[
+  {
+    "file": "pick_01.wav",
+    "piece": "exploration_s1022",
+    "end": "top",
+    "score": 0.3858
+  },
+  {
+    "file": "pick_02.wav",
+    "piece": "fast_rhythmic_s1015",
+    "end": "bottom",
+    "score": 1.1476
+  },
+  {
+    "file": "pick_03.wav",
+    "piece": "ominous_s1048",
+    "end": "bottom",
+    "score": 1.1186
+  },
+  {
+    "file": "pick_04.wav",
+    "piece": "fast_rhythmic_s1001",
+    "end": "bottom",
+    "score": 1.0475
+  },
+  {
+    "file": "pick_05.wav",
+    "piece": "town_s1034",
+    "end": "top",
+    "score": 0.2537
+  },
+  {
+    "file": "pick_06.wav",
+    "piece": "town_s1004",
+    "end": "bottom",
+    "score": 0.996
+  },
+  {
+    "file": "pick_07.wav",
+    "piece": "action_s1008",
+    "end": "bottom",
+    "score": 0.9911
+  },
+  {
+    "file": "pick_08.wav",
+    "piece": "ominous_s1051",
+    "end": "top",
+    "score": 0.4276
+  },
+  {
+    "file": "pick_09.wav",
+    "piece": "ominous_s1057",
+    "end": "top",
+    "score": 0.3272
+  },
+  {
+    "file": "pick_10.wav",
+    "piece": "town_s1020",
+    "end": "top",
+    "score": 0.2444
+  }
+]

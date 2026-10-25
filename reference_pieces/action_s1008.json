@@ -1,0 +1,64 @@
+{
+  "name": "action_s1008",
+  "why_preserved": "Rated BEST in a blind listening test of ten pieces, while the six-feature corpus-distance ranking placed it 2nd from last of 53 eligible pieces. It is the clearest evidence that typicality is not quality, and a listening reference -- not a target to fit a ranking to.",
+  "blind_test": {
+    "file_presented_as": "pick_07.wav",
+    "listener_verdict": "BEST",
+    "ranking_end": "bottom",
+    "ranking_score": 0.9911
+  },
+  "generation": {
+    "model": "haster/Fermata-0.2B-v1",
+    "revision": "18b647098f579ee41db67c0ad4c7f7f39ce0eac1",
+    "weights_sha256": "4ca6a5db3a2d1510bad7acde4d313a9ad732fc91dcda4776f044c5b5bd8ea9b7",
+    "codec": "rse-fermata-reconstruction/1.0.0 (no author implementation published)",
+    "scenario": "action",
+    "seed": 1008,
+    "sampling": {
+      "temperature": 0.7,
+      "top_k": 24,
+      "repetition_penalty": 1.12,
+      "max_new_tokens": 1400
+    },
+    "row_sec": 0.1
+  },
+  "pipeline": {
+    "arranger": "arrange_for_nes with chord arpeggiation across k=4 sub-row slots",
+    "representation": "rse-repr/1.0.0-d4k4-tempo1.01",
+    "renderer": "NesApuRenderer, nes profile"
+  },
+  "measured": {
+    "name": "action_s1008",
+    "scenario": "action",
+    "seed": 1008,
+    "n_events": 271,
+    "n_channels_used": 4,
+    "n_percussion": 136,
+    "n_bars": 13,
+    "notes_per_bar": 20.846,
+    "ioi_entropy": 2.2259,
+    "pitch_class_entropy": 2.25,
+    "stepwise_fraction": 1.0,
+    "ngram_repetition_rate": 1.0,
+    "motif_note_participation": 1.0,
+    "retention": 1.0
+  },
+  "corpus_distances_iqr_units": {
+    "motif_note_participation": 0.9343,
+    "notes_per_bar": 0.5006,
+    "ioi_entropy": 0.974,
+    "stepwise_fraction": 1.9931,
+    "ngram_repetition_rate": 1.2102,
+    "pitch_class_entropy": 0.9556
+  },
+  "characterisation": [
+    "Motif participation 1.00: every melodic note belongs to a recurring figure. Scored as maximally atypical by a two-sided metric, and the listener's favourite -- a strongly repeated riff is plausibly what makes action music work.",
+    "Stepwise fraction 1.00: the melody moves entirely by step, no leaps at all, against a corpus median of 0.328.",
+    "Pitch-class entropy 2.25 bits against a corpus median of 2.605, so pitch variety is close to typical -- the atypicality is in repetition and melodic contour, not in the notes used.",
+    "Notes per bar 20.8 against a corpus median of 31.3: sparser than typical.",
+    "IOI entropy 2.23 against a corpus median of 1.38: rhythmically more varied than typical, not less.",
+    "13 bars rather than 8, since this predates bar-accurate termination.",
+    "All four channels sound, with 136 percussion events."
+  ],
+  "do_not": "Do not treat these figures as targets. They come from one piece and one listener judgement, and fitting a ranking to them is the error the blind test was designed to catch."
+}

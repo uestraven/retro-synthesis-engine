@@ -420,3 +420,90 @@ def decode(ids: list[int], *, vocab: Vocab) -> tuple[Score, DecodeReport]:
     )
     score.warnings = list(report.warnings)
     return score, report
+
+
+# -- eight-bar generation -----------------------------------------------------
+
+#: Why a generation stopped. These need distinguishing: a piece that ran out
+#: of token budget mid-bar is not the same artefact as one the model chose to
+#: end, and counting the former as a complete composition is how an earlier
+#: evaluation came to report 83% "completion" for output that was mostly
+#: empty trailing bars.
+NATURAL_EOS = "natural_eos"
+BAR_LIMIT = "bar_limit"
+TOKEN_BUDGET = "token_budget"
+GRAMMAR_ERROR = "grammar_error"
+
+
+@dataclass
+class BarTrimResult:
+    """A token stream cut to a whole number of bars."""
+
+    ids: list[int]
+    n_bars: int
+    reason: str
+    #: Tokens discarded from the opening of an unwanted ninth bar.
+    n_trimmed: int = 0
+    #: The stream before trimming, so the raw model output stays available.
+    raw_ids: list[int] = field(default_factory=list)
+
+    @property
+    def complete(self) -> bool:
+        """True only when the requested bars were all actually produced.
+
+        A token-budget stop mid-bar is never complete, however many bars came
+        before it.
+        """
+        return self.reason in (NATURAL_EOS, BAR_LIMIT)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "reconstruction": RECONSTRUCTION_ID,
+            "n_tokens": len(self.ids),
+            "n_raw_tokens": len(self.raw_ids),
+            "n_bars": self.n_bars,
+            "reason": self.reason,
+            "complete": self.complete,
+            "n_trimmed": self.n_trimmed,
+        }
+
+
+def trim_to_bars(ids: list[int], *, vocab: Vocab, n_bars: int) -> BarTrimResult:
+    """Cut a stream so it holds exactly `n_bars` bars, then close it.
+
+    Fermata emits `<BAR>` at the start of each bar, so the bar that must not
+    appear is the `n_bars + 1`-th. Everything from that token onward is
+    dropped and `<EOS>` appended, which keeps every event of the final bar
+    while removing the opening of the next one.
+
+    A note whose duration runs past the end is left at its full length: the
+    duration is a property of the note, not a position, and shortening it here
+    would silently alter the music rather than the structure. The NES arranger
+    truncates for monophony later if the hardware requires it.
+    """
+    bar_id = vocab.id_of("<BAR>")
+    eos_id = vocab.id_of("<EOS>")
+    raw = list(ids)
+
+    seen = 0
+    for index, token_id in enumerate(ids):
+        if token_id == bar_id:
+            seen += 1
+            if seen == n_bars + 1:
+                kept = ids[:index] + [eos_id]
+                return BarTrimResult(
+                    ids=kept,
+                    n_bars=n_bars,
+                    reason=BAR_LIMIT,
+                    n_trimmed=len(ids) - index,
+                    raw_ids=raw,
+                )
+        if token_id == eos_id:
+            return BarTrimResult(
+                ids=ids[: index + 1],
+                n_bars=seen,
+                reason=NATURAL_EOS,
+                raw_ids=raw,
+            )
+    # Never reached the bar limit and never stopped: the budget ran out.
+    return BarTrimResult(ids=list(ids), n_bars=seen, reason=TOKEN_BUDGET, raw_ids=raw)

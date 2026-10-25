@@ -299,3 +299,176 @@ def test_reports_are_json_serializable():
     # Every artifact is marked as coming from a reconstruction.
     assert "reconstruction" in enc.to_dict()
     assert "reconstruction" in dec.to_dict()
+
+
+# -- eight-bar generation -----------------------------------------------------
+
+
+def test_trim_cuts_at_the_bar_boundary_keeping_the_last_bar_whole():
+    """Fermata emits `<BAR>` at the start of each bar, so the token that must
+    not appear is the ninth. Everything from it onward goes, which keeps every
+    event of the eighth bar while removing the opening of the next."""
+    from rse.transfer.fermata import BAR_LIMIT, trim_to_bars
+
+    vocab = _vocab()
+    bar, eos = vocab.id_of("<BAR>"), vocab.id_of("<EOS>")
+    pitch = vocab.id_of("<PITCH_60>")
+    ids = [vocab.id_of("<BOS>")] + [x for _ in range(10) for x in (bar, pitch)]
+
+    result = trim_to_bars(ids, vocab=vocab, n_bars=8)
+    assert result.reason == BAR_LIMIT
+    assert result.n_bars == 8
+    assert result.complete
+    assert result.ids.count(bar) == 8
+    assert result.ids[-1] == eos
+    # The eighth bar's note survives: 8 bars x (BAR, PITCH) plus BOS and EOS.
+    assert result.ids.count(pitch) == 8
+    assert result.raw_ids == ids
+
+
+def test_a_natural_eos_is_distinguished_from_a_bar_limit():
+    """The model choosing to end is a different artefact from being cut off,
+    and conflating them is how an earlier evaluation reported completion for
+    output that was mostly empty."""
+    from rse.transfer.fermata import NATURAL_EOS, trim_to_bars
+
+    vocab = _vocab()
+    bar, eos = vocab.id_of("<BAR>"), vocab.id_of("<EOS>")
+    pitch = vocab.id_of("<PITCH_60>")
+    ids = [vocab.id_of("<BOS>")] + [x for _ in range(5) for x in (bar, pitch)] + [eos]
+    result = trim_to_bars(ids, vocab=vocab, n_bars=8)
+    assert result.reason == NATURAL_EOS
+    assert result.n_bars == 5
+    assert result.complete, "the model ended deliberately, so this is valid"
+
+
+def test_a_budget_stop_is_never_counted_complete():
+    """An incomplete sequence must not pass as a valid composition however
+    many bars preceded the cut."""
+    from rse.transfer.fermata import TOKEN_BUDGET, trim_to_bars
+
+    vocab = _vocab()
+    bar, pitch = vocab.id_of("<BAR>"), vocab.id_of("<PITCH_60>")
+    ids = [vocab.id_of("<BOS>")] + [x for _ in range(3) for x in (bar, pitch)]
+    result = trim_to_bars(ids, vocab=vocab, n_bars=8)
+    assert result.reason == TOKEN_BUDGET
+    assert result.n_bars == 3
+    assert not result.complete
+
+
+def test_trimming_leaves_the_unrestricted_stream_available():
+    """The raw output is kept so restricted and unrestricted modes can be
+    compared rather than one replacing the other."""
+    from rse.transfer.fermata import trim_to_bars
+
+    vocab = _vocab()
+    bar, pitch = vocab.id_of("<BAR>"), vocab.id_of("<PITCH_60>")
+    ids = [vocab.id_of("<BOS>")] + [x for _ in range(12) for x in (bar, pitch)]
+    result = trim_to_bars(ids, vocab=vocab, n_bars=8)
+    assert len(result.raw_ids) == len(ids)
+    assert len(result.ids) < len(ids)
+
+
+def test_trimmed_stream_still_decodes():
+    from rse.transfer.fermata import decode, trim_to_bars
+
+    vocab = _vocab()
+    ids, _report = encode(_score(), vocab=vocab)
+    trimmed = trim_to_bars(ids, vocab=vocab, n_bars=1)
+    score, report = decode(trimmed.ids, vocab=vocab)
+    assert report.hit_eos
+    assert score.n_events >= 1
+
+
+# -- scenario-aware ensemble validation --------------------------------------
+
+
+def test_two_channels_is_correct_when_two_tracks_were_requested():
+    """The defect this replaces: a blanket three-channel minimum discarded
+    seven of sixty pieces for correctly obeying a two-track `sparse` prompt."""
+    from rse.events.schema import Composition, Note
+    from rse.transfer.ensemble import check_ensemble
+
+    melody = Track(role="melody", program=80)
+    melody.notes = [ScoreNote(tick=0, duration=12, pitch=72)]
+    bass = Track(role="bass", program=38)
+    bass.notes = [ScoreNote(tick=0, duration=12, pitch=43)]
+    score = Score(ticks_per_quarter=SUBPOS, tempo_bpm=120.0, tracks=[melody, bass])
+    arranged = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[
+            Note(channel_id="P1", tick=0, pitch=72, duration=60, velocity=96),
+            Note(channel_id="TR", tick=0, pitch=43, duration=60, velocity=96),
+        ],
+    )
+    check = check_ensemble(
+        scenario="sparse",
+        plan=["<TRACK_80>", "<TRACK_38>"],
+        score=score,
+        arranged=arranged,
+    )
+    assert check.n_requested_tracks == 2
+    assert check.requested_percussion is False
+    assert check.percussion_as_requested
+    assert check.missing_tracks == 0
+    assert check.honours_request, "obeying a two-track prompt is not a failure"
+
+
+def test_missing_percussion_is_a_failure_when_drums_were_requested():
+    """The same two channels, asked for differently, is a different verdict."""
+    from rse.events.schema import Composition, Note
+    from rse.transfer.ensemble import check_ensemble
+
+    melody = Track(role="melody", program=80)
+    melody.notes = [ScoreNote(tick=0, duration=12, pitch=72)]
+    score = Score(ticks_per_quarter=SUBPOS, tempo_bpm=120.0, tracks=[melody])
+    arranged = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[Note(channel_id="P1", tick=0, pitch=72, duration=60, velocity=96)],
+    )
+    check = check_ensemble(
+        scenario="action",
+        plan=["<TRACK_80>", "<TRACK_81>", "<TRACK_38>", "<DRUM_TRACK>"],
+        score=score,
+        arranged=arranged,
+    )
+    assert check.requested_percussion is True
+    assert check.percussion_sounding is False
+    assert not check.percussion_as_requested
+    assert check.missing_tracks == 3
+    assert not check.honours_request
+
+
+def test_ensemble_check_reports_each_stage_separately():
+    """Requested, generated, mapped and sounding diverge for different
+    reasons, and one channel count hides all of them."""
+    from rse.events.schema import Composition, Noise, Note
+    from rse.transfer.ensemble import check_ensemble
+
+    melody = Track(role="melody", program=80)
+    melody.notes = [ScoreNote(tick=0, duration=12, pitch=72)]
+    drums = Track(role=PERCUSSION)
+    drums.percussion = [ScorePercussion(tick=0, duration=6, key=36)]
+    score = Score(ticks_per_quarter=SUBPOS, tempo_bpm=120.0, tracks=[melody, drums])
+    arranged = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[
+            Note(channel_id="P1", tick=0, pitch=72, duration=60, velocity=96),
+            Noise(channel_id="NO", tick=0, value=1, duration=30, velocity=96),
+        ],
+    )
+    check = check_ensemble(
+        scenario="town",
+        plan=["<TRACK_80>", "<DRUM_TRACK>"],
+        score=score,
+        arranged=arranged,
+    )
+    row = check.to_dict()
+    assert row["n_requested_tracks"] == 2
+    assert row["n_generated_tracks"] == 2
+    assert row["channels_sounding"] == ["P1", "NO"]
+    assert row["percussion_sounding"] is True
+    assert row["honours_request"] is True
