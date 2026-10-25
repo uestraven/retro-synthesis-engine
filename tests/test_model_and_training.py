@@ -895,3 +895,88 @@ def test_greedy_structural_follows_the_model_not_the_token_count():
         generator=None,
     )
     assert chosen in channels
+
+
+def test_structural_control_is_bit_exact_under_truncation_too(tokenizer, tiny_config):
+    """The category mass is computed from the filtered distribution, so the
+    no-op property has to hold with top-k and top-p active as well -- that is
+    where the original bug lived."""
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    for top_k, top_p in ((None, None), (40, 0.95), (8, 0.9)):
+        for seed in (1, 2, 3):
+            base = sample(
+                model,
+                tokenizer,
+                config=SamplingConfig(
+                    seed=seed, temperature=0.85, top_k=top_k, top_p=top_p, max_tokens=400
+                ),
+            )
+            control = sample(
+                model,
+                tokenizer,
+                config=SamplingConfig(
+                    seed=seed,
+                    temperature=0.85,
+                    top_k=top_k,
+                    top_p=top_p,
+                    max_tokens=400,
+                    structural_temperature=1.0,
+                ),
+            )
+            assert base.ids == control.ids, (top_k, top_p, seed)
+
+
+def test_within_category_selection_follows_the_model():
+    """Once a category is chosen, the member must be picked by the model's
+    own probabilities. A single available category is not a structural
+    decision at all and falls through to ordinary sampling."""
+    from rse.generation.sampler import sample_structural
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    channels = [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2", "TR", "NO")]
+    positions = [vocab.id_of(f"Position_{j}") for j in range(8)]
+
+    logits = torch.full((len(vocab),), float("-inf"))
+    for token_id in channels:
+        logits[token_id] = 0.0
+    logits[channels[2]] = 6.0  # TR dominates inside the category
+    for token_id in positions:
+        logits[token_id] = -4.0
+
+    picks = [
+        sample_structural(
+            logits,
+            allowed=tuple(channels + positions),
+            vocabulary=vocab,
+            structural_temperature=1.5,
+            music_temperature=0.85,
+            top_k=None,
+            top_p=None,
+            generator=torch.Generator(device="cpu").manual_seed(k),
+        )
+        for k in range(40)
+    ]
+    chose_channel = [p for p in picks if p in channels]
+    assert len(chose_channel) >= 36
+    assert all(p == channels[2] for p in chose_channel)
+
+    # One category is no decision: fall through so ordinary sampling applies.
+    assert (
+        sample_structural(
+            logits,
+            allowed=tuple(channels),
+            vocabulary=vocab,
+            structural_temperature=0.25,
+            music_temperature=0.85,
+            top_k=None,
+            top_p=None,
+            generator=None,
+        )
+        == -1
+    )
