@@ -154,15 +154,29 @@ def pitch_class_entropy(pitches: list[int]) -> float:
 
 
 def bar_signatures(
-    composition: Composition, *, beats_per_bar: int = 4
+    composition: Composition,
+    *,
+    beats_per_bar: int = 4,
+    quantize_ticks: int | None = None,
 ) -> list[tuple[tuple[int, int, int], ...]]:
-    """A comparable fingerprint of each bar's content."""
+    """A comparable fingerprint of each bar's content.
+
+    `quantize_ticks` rounds each onset offset before hashing, which is
+    required once onsets carry sub-row resolution. Without it the metric
+    silently stops detecting loops: under codec D two musically identical
+    bars differing by a single 1/4-row slot hash differently, and
+    `unique_bar_fraction` read 1.000 on generated output that was manifestly
+    repeating. Left at None the behaviour is exactly as before, so historical
+    figures stay reproducible.
+    """
     ticks_per_bar = composition.ticks_per_beat * beats_per_bar
     if ticks_per_bar <= 0:
         return []
     bars: dict[int, list[tuple[int, int, int]]] = {}
     for event in composition.sounding_events():
         bar, offset = divmod(event.tick, ticks_per_bar)
+        if quantize_ticks and quantize_ticks > 0:
+            offset = int(round(offset / quantize_ticks)) * quantize_ticks
         value = event.pitch if isinstance(event, Note) else event.value
         channel = composition.channel_ids.index(event.channel_id)
         bars.setdefault(bar, []).append((offset, channel, value))

@@ -1,0 +1,742 @@
+{
+  "reconstruction": "rse-fermata-reconstruction/1.0.0",
+  "row_sec": 0.1,
+  "frozen_representation": "rse-vocab/1.4.0",
+  "n_generations": 12,
+  "generations": [
+    {
+      "name": "action_s0",
+      "scenario": "action",
+      "seed": 0,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 62,
+        "n_percussion": 170,
+        "n_distinct_pitches": 24,
+        "n_bars": 10,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 232,
+        "n_events_out": 172,
+        "retention": 0.74138,
+        "n_polyphony_dropped": 60,
+        "n_stolen_truncated": 19,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 149,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 1,
+        "role_assignment": {
+          "0": "percussion->NO",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": [
+          "track 3 merged onto NO"
+        ]
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 172,
+        "n_tokens_d4": 839,
+        "n_bars": 13,
+        "channels_used": [
+          "NO",
+          "P1",
+          "TR"
+        ],
+        "n_percussion": 129,
+        "pitch_class_entropy": 1.585,
+        "ngram_repetition_rate": 0.0,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 13.23,
+        "stepwise_fraction": 0.5,
+        "motif_note_participation": 0.725,
+        "ioi_entropy": 1.637,
+        "class_counts": {
+          "attack": 172
+        }
+      }
+    },
+    {
+      "name": "action_s1",
+      "scenario": "action",
+      "seed": 1,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 140,
+        "n_percussion": 91,
+        "n_distinct_pitches": 30,
+        "n_bars": 10,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 231,
+        "n_events_out": 195,
+        "retention": 0.84416,
+        "n_polyphony_dropped": 36,
+        "n_stolen_truncated": 41,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 54,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 195,
+        "n_tokens_d4": 889,
+        "n_bars": 12,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 55,
+        "pitch_class_entropy": 2.585,
+        "ngram_repetition_rate": 1.0,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 16.25,
+        "stepwise_fraction": 0.8491,
+        "motif_note_participation": 0.8,
+        "ioi_entropy": 1.0825,
+        "class_counts": {
+          "attack": 195
+        }
+      }
+    },
+    {
+      "name": "exploration_s0",
+      "scenario": "exploration",
+      "seed": 0,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 180,
+        "n_percussion": 55,
+        "n_distinct_pitches": 21,
+        "n_bars": 5,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 235,
+        "n_events_out": 156,
+        "retention": 0.66383,
+        "n_polyphony_dropped": 79,
+        "n_stolen_truncated": 20,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 54,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 156,
+        "n_tokens_d4": 711,
+        "n_bars": 4,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 38,
+        "pitch_class_entropy": 1.9977,
+        "ngram_repetition_rate": 0.5556,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 39.0,
+        "stepwise_fraction": 0.0333,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 0.3034,
+        "class_counts": {
+          "attack": 156
+        }
+      }
+    },
+    {
+      "name": "exploration_s1",
+      "scenario": "exploration",
+      "seed": 1,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 125,
+        "n_percussion": 106,
+        "n_distinct_pitches": 32,
+        "n_bars": 12,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 231,
+        "n_events_out": 195,
+        "retention": 0.84416,
+        "n_polyphony_dropped": 36,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 94,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 195,
+        "n_tokens_d4": 924,
+        "n_bars": 10,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 70,
+        "pitch_class_entropy": 2.8491,
+        "ngram_repetition_rate": 0.2143,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 19.5,
+        "stepwise_fraction": 0.8824,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.1386,
+        "class_counts": {
+          "attack": 195
+        }
+      }
+    },
+    {
+      "name": "fast_rhythmic_s0",
+      "scenario": "fast_rhythmic",
+      "seed": 0,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 125,
+        "n_percussion": 104,
+        "n_distinct_pitches": 32,
+        "n_bars": 16,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 229,
+        "n_events_out": 196,
+        "retention": 0.8559,
+        "n_polyphony_dropped": 33,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 104,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 196,
+        "n_tokens_d4": 917,
+        "n_bars": 19,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 91,
+        "pitch_class_entropy": 2.7669,
+        "ngram_repetition_rate": 0.8667,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 10.32,
+        "stepwise_fraction": 0.0159,
+        "motif_note_participation": 0.5,
+        "ioi_entropy": 0.7219,
+        "class_counts": {
+          "attack": 196
+        }
+      }
+    },
+    {
+      "name": "fast_rhythmic_s1",
+      "scenario": "fast_rhythmic",
+      "seed": 1,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 123,
+        "n_percussion": 110,
+        "n_distinct_pitches": 26,
+        "n_bars": 9,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 233,
+        "n_events_out": 151,
+        "retention": 0.64807,
+        "n_polyphony_dropped": 82,
+        "n_stolen_truncated": 42,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 93,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 151,
+        "n_tokens_d4": 705,
+        "n_bars": 11,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 76,
+        "pitch_class_entropy": 2.3554,
+        "ngram_repetition_rate": 0.0,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 13.73,
+        "stepwise_fraction": 0.6364,
+        "motif_note_participation": 0.6667,
+        "ioi_entropy": 1.3987,
+        "class_counts": {
+          "attack": 151
+        }
+      }
+    },
+    {
+      "name": "ominous_s0",
+      "scenario": "ominous",
+      "seed": 0,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 93,
+        "n_percussion": 140,
+        "n_distinct_pitches": 25,
+        "n_bars": 7,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 233,
+        "n_events_out": 205,
+        "retention": 0.87983,
+        "n_polyphony_dropped": 28,
+        "n_stolen_truncated": 71,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 112,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 205,
+        "n_tokens_d4": 945,
+        "n_bars": 5,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 112,
+        "pitch_class_entropy": 3.082,
+        "ngram_repetition_rate": 0.7692,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 41.0,
+        "stepwise_fraction": 0.0545,
+        "motif_note_participation": 0.8571,
+        "ioi_entropy": 0.9929,
+        "class_counts": {
+          "arpeggio": 1,
+          "attack": 139,
+          "passage": 59,
+          "retrigger": 2,
+          "vibrato": 4
+        }
+      }
+    },
+    {
+      "name": "ominous_s1",
+      "scenario": "ominous",
+      "seed": 1,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 136,
+        "n_percussion": 97,
+        "n_distinct_pitches": 38,
+        "n_bars": 8,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 233,
+        "n_events_out": 139,
+        "retention": 0.59657,
+        "n_polyphony_dropped": 94,
+        "n_stolen_truncated": 38,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 97,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 139,
+        "n_tokens_d4": 638,
+        "n_bars": 5,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 66,
+        "pitch_class_entropy": 0.8113,
+        "ngram_repetition_rate": 0.0,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 27.8,
+        "stepwise_fraction": 0.5714,
+        "motif_note_participation": 0.3077,
+        "ioi_entropy": 0.9754,
+        "class_counts": {
+          "attack": 133,
+          "passage": 6
+        }
+      }
+    },
+    {
+      "name": "sparse_s0",
+      "scenario": "sparse",
+      "seed": 0,
+      "pre_arrangement": {
+        "n_tracks": 2,
+        "n_notes": 234,
+        "n_percussion": 0,
+        "n_distinct_pitches": 48,
+        "n_bars": 10,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 234,
+        "n_events_out": 216,
+        "retention": 0.92308,
+        "n_polyphony_dropped": 18,
+        "n_stolen_truncated": 57,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 216,
+        "n_tokens_d4": 1021,
+        "n_bars": 5,
+        "channels_used": [
+          "P1",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "pitch_class_entropy": 3.1911,
+        "ngram_repetition_rate": 0.7786,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 43.2,
+        "stepwise_fraction": 0.8811,
+        "motif_note_participation": 0.3333,
+        "ioi_entropy": 0.1841,
+        "class_counts": {
+          "attack": 77,
+          "passage": 139
+        }
+      }
+    },
+    {
+      "name": "sparse_s1",
+      "scenario": "sparse",
+      "seed": 1,
+      "pre_arrangement": {
+        "n_tracks": 2,
+        "n_notes": 234,
+        "n_percussion": 0,
+        "n_distinct_pitches": 51,
+        "n_bars": 10,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 234,
+        "n_events_out": 165,
+        "retention": 0.70513,
+        "n_polyphony_dropped": 69,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 165,
+        "n_tokens_d4": 783,
+        "n_bars": 5,
+        "channels_used": [
+          "P1",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "pitch_class_entropy": 3.0411,
+        "ngram_repetition_rate": 0.0889,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 33.0,
+        "stepwise_fraction": 0.6452,
+        "motif_note_participation": 0.1127,
+        "ioi_entropy": 1.718,
+        "class_counts": {
+          "arpeggio": 1,
+          "attack": 113,
+          "passage": 38,
+          "vibrato": 13
+        }
+      }
+    },
+    {
+      "name": "town_s0",
+      "scenario": "town",
+      "seed": 0,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 161,
+        "n_percussion": 64,
+        "n_distinct_pitches": 28,
+        "n_bars": 15,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 225,
+        "n_events_out": 225,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_stolen_truncated": 10,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 30,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 225,
+        "n_tokens_d4": 1018,
+        "n_bars": 13,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 64,
+        "pitch_class_entropy": 2.4488,
+        "ngram_repetition_rate": 0.5932,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 17.31,
+        "stepwise_fraction": 0.4839,
+        "motif_note_participation": 0.5556,
+        "ioi_entropy": 1.0264,
+        "class_counts": {
+          "attack": 225
+        }
+      }
+    },
+    {
+      "name": "town_s1",
+      "scenario": "town",
+      "seed": 1,
+      "pre_arrangement": {
+        "n_tracks": 4,
+        "n_notes": 126,
+        "n_percussion": 103,
+        "n_distinct_pitches": 20,
+        "n_bars": 14,
+        "hit_eos": false
+      },
+      "arrangement": {
+        "n_events_in": 229,
+        "n_events_out": 203,
+        "retention": 0.88646,
+        "n_polyphony_dropped": 26,
+        "n_stolen_truncated": 5,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 103,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "overlaps_before_monophony": 0,
+      "n_truncated_for_monophony": 0,
+      "hardware": {
+        "modifications": null,
+        "violations_after_repair": 0,
+        "compliant": true
+      },
+      "post_arrangement": {
+        "n_events": 203,
+        "n_tokens_d4": 919,
+        "n_bars": 12,
+        "channels_used": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 77,
+        "pitch_class_entropy": 2.6531,
+        "ngram_repetition_rate": 0.0,
+        "unique_bar_fraction": 1.0,
+        "notes_per_bar": 16.92,
+        "stepwise_fraction": 0.5,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.016,
+        "class_counts": {
+          "attack": 203
+        }
+      }
+    }
+  ]
+}

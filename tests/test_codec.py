@@ -408,3 +408,41 @@ def test_matching_needs_a_shared_time_scale():
         reconstructed_scale=1.0 / 480,
     )
     assert paired.pairs == [(0, 0)]
+
+
+def test_row_tolerant_bar_signatures_catch_a_sub_row_shifted_repeat():
+    """Under codec D a bar can repeat a semitone-perfect copy of an earlier
+    one while sitting a single 1/4-row slot later, and exact hashing misses
+    it entirely. Quantizing the offset to the row before hashing restores the
+    loop detector; left at None the historical behaviour is unchanged."""
+    from rse.training.evaluate import bar_signatures, repetition_metrics
+
+    ticks_per_beat, beats = 480, 4
+    bar_ticks = ticks_per_beat * beats
+
+    def one_bar(base, shift=0):
+        return [
+            Note(
+                channel_id="P1",
+                tick=base + i * 120 + shift,
+                pitch=60 + i,
+                duration=100,
+                velocity=96,
+            )
+            for i in range(4)
+        ]
+
+    def built(events):
+        comp = Composition(hardware_profile="nes", ticks_per_beat=ticks_per_beat, events=events)
+        comp.normalize()
+        return comp
+
+    identical = built(one_bar(0) + one_bar(bar_ticks))
+    shifted = built(one_bar(0) + one_bar(bar_ticks, shift=30))
+
+    # An exact copy is caught either way.
+    assert repetition_metrics(bar_signatures(identical))[0] == pytest.approx(0.5)
+    # A sub-row shift defeats exact hashing...
+    assert repetition_metrics(bar_signatures(shifted))[0] == pytest.approx(0.0)
+    # ...and is recovered by quantizing to the row.
+    assert repetition_metrics(bar_signatures(shifted, quantize_ticks=120))[0] == pytest.approx(0.5)

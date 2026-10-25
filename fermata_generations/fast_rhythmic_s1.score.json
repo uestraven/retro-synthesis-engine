@@ -1,0 +1,62 @@
+{
+  "score": {
+    "ticks_per_quarter": 24,
+    "tempo_bpm": 180.0,
+    "beats_per_bar": 4,
+    "n_events": 233,
+    "tracks": [
+      {
+        "role": "melody",
+        "channel_id": null,
+        "program": 80,
+        "monophonic": false,
+        "n_notes": 12,
+        "n_percussion": 0
+      },
+      {
+        "role": "melody",
+        "channel_id": null,
+        "program": 81,
+        "monophonic": false,
+        "n_notes": 49,
+        "n_percussion": 0
+      },
+      {
+        "role": "melody",
+        "channel_id": null,
+        "program": 38,
+        "monophonic": false,
+        "n_notes": 62,
+        "n_percussion": 0
+      },
+      {
+        "role": "percussion",
+        "channel_id": null,
+        "program": null,
+        "monophonic": false,
+        "n_notes": 0,
+        "n_percussion": 110
+      }
+    ],
+    "n_warnings": 0,
+    "provenance": {
+      "source": "rse-fermata-reconstruction/1.0.0",
+      "plan": [
+        "<TRACK_80>",
+        "<TRACK_81>",
+        "<TRACK_38>",
+        "<DRUM_TRACK>"
+      ]
+    }
+  },
+  "decode": {
+    "reconstruction": "rse-fermata-reconstruction/1.0.0",
+    "n_tokens": 1212,
+    "n_skipped": 4,
+    "n_events": 233,
+    "n_bars": 9,
+    "hit_eos": false,
+    "had_plan": true,
+    "warnings": []
+  }
+}
