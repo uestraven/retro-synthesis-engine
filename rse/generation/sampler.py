@@ -247,10 +247,20 @@ def sample_structural(
     temperature and truncation. The grammar mask is respected throughout, so
     an illegal token can never be chosen.
     """
-    masked = torch.full_like(logits, float("-inf"))
-    index = torch.tensor(allowed, dtype=torch.long, device=logits.device)
-    masked[index] = logits[index]
-    probabilities = torch.softmax(masked, dim=-1)
+    # Category mass must come from the SAME distribution the baseline samples
+    # from -- the music temperature and truncation applied -- or
+    # `structural_temperature=1.0` is not a no-op and the control arm is not a
+    # control. Computing it from raw logits was a bug: it made the 1.0 arm
+    # differ from the baseline by construction, which shifted every
+    # comparison against it.
+    base = filter_logits(
+        logits,
+        temperature=music_temperature,
+        top_k=top_k,
+        top_p=top_p,
+        allowed=allowed,
+    )
+    probabilities = torch.softmax(base, dim=-1)
 
     members: dict[str, list[int]] = {}
     for token_id in allowed:
@@ -359,6 +369,13 @@ def sample(
         next_id = -1
         if (
             config.structural_temperature is not None
+            # At 1.0 the category-level and token-level distributions are
+            # mathematically identical, so the ordinary single draw is taken.
+            # That makes the control arm bit-exact rather than merely
+            # distribution-equivalent: a two-stage draw consumes the
+            # generator differently and would diverge from the baseline for
+            # reasons unrelated to the experiment.
+            and config.structural_temperature != 1.0
             and allowed is not None
             and grammar.state is State.EXPECT_NOTE_OR_NEXT
         ):

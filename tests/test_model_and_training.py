@@ -705,35 +705,64 @@ def test_structural_temperature_defaults_to_existing_behaviour(tokenizer, tiny_c
     assert base.ids == explicit_none.ids
 
 
-def test_structural_temperature_of_one_is_near_identical(tokenizer, tiny_config):
-    """Category-level temperature 1.0 is mathematically the same distribution
-    as token-level sampling over those categories, so it must not shift
-    behaviour materially -- that is what makes 1.0 a valid control arm."""
+def test_structural_temperature_of_one_is_bit_exact(tokenizer, tiny_config):
+    """1.0 must reproduce the baseline token stream exactly, not merely a
+    similar distribution. Category-level and token-level sampling are
+    mathematically identical there, but a two-stage draw consumes the
+    generator differently -- so the control arm takes the single-draw path.
+    Without this the 1.0 arm differed from the baseline by construction, and
+    every comparison against it was shifted."""
     from rse.generation.sampler import SamplingConfig, sample
     from rse.models.transformer import RseTransformer
 
     torch.manual_seed(0)
     model = RseTransformer(tiny_config)
-    results = [
-        sample(
+    for seed in (1, 2, 3, 4):
+        base = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(seed=seed, temperature=0.85, max_tokens=400),
+        )
+        control = sample(
             model,
             tokenizer,
             config=SamplingConfig(
                 seed=seed,
-                temperature=0.9,
+                temperature=0.85,
                 max_tokens=400,
-                structural_temperature=structural,
+                structural_temperature=1.0,
             ),
         )
-        for seed in (1, 2, 3)
-        for structural in (None, 1.0)
-    ]
-    # Compare event counts pairwise; the distributions agree even though the
-    # random draws are consumed in a different order.
-    baseline = [len(r.composition.events) for r in results[0::2]]
-    at_one = [len(r.composition.events) for r in results[1::2]]
-    assert sum(baseline) > 0
-    assert abs(sum(at_one) - sum(baseline)) <= max(4, 0.6 * sum(baseline))
+        assert base.ids == control.ids, f"seed {seed}"
+
+
+def test_structural_temperature_below_one_changes_the_output(tokenizer, tiny_config):
+    """The complement of the control test: if sharpening changed nothing the
+    experiment would be measuring noise."""
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    changed = 0
+    for seed in (1, 2, 3, 4):
+        base = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(seed=seed, temperature=0.85, max_tokens=400),
+        )
+        sharpened = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(
+                seed=seed,
+                temperature=0.85,
+                max_tokens=400,
+                structural_temperature=0.25,
+            ),
+        )
+        changed += base.ids != sharpened.ids
+    assert changed >= 3, changed
 
 
 def test_greedy_structural_decisions_stay_grammatical(tokenizer, tiny_config):
