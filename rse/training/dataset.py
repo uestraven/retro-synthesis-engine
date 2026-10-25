@@ -38,18 +38,40 @@ class Window:
     composition_id: str
     start_bar: int
     n_bars: int
+    #: Set when this window is one piece of an over-long window that was split
+    #: at bar boundaries. A fragment is shorter than the window a conditioning
+    #: label was computed for, so a label join must exclude it rather than
+    #: inherit the parent's label -- Gate 3A measured that cropping changes
+    #: motif class for 1114 of 3900 windows.
+    is_fragment: bool = False
+    source_start_bar: int | None = None
+    source_n_bars: int | None = None
+    fragment_index: int = 0
+    n_fragments: int = 1
 
     def __len__(self) -> int:
         return len(self.ids)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        row: dict[str, Any] = {
             "ids": self.ids,
             "split": self.split,
             "composition_id": self.composition_id,
             "start_bar": self.start_bar,
             "n_bars": self.n_bars,
         }
+        if self.is_fragment:
+            row.update(
+                {
+                    "is_fragment": True,
+                    "source_start_bar": self.source_start_bar,
+                    "source_n_bars": self.source_n_bars,
+                    "fragment_index": self.fragment_index,
+                    "n_fragments": self.n_fragments,
+                    "labels_inherited": False,
+                }
+            )
+        return row
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Window:
@@ -59,6 +81,15 @@ class Window:
             composition_id=data["composition_id"],
             start_bar=int(data["start_bar"]),
             n_bars=int(data["n_bars"]),
+            is_fragment=bool(data.get("is_fragment", False)),
+            source_start_bar=(
+                int(data["source_start_bar"]) if data.get("source_start_bar") is not None else None
+            ),
+            source_n_bars=(
+                int(data["source_n_bars"]) if data.get("source_n_bars") is not None else None
+            ),
+            fragment_index=int(data.get("fragment_index", 0)),
+            n_fragments=int(data.get("n_fragments", 1)),
         )
 
 
@@ -165,8 +196,15 @@ def windows_from_composition(
     window_bars: int = 16,
     hop_bars: int | None = None,
     composition_id: str | None = None,
+    context_tokens: int = 0,
 ) -> list[Window]:
-    """Cut one composition into overlapping bar-aligned windows."""
+    """Cut one composition into overlapping bar-aligned windows.
+
+    `context_tokens` enables bar-boundary splitting of any window that would
+    not fit. Zero leaves windows whole at any length, which is the historical
+    behaviour; a positive value guarantees no window in the result exceeds it,
+    with the overflow split rather than truncated or dropped.
+    """
     beats_per_bar = tokenizer.config.beats_per_bar
     # Cut windows on the piece's own bars. Slicing on the nominal
     # ticks_per_beat * 4 put roughly 2.7 fitted bars of music in a window
@@ -225,6 +263,46 @@ def windows_from_composition(
         encoded = tokenizer.encode(
             sliced, conditioning=conditioning, fit=replace(fit, phase_ticks=0.0)
         )
+        if context_tokens and len(encoded.ids) > context_tokens:
+            # Over-long windows carry roughly three times the events of those
+            # that fit, so dropping them would clip the densest music out of
+            # the corpus. Split instead, at bar boundaries, losing nothing.
+            from rse.training.fragments import split_window, verify_split
+
+            window_fit = replace(fit, phase_ticks=0.0)
+            fragments = split_window(
+                sliced,
+                tokenizer,
+                fit=window_fit,
+                context=context_tokens,
+                window_bars=window_bars,
+                composition_id=identifier,
+                source_start_bar=start,
+                split=split,
+            )
+            verify_split(
+                sliced,
+                fragments,
+                fit=window_fit,
+                tokenizer=tokenizer,
+                window_bars=window_bars,
+            )
+            out.extend(
+                Window(
+                    ids=fragment.ids,
+                    split=split,
+                    composition_id=identifier,
+                    start_bar=fragment.absolute_start_bar,
+                    n_bars=fragment.n_bars,
+                    is_fragment=True,
+                    source_start_bar=start,
+                    source_n_bars=window_bars,
+                    fragment_index=fragment.fragment_index,
+                    n_fragments=fragment.n_fragments,
+                )
+                for fragment in fragments
+            )
+            continue
         out.append(
             Window(
                 ids=encoded.ids,
@@ -243,6 +321,7 @@ def build_windows(
     *,
     window_bars: int = 16,
     hop_bars: int | None = None,
+    context_tokens: int = 0,
 ) -> tuple[list[Window], WindowStats]:
     """Cut a corpus of `(composition, split, id)` triples into windows."""
     stats = WindowStats()
@@ -256,6 +335,7 @@ def build_windows(
             window_bars=window_bars,
             hop_bars=hop_bars,
             composition_id=identifier,
+            context_tokens=context_tokens,
         )
         if not produced:
             stats.n_skipped_empty += 1

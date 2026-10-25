@@ -249,6 +249,26 @@ def build_parser() -> argparse.ArgumentParser:
         "byte-identical parameters",
     )
     train.add_argument(
+        "--context-tokens",
+        type=int,
+        default=0,
+        help="split windows over this many tokens at bar boundaries rather "
+        "than truncating or dropping them; 0 disables",
+    )
+    train.add_argument(
+        "--length-buckets",
+        type=int,
+        default=0,
+        help="group similarly-long windows into batches, so a batch is not "
+        "mostly padding; 0 samples uniformly",
+    )
+    train.add_argument(
+        "--frozen-representation",
+        action="store_true",
+        help="use the frozen codec D4 / tempo 1.01 representation, its "
+        "3072-token context policy and 8-bar windows",
+    )
+    train.add_argument(
         "--mask-prefix",
         type=int,
         default=0,
@@ -863,13 +883,37 @@ def cmd_train(args: argparse.Namespace) -> int:
     from rse.training.train import TrainConfig, train
 
     profile = load_profile(args.profile, configs_dir=_hardware_configs(args.configs_dir))
-    tokenizer = RseTokenizer(
-        TokenizerConfig(
-            profile_id=profile.profile_id,
-            aligned_grid=not getattr(args, "no_aligned_grid", False),
-            emit_sections=not getattr(args, "no_sections", False),
+    representation_id = ""
+    grammar_version = ""
+    context_tokens = args.context_tokens
+    if args.frozen_representation:
+        # One flag sets codec, tempo and context together, because they were
+        # selected together: a cache built with the codec but the old context
+        # policy would silently truncate the 1.3% of windows that overflow.
+        from rse.tokenizers import frozen
+
+        representation_id = frozen.REPRESENTATION_ID
+        grammar_version = frozen.CONDITIONING_GRAMMAR_VERSION
+        context_tokens = context_tokens or frozen.CONTEXT_TOKENS
+        tokenizer = RseTokenizer(
+            frozen.frozen_config(
+                profile_id=profile.profile_id,
+                emit_sections=not getattr(args, "no_sections", False),
+            )
         )
-    )
+        print(
+            f"represent : {representation_id}, vocab {len(tokenizer)}, "
+            f"context {context_tokens}, window {args.window_bars} bars",
+            flush=True,
+        )
+    else:
+        tokenizer = RseTokenizer(
+            TokenizerConfig(
+                profile_id=profile.profile_id,
+                aligned_grid=not getattr(args, "no_aligned_grid", False),
+                emit_sections=not getattr(args, "no_sections", False),
+            )
+        )
 
     cache_contract: dict[str, Any] | None = None
     cached = args.windows is not None and args.windows.is_file() and not args.rebuild_windows
@@ -903,6 +947,25 @@ def cmd_train(args: argparse.Namespace) -> int:
         )
     else:
         if args.source == "procedural":
+            # Dataset flags with a procedural source is a contradiction, and
+            # silently honouring the default cost a 20-minute pod run that
+            # trained on 200 synthetic windows while reporting success. The
+            # warning used to print only in the end-of-run summary, so a run
+            # that failed early never showed it at all.
+            explicit = {"--dataset", "--release", "--corpus-limit"} & set(sys.argv)
+            if explicit:
+                print(
+                    f"error: {', '.join(sorted(explicit))} given with "
+                    f"--source procedural; pass --source dataset to read the "
+                    f"ingested release, or drop the dataset flags",
+                    file=sys.stderr,
+                )
+                return 2
+            print(
+                "corpus    : procedural (synthetic). This validates the "
+                "training pipeline, not musical quality.",
+                flush=True,
+            )
             entries, corpus_info = corpus_from_procedural(
                 profile, n=args.corpus_size, seed=args.seed, n_bars=args.window_bars
             )
@@ -916,7 +979,12 @@ def cmd_train(args: argparse.Namespace) -> int:
                 seed=args.seed,
             )
         print(f"corpus    : {corpus_info.n_compositions} compositions, tokenizing...", flush=True)
-        windows, window_stats = build_windows(entries, tokenizer, window_bars=args.window_bars)
+        windows, window_stats = build_windows(
+            entries,
+            tokenizer,
+            window_bars=args.window_bars,
+            context_tokens=context_tokens,
+        )
         # Release the compositions before training allocates; holding a whole
         # dataset in memory alongside the model is what made the first real run
         # take 7 GB.
@@ -928,6 +996,10 @@ def cmd_train(args: argparse.Namespace) -> int:
                 windows,
                 window_bars=args.window_bars,
                 corpus=corpus_info.to_dict(),
+                representation_id=representation_id,
+                conditioning_grammar_version=grammar_version,
+                context_tokens=context_tokens,
+                overflow_policy="split-at-bar-boundaries" if context_tokens else "none",
             )
             save_contract(args.windows, contract)
             cache_contract = contract.to_dict()
@@ -1064,6 +1136,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         progress=not args.json,
         init_state=init_state,
         mask_prefix=args.mask_prefix,
+        length_buckets=args.length_buckets,
     )
     report["corpus"] = corpus_info.to_dict()
     if cache_contract is not None:

@@ -170,6 +170,51 @@ def make_batch(
     return batch_inputs.to(device), batch_targets.to(device), mask.to(device)
 
 
+class LengthBucketSampler:
+    """Draws batches of similarly-long windows.
+
+    `make_batch` pads to the longest member of the batch, so a batch drawn
+    uniformly from windows spanning 100 to 3072 tokens is mostly padding: its
+    cost is set by its longest window while most rows are short. Grouping by
+    length makes the padded width close to the real width.
+
+    Sampling stays unbiased. A bucket is chosen with probability proportional
+    to how many windows it holds, then a window uniformly within it, so every
+    window remains equally likely -- the batch composition changes, the
+    training distribution does not.
+    """
+
+    def __init__(self, windows: list[Window], *, n_buckets: int = 8, seed: int = 0) -> None:
+        if not windows:
+            raise ValueError("cannot sample from an empty window list")
+        order = sorted(range(len(windows)), key=lambda i: len(windows[i].ids))
+        size = max(1, len(order) // max(1, n_buckets))
+        self.buckets: list[list[int]] = [
+            order[start : start + size] for start in range(0, len(order), size)
+        ]
+        # A trailing remainder smaller than a batch would make one bucket
+        # degenerate, so it joins the previous one.
+        if len(self.buckets) > 1 and len(self.buckets[-1]) < size:
+            self.buckets[-2].extend(self.buckets.pop())
+        self.weights = [len(b) for b in self.buckets]
+        self.rng = random.Random(seed)
+
+    def batch(self, batch_size: int) -> list[int]:
+        bucket = self.rng.choices(self.buckets, weights=self.weights, k=1)[0]
+        return [bucket[self.rng.randrange(len(bucket))] for _ in range(batch_size)]
+
+    def padding_waste(self, windows: list[Window], batch_size: int, *, trials: int = 200) -> float:
+        """Share of padded positions in a typical batch, for reporting."""
+        total = padded = 0
+        for _ in range(trials):
+            indices = self.batch(batch_size)
+            lengths = [len(windows[i].ids) for i in indices]
+            width = max(lengths)
+            total += width * len(lengths)
+            padded += width * len(lengths) - sum(lengths)
+        return padded / total if total else 0.0
+
+
 def learning_rate_at(step: int, config: TrainConfig) -> float:
     """Linear warmup then cosine decay to `min_learning_rate`."""
     if config.warmup_steps > 0 and step < config.warmup_steps:
@@ -244,6 +289,7 @@ def train(
     progress: bool = False,
     init_state: dict[str, Any] | None = None,
     mask_prefix: int = 0,
+    length_buckets: int = 0,
 ) -> tuple[RseTransformer, TrainHistory, dict[str, Any]]:
     """Train a model, returning it with its history and a run report.
 
@@ -278,6 +324,12 @@ def train(
         model.load_state_dict(init_state)
     model.train()
 
+    sampler = (
+        LengthBucketSampler(train_windows, n_buckets=length_buckets, seed=config.seed)
+        if length_buckets > 1
+        else None
+    )
+
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
@@ -300,7 +352,11 @@ def train(
         optimizer.zero_grad(set_to_none=True)
         step_loss = 0.0
         for _ in range(config.grad_accum_steps):
-            indices = [rng.randrange(len(train_windows)) for _ in range(config.batch_size)]
+            indices = (
+                sampler.batch(config.batch_size)
+                if sampler is not None
+                else [rng.randrange(len(train_windows)) for _ in range(config.batch_size)]
+            )
             inputs, targets, mask = make_batch(
                 train_windows,
                 indices,
@@ -388,6 +444,12 @@ def train(
         "device": str(device),
         "amp": use_amp,
         "mask_prefix": mask_prefix,
+        "length_buckets": length_buckets,
+        "padding_waste": (
+            round(sampler.padding_waste(train_windows, config.batch_size), 4)
+            if sampler is not None
+            else None
+        ),
         "init_from_checkpoint": init_state is not None,
         "n_parameters": model.n_parameters,
         "n_train_windows": len(train_windows),

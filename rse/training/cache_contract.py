@@ -100,6 +100,24 @@ class CacheContract:
     sub_row_divisions: int = 1
     steps_per_bar: int = 16
     aligned_grid: bool = True
+    #: Named representation this cache was built under, and the grammar the
+    #: conditioning prefix follows. Separate fields because a prefix change can
+    #: invalidate a cache without touching the codec, and vice versa.
+    representation_id: str = ""
+    conditioning_grammar_version: str = ""
+    #: Tempo configuration. Part of the vocabulary, so the hash would catch a
+    #: mismatch -- recorded explicitly so the error message says which field.
+    tempo_ratio: float = 1.03
+    tempo_min: int = 40
+    tempo_max: int = 360
+    #: Context the cache was built for, and what happens to a window that does
+    #: not fit. A cache built under one policy is not valid under another.
+    context_tokens: int = 0
+    overflow_policy: str = "none"
+    n_fragments: int = 0
+    #: Digest of the source composition ids, so a cache cannot be reused
+    #: across corpora or after a re-ingest.
+    source_manifest_hash: str = ""
     #: Recorded even though it leaves the vocabulary untouched: the whole
     #: point of the Sections ablation is that it changes the data and
     #: nothing else, so a vocabulary hash cannot detect reusing the wrong
@@ -123,6 +141,10 @@ class CacheContract:
         *,
         window_bars: int,
         corpus: dict[str, Any] | None = None,
+        representation_id: str = "",
+        conditioning_grammar_version: str = "",
+        context_tokens: int = 0,
+        overflow_policy: str = "none",
     ) -> CacheContract:
         per_split: dict[str, int] = {}
         for window in windows:
@@ -137,6 +159,17 @@ class CacheContract:
             steps_per_bar=tokenizer.config.steps_per_bar,
             aligned_grid=tokenizer.config.aligned_grid,
             emit_sections=tokenizer.config.emit_sections,
+            representation_id=representation_id,
+            conditioning_grammar_version=conditioning_grammar_version,
+            tempo_ratio=tokenizer.config.tempo_ratio,
+            tempo_min=tokenizer.config.tempo_min,
+            tempo_max=tokenizer.config.tempo_max,
+            context_tokens=context_tokens,
+            overflow_policy=overflow_policy,
+            n_fragments=sum(1 for w in windows if getattr(w, "is_fragment", False)),
+            source_manifest_hash=sha256_bytes(
+                "\n".join(sorted({str(w.composition_id) for w in windows})).encode()
+            ),
             prefix_schema=prefix_schema(tokenizer),
             window_bars=window_bars,
             n_windows=len(windows),
@@ -177,6 +210,9 @@ def verify(
     tokenizer: RseTokenizer,
     *,
     window_bars: int | None = None,
+    representation_id: str = "",
+    conditioning_grammar_version: str = "",
+    context_tokens: int = 0,
     sample: int = SAMPLE,
 ) -> CacheContract:
     """Check a loaded cache against the tokenizer about to train on it.
@@ -204,6 +240,33 @@ def verify(
         )
     if contract.codec != tokenizer.config.codec:
         problems.append(f"codec {contract.codec!r} != {tokenizer.config.codec!r}")
+    for name, mine in (
+        ("tempo_ratio", tokenizer.config.tempo_ratio),
+        ("tempo_min", tokenizer.config.tempo_min),
+        ("tempo_max", tokenizer.config.tempo_max),
+    ):
+        theirs = getattr(contract, name)
+        if theirs != mine:
+            problems.append(f"{name} {theirs} != {mine}")
+    if representation_id and contract.representation_id != representation_id:
+        problems.append(f"representation {contract.representation_id!r} != {representation_id!r}")
+    if (
+        conditioning_grammar_version
+        and contract.conditioning_grammar_version != conditioning_grammar_version
+    ):
+        problems.append(
+            f"conditioning grammar {contract.conditioning_grammar_version!r} != "
+            f"{conditioning_grammar_version!r}"
+        )
+    if context_tokens and contract.context_tokens != context_tokens:
+        problems.append(f"context_tokens {contract.context_tokens} != {context_tokens}")
+    over = [w for w in windows if len(w.ids) > contract.context_tokens > 0]
+    if over:
+        problems.append(
+            f"{len(over)} windows exceed the cache's own {contract.context_tokens}-token "
+            f"context, longest {max(len(w.ids) for w in over)}; the overflow policy "
+            f"({contract.overflow_policy}) did not hold"
+        )
     if contract.emit_sections != tokenizer.config.emit_sections:
         problems.append(
             f"emit_sections {contract.emit_sections} != {tokenizer.config.emit_sections}"
