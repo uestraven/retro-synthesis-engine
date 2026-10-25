@@ -56,12 +56,44 @@ from rse.codec.benchmark import (
 from rse.events.classify import CLASSES, classify_events
 from rse.events.pulse import detect_pulse
 from rse.events.schema import Composition, Noise, Note
-from rse.tokenizers.tokenizer import RseTokenizer
+from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.tokenizers.vocab import TokenizerConfig
 from rse.training.corpus import corpus_from_release
 
 #: The context the current architecture provides.
 CONTEXT_LIMIT = 2304
+
+
+def render_window(
+    composition: Composition,
+    destination: Path,
+    *,
+    profile_id: str = "nes",
+) -> Path | None:
+    """Render one window through the same renderer every comparison uses.
+
+    The same renderer for original and reconstruction on purpose: a codec
+    difference must not be confused with a synthesis difference, which is the
+    error that kept the synthesizer under suspicion for so long.
+    """
+    from rse.events.convert import composition_to_intake
+    from rse.exporters.wav import write_wav
+    from rse.hardware.constraints import ConstraintEngine
+    from rse.hardware.profile import load_profile
+    from rse.renderers.base import RenderSettings, notes_from_record
+    from rse.renderers.nes_apu import NesApuRenderer
+
+    profile = load_profile(profile_id)
+    # The same hardware repair the sampler applies, so the audio is what the
+    # console could play rather than what the codec happens to describe.
+    playable, _repair = ConstraintEngine(profile).apply(composition)
+    record = composition_to_intake(playable, profile=profile)
+    notes = notes_from_record(record)
+    if not notes:
+        return None
+    result = NesApuRenderer(profile).render(notes, RenderSettings(tail_sec=0.0))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    return write_wav(destination, result.samples, result.sample_rate)
 
 
 @dataclass
@@ -260,6 +292,7 @@ def main() -> int:
     )
     print(f"corpus    : {len(entries)} pieces", flush=True)
 
+    rendered = 0
     tokenizers = {spec.label: spec.tokenizer() for spec in specs}
     accumulators = {spec.label: Accumulator() for spec in specs}
     n_declined = 0
@@ -287,7 +320,7 @@ def main() -> int:
             per_codec: dict[str, Any] = {}
             for spec in specs:
                 tokenizer = tokenizers[spec.label]
-                fit = type(tokenizer.fit_grid(source))(
+                fit = GridFit(
                     step_ticks=row_ticks,
                     phase_ticks=0.0,
                     aligned=True,
@@ -338,6 +371,26 @@ def main() -> int:
                     acc = accumulators[label]
                     acc.common_onset.extend(metrics.onset_error_by_index[i] for i in common)
                     acc.common_duration.extend(metrics.duration_error_by_index[i] for i in common)
+        if rendered < args.render and starts:
+            stem = f"{rendered:02d}"
+            render_window(
+                _window(composition, starts[0], starts[0] + int(round(window_ticks))),
+                args.render_dir / f"{stem}_original.wav",
+            )
+            for spec in specs:
+                tokenizer = tokenizers[spec.label]
+                src = _window(composition, starts[0], starts[0] + int(round(window_ticks)))
+                fit = GridFit(
+                    step_ticks=row_ticks,
+                    phase_ticks=0.0,
+                    aligned=True,
+                    period_sec=pulse.period_sec,
+                )
+                decoded = tokenizer.decode(tokenizer.encode(src, fit=fit).ids)
+                repaired, _ = enforce_monophony(decoded.composition)
+                render_window(repaired, args.render_dir / f"{stem}_{spec.label}.wav")
+            rendered += 1
+
         if index % 20 == 0:
             print(f"          : {index}/{len(entries)} pieces", flush=True)
 
