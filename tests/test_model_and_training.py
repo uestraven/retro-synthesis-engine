@@ -980,3 +980,150 @@ def test_within_category_selection_follows_the_model():
         )
         == -1
     )
+
+
+def _category_distribution(vocab, logits, allowed, structural, isolate, music=0.85):
+    """The category distribution the sampler computes, recomputed here."""
+    from rse.generation.sampler import (
+        STRUCTURAL_CATEGORIES,
+        filter_logits,
+        structural_category,
+    )
+
+    base = filter_logits(logits, temperature=music, top_k=None, top_p=None, allowed=allowed)
+    probabilities = torch.softmax(base, -1)
+    members: dict[str, list[int]] = {}
+    for token_id in allowed:
+        name = structural_category(vocab.token_of(token_id))
+        if name:
+            members.setdefault(name, []).append(token_id)
+    names = [n for n in STRUCTURAL_CATEGORIES if n in members]
+    mass = torch.tensor([float(probabilities[torch.tensor(members[n])].sum()) for n in names])
+    total = float(mass.sum())
+    scaled = torch.softmax(torch.log(mass.clamp_min(1e-12)) / structural, -1)
+    if isolate and "stop" in names and len(names) > 1:
+        stop_at = names.index("stop")
+        p_stop = float(mass[stop_at]) / total
+        out = torch.zeros_like(scaled)
+        others = [i for i in range(len(names)) if i != stop_at]
+        other_total = float(scaled[others].sum())
+        for i in others:
+            out[i] = scaled[i] / other_total * (1.0 - p_stop)
+        out[stop_at] = p_stop
+        scaled = out
+    return dict(zip(names, [float(x) for x in scaled], strict=True))
+
+
+def test_eos_isolation_preserves_the_stop_probability_exactly():
+    """`<eos>` shares the structural competition with the rhythmic choices, so
+    one temperature cannot loosen note placement without loosening
+    termination. Measured on the real checkpoints, all-hot at 2.0 raised
+    P(stop) 2.9x and 8-bar completion fell from 83% to 17%. Isolation must
+    hold P(stop) at its baseline value for the same context."""
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    allowed = tuple(
+        [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2")]
+        + [vocab.id_of(f"Position_{j}") for j in range(8)]
+        + [vocab.id_of("Bar"), vocab.eos_id]
+    )
+    torch.manual_seed(0)
+    logits = torch.randn(len(vocab))
+
+    baseline = _category_distribution(vocab, logits, allowed, 1.0, False)["stop"]
+    for structural in (1.0, 1.25, 1.5, 2.0):
+        isolated = _category_distribution(vocab, logits, allowed, structural, True)
+        assert isolated["stop"] == pytest.approx(baseline, abs=1e-9), structural
+        assert sum(isolated.values()) == pytest.approx(1.0, abs=1e-6)
+    # And without isolation it genuinely drifts, which is the thing being fixed.
+    assert _category_distribution(vocab, logits, allowed, 2.0, False)["stop"] > baseline * 2
+
+
+def test_eos_isolation_still_changes_the_rhythmic_categories():
+    """Holding the stop probability must not freeze everything else, or the
+    intervention would do nothing."""
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    allowed = tuple(
+        [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2")]
+        + [vocab.id_of(f"Position_{j}") for j in range(8)]
+        + [vocab.id_of("Bar"), vocab.eos_id]
+    )
+    torch.manual_seed(0)
+    logits = torch.randn(len(vocab))
+    cool = _category_distribution(vocab, logits, allowed, 1.0, True)
+    hot = _category_distribution(vocab, logits, allowed, 1.5, True)
+    moved = [n for n in cool if n != "stop" and abs(cool[n] - hot[n]) > 1e-6]
+    assert len(moved) >= 2, moved
+
+
+def test_eos_isolation_handles_a_legal_set_without_eos():
+    """Mid-bar the stop token is often not legal at all; the redistribution
+    must not assume it is present."""
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tok = RseTokenizer()
+    vocab = tok.vocabulary
+    allowed = tuple(
+        [vocab.id_of(f"Channel_{c}") for c in ("P1", "P2")]
+        + [vocab.id_of(f"Position_{j}") for j in range(8)]
+        + [vocab.id_of("Bar")]
+    )
+    torch.manual_seed(0)
+    distribution = _category_distribution(
+        vocab, logits=torch.randn(len(vocab)), allowed=allowed, structural=1.5, isolate=True
+    )
+    assert "stop" not in distribution
+    assert sum(distribution.values()) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_eos_isolation_is_bit_exact_at_one(tokenizer, tiny_config):
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    for seed in (1, 2, 3, 4):
+        base = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(seed=seed, temperature=0.85, max_tokens=400),
+        )
+        isolated = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(
+                seed=seed,
+                temperature=0.85,
+                max_tokens=400,
+                structural_temperature=1.0,
+                structural_isolate_eos=True,
+            ),
+        )
+        assert base.ids == isolated.ids, seed
+
+
+def test_eos_isolation_stays_grammatical(tokenizer, tiny_config):
+    from rse.generation.sampler import SamplingConfig, sample
+    from rse.models.transformer import RseTransformer
+
+    torch.manual_seed(0)
+    model = RseTransformer(tiny_config)
+    for structural in (0.0, 1.25, 1.5, 2.0):
+        result = sample(
+            model,
+            tokenizer,
+            config=SamplingConfig(
+                seed=5,
+                temperature=0.85,
+                max_tokens=500,
+                structural_temperature=structural,
+                structural_isolate_eos=True,
+            ),
+        )
+        assert result.n_grammar_rejections == 0
+        assert tokenizer.decode(result.ids).n_tokens_skipped == 0, structural

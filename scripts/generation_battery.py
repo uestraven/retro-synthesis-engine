@@ -130,6 +130,13 @@ def main() -> int:
         help="sweep the structural decision temperature. `none` omits the "
         "option entirely, which is the true baseline arm; `0` is greedy",
     )
+    parser.add_argument(
+        "--isolate-eos",
+        action="store_true",
+        help="hold P(stop) at its baseline while heating the rhythmic "
+        "categories; without it a hot structural temperature also raises the "
+        "chance of ending early",
+    )
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--render-dir", type=Path, default=Path("battery_audio"))
     parser.add_argument("--render", type=int, default=6)
@@ -184,6 +191,7 @@ def main() -> int:
                         seed=seed,
                         temperature=temperature,
                         structural_temperature=structural,
+                        structural_isolate_eos=args.isolate_eos,
                         top_k=None,
                         top_p=None,
                         max_tokens=args.max_tokens,
@@ -304,6 +312,7 @@ def main() -> int:
         "n_samples": len(rows),
         "bars_requested": args.bars,
         "temperatures": args.temperatures,
+        "isolate_eos": args.isolate_eos,
         "structural_temperatures": ["none" if v is None else v for v in structural_settings],
         "seeds": args.seeds,
         "summary": {
@@ -339,7 +348,44 @@ def main() -> int:
     }
     args.out.write_text(json.dumps(payload_out, indent=2) + "\n")
 
-    print(f"\n{len(rows)} samples")
+    print(f"\n{len(rows)} samples, isolate_eos={args.isolate_eos}")
+    arms = sorted({r["structural_temperature"] for r in rows}, key=lambda v: (v is None, v))
+    if len(arms) > 1 or True:
+        hdr = (
+            f"\n{'structT':<10}{'n':>4}{'8bar%':>7}{'bars':>6}{'ev':>6}{'n/bar':>7}"
+            f"{'4chan':>7}{'perc%':>7}{'ioiH':>7}{'pitchH':>8}{'ngram':>7}"
+        )
+        print(hdr)
+        print("-" * (len(hdr) - 1))
+        for arm in arms:
+            group = [r for r in rows if r["structural_temperature"] == arm]
+            done = [r for r in group if r["completed_8_bars"]]
+            label = "none" if arm is None else f"{arm}"
+            print(
+                f"{label:<10}{len(group):>4}"
+                f"{len(done) / len(group):>7.0%}"
+                f"{st.median([r['n_bars'] for r in group]):>6.1f}"
+                f"{st.median([r['n_events'] for r in group]):>6.0f}"
+                f"{st.median([r['notes_per_bar'] for r in group]):>7.1f}"
+                f"{sum(1 for r in group if r['n_channels_used'] == 4) / len(group):>7.0%}"
+                f"{sum(1 for r in group if r['n_percussion'] > 0) / len(group):>7.0%}"
+                f"{st.median([r['ioi_entropy'] for r in group]):>7.2f}"
+                f"{st.median([r['pitch_class_entropy'] for r in group]):>8.2f}"
+                f"{st.median([r['ngram_repetition_rate'] for r in group]):>7.3f}"
+            )
+        # Completed-only, so premature endings cannot flatter the rhythm.
+        print("\n  completed 8-bar samples only:")
+        for arm in arms:
+            done = [r for r in rows if r["structural_temperature"] == arm and r["completed_8_bars"]]
+            if not done:
+                continue
+            label = "none" if arm is None else f"{arm}"
+            print(
+                f"  {label:<10}{len(done):>4}"
+                f"{st.median([r['notes_per_bar'] for r in done]):>9.1f}"
+                f"{st.median([r['ioi_entropy'] for r in done]):>8.2f}"
+                f"{st.median([r['pitch_class_entropy'] for r in done]):>8.2f}"
+            )
     print(f"  8-bar completion       {payload_out['completion_rate']:.1%}")
     print(f"  all four channels      {payload_out['all_four_channels_rate']:.1%}")
     print(f"  percussion present     {payload_out['percussion_present_rate']:.1%}")
