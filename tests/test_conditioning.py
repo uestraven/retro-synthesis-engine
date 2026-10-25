@@ -397,3 +397,197 @@ def test_unknown_is_preserved_as_a_distinct_state():
         )
     }
     assert states == {UNKNOWN, "low", "medium", "high"}
+
+
+# -- Gate 3: prefix, migration, arms ------------------------------------------
+
+
+def test_migration_preserves_every_pretrained_weight_exactly():
+    """The regression the review asked for: after widening the vocabulary but
+    before any new token appears in a sequence, logits over the original 267
+    ids must be unchanged. This checks weight preservation independently of
+    the changed softmax denominator, which would hide a corrupted row.
+    """
+    torch = pytest.importorskip("torch")
+    from rse.models.transformer import ModelConfig, RseTransformer
+    from rse.training.migrate import migrate_state_dict
+
+    config = ModelConfig(vocab_size=267, n_layers=2, n_heads=2, d_model=32, max_seq_len=64)
+    torch.manual_seed(0)
+    old = RseTransformer(config).eval()
+
+    state, report = migrate_state_dict(
+        old.state_dict(), old_vocab=267, new_vocab=272, old_positions=64, new_positions=96
+    )
+    new = RseTransformer(
+        ModelConfig(vocab_size=272, n_layers=2, n_heads=2, d_model=32, max_seq_len=96)
+    ).eval()
+    new.load_state_dict(state)
+
+    ids = torch.randint(0, 267, (2, 16))
+    mask = torch.ones_like(ids, dtype=torch.bool)
+    with torch.no_grad():
+        before = old(ids, mask)
+        after = new(ids, mask)[..., :267]
+    assert torch.equal(before, after)
+    assert report["head_retied"] is True
+    assert report["vocab"] == [267, 272]
+
+
+def test_migration_refuses_a_mismatched_checkpoint():
+    """Silently migrating a checkpoint whose shapes disagree would scramble
+    the pretrained rows it is supposed to protect."""
+    torch = pytest.importorskip("torch")
+    from rse.training.migrate import migrate_state_dict
+
+    state = {"token_embedding.weight": torch.zeros(100, 8)}
+    with pytest.raises(ValueError, match="expected 267"):
+        migrate_state_dict(state, old_vocab=267, new_vocab=272, old_positions=64, new_positions=96)
+    with pytest.raises(ValueError, match="cannot shrink"):
+        migrate_state_dict({}, old_vocab=272, new_vocab=267, old_positions=64, new_positions=64)
+
+
+def test_new_embedding_rows_are_not_zero():
+    """A zero row gives every new token the same logit and no gradient
+    direction to separate them."""
+    torch = pytest.importorskip("torch")
+    from rse.training.migrate import migrate_state_dict
+
+    state = {"token_embedding.weight": torch.ones(267, 16)}
+    out, _ = migrate_state_dict(
+        state, old_vocab=267, new_vocab=272, old_positions=1, new_positions=1
+    )
+    new_rows = out["token_embedding.weight"][267:]
+    assert new_rows.shape == (5, 16)
+    assert new_rows.abs().sum() > 0
+
+
+def test_migration_is_deterministic_so_arms_start_identically():
+    """All three arms must begin from byte-identical weights, or the
+    comparison measures initialization as well as conditioning."""
+    torch = pytest.importorskip("torch")
+    from rse.training.migrate import migrate_state_dict
+
+    state = {"token_embedding.weight": torch.ones(267, 16)}
+    a, _ = migrate_state_dict(
+        state, old_vocab=267, new_vocab=272, old_positions=1, new_positions=1, seed=0
+    )
+    b, _ = migrate_state_dict(
+        state, old_vocab=267, new_vocab=272, old_positions=1, new_positions=1, seed=0
+    )
+    assert torch.equal(a["token_embedding.weight"], b["token_embedding.weight"])
+
+
+def test_shuffling_preserves_label_prevalence():
+    """If the shuffled arm saw a different label distribution it would differ
+    from the true arm in two ways at once, and a null result would be
+    uninterpretable."""
+    from collections import Counter
+
+    from rse.conditioning import shuffled_labels
+
+    labels = ["high"] * 20 + ["medium"] * 10 + ["low"] * 30 + [UNKNOWN] * 40
+    out = shuffled_labels(labels, seed=3)
+    assert Counter(out) == Counter(labels)
+    assert out != labels
+    assert shuffled_labels(labels, seed=3) == out  # deterministic
+
+
+def test_arm_labels_differ_only_in_information():
+    from rse.conditioning import arm_label
+
+    assert arm_label("A", "high", "low") == "unspecified"
+    assert arm_label("B", "high", "low") == "high"
+    assert arm_label("C", "high", "low") == "low"
+    with pytest.raises(ValueError):
+        arm_label("D", "high", "low")
+
+
+def test_the_conditioning_token_is_always_present_and_never_a_target():
+    """Arm A emits `unspecified` rather than omitting the token, so every arm
+    has the same prefix length. The prefix must not be predicted, but its
+    embedding must still receive gradients through later music tokens."""
+    from rse.conditioning import PREFIX_TOKENS
+    from rse.tokenizers.tokenizer import Conditioning, RseTokenizer
+
+    tokenizer = RseTokenizer()
+    composition = melody([60, 64, 67, 72] * 8)
+    plain = tokenizer.encode(composition, conditioning=Conditioning(n_bars=8)).tokens
+    asked = tokenizer.encode(composition, conditioning=Conditioning(n_bars=8, motif="high")).tokens
+    assert plain[:PREFIX_TOKENS][-1] == "Motif_unspecified"
+    assert asked[:PREFIX_TOKENS][-1] == "Motif_high"
+    assert len(plain) == len(asked)
+    # Only the conditioning token differs.
+    assert plain[:6] == asked[:6] and plain[7:] == asked[7:]
+
+
+def test_an_unrecognised_motif_request_is_unspecified_not_low():
+    from rse.tokenizers.tokenizer import RseTokenizer
+
+    tokenizer = RseTokenizer()
+    assert tokenizer.motif_token_value("nonsense") == "unspecified"
+    assert tokenizer.motif_token_value("high") == "high"
+    assert tokenizer.motif_token_value(UNKNOWN) == UNKNOWN
+
+
+def test_prefix_is_masked_from_the_loss_but_still_receives_gradient():
+    """Two requirements that pull in opposite directions.
+
+    The conditioning token must not be a prediction target -- the objective is
+    music, not reproducing the prompt -- yet its embedding must still learn,
+    which it can only do through its effect on later musical predictions.
+
+    Note on the unused-row check: weights are tied, so `head.weight` IS the
+    token embedding and every row is also an output class. An absent token
+    therefore still receives gradient as a negative class in the softmax. That
+    is expected with tying, is identical across arms, and is why the assertion
+    below compares magnitudes rather than demanding zero.
+    """
+    torch = pytest.importorskip("torch")
+    from torch import nn
+
+    from rse.conditioning import PREFIX_TOKENS
+    from rse.models.transformer import ModelConfig, RseTransformer
+    from rse.tokenizers.tokenizer import RseTokenizer
+    from rse.tokenizers.vocab import MOTIF
+
+    tokenizer = RseTokenizer()
+    vocab = len(tokenizer)
+    motif_ids = [
+        tokenizer.vocabulary.id_of(t) for t in tokenizer.vocabulary.tokens if t.startswith(MOTIF)
+    ]
+    pad = tokenizer.vocabulary.id_of("<pad>")
+
+    torch.manual_seed(0)
+    model = RseTransformer(
+        ModelConfig(vocab_size=vocab, n_layers=2, n_heads=2, d_model=32, max_seq_len=64)
+    ).train()
+
+    ids = torch.tensor([[1, 4, 9, 13, 30, 80, motif_ids[0], 100, 143, 214, 217, 2]])
+    inputs, targets = ids[:, :-1], ids[:, 1:].clone()
+    mask = torch.ones_like(inputs, dtype=torch.bool)
+    targets[:, : PREFIX_TOKENS - 1] = pad
+
+    loss = nn.functional.cross_entropy(
+        model(inputs, mask).reshape(-1, vocab), targets.reshape(-1), ignore_index=pad
+    )
+    loss.backward()
+    grad = model.token_embedding.weight.grad
+
+    present = grad[motif_ids[0]].norm().item()
+    absent = grad[motif_ids[4]].norm().item()
+    # The token in the sequence conditions every later prediction, so its row
+    # must carry far more gradient than one that only appears as a negative
+    # class.
+    assert present > 0
+    assert present > absent * 10
+
+    # No prefix position is a target: mask the music too and nothing is left.
+    only_prefix = targets.clone()
+    only_prefix[:, PREFIX_TOKENS - 1 :] = pad
+    empty = nn.functional.cross_entropy(
+        model(inputs, mask).reshape(-1, vocab),
+        only_prefix.reshape(-1),
+        ignore_index=pad,
+    )
+    assert torch.isnan(empty)

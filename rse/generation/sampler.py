@@ -29,6 +29,7 @@ from rse.tokenizers.vocab import (
     LENGTH,
     LOOP_START,
     MOOD,
+    MOTIF,
     TEMPO,
 )
 
@@ -124,6 +125,9 @@ def build_prompt(
         f"{ENERGY}{conditioning.energy}",
         f"{TEMPO}{tokenizer.tempo_token_value(conditioning.tempo_bpm)}",
         f"{LENGTH}{tokenizer.length_token_value(conditioning.n_bars)}",
+        # Always emitted, `unspecified` when nothing is requested, so a
+        # conditioned and an unconditioned prompt have identical length.
+        f"{MOTIF}{tokenizer.motif_token_value(conditioning.motif)}",
     ]
     if loop:
         prompt.append(LOOP_START)

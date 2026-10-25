@@ -16,7 +16,7 @@ from typing import Any
 
 #: Bump when the vocabulary layout changes in a way that invalidates
 #: checkpoints trained against it.
-VOCAB_VERSION = "rse-vocab/1.3.0"
+VOCAB_VERSION = "rse-vocab/1.4.0"
 
 # Reserved tokens. PAD must be index 0 so padded positions are easy to mask.
 PAD = "<pad>"
@@ -82,6 +82,17 @@ class TokenizerConfig:
     #: says "the form returns here", which is the one thing the first model
     #: could not learn from `Bar` tokens alone.
     section_labels: tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
+    #: Motif-condition values. `unspecified` is the neutral value the
+    #: unconditioned arm uses, so prefix length, vocabulary and
+    #: architecture stay identical across every arm and the only difference
+    #: is whether the token carries information.
+    motif_values: tuple[str, ...] = (
+        "high",
+        "medium",
+        "low",
+        "unknown",
+        "unspecified",
+    )
     #: Emit Section tokens. Turning this off leaves them in the vocabulary
     #: but never produces one, so the ablation changes the data and nothing
     #: else — same vocabulary size, same embedding table, same architecture.
@@ -132,6 +143,7 @@ class TokenizerConfig:
             "channels": list(self.channels),
             "unpitched_channels": list(self.unpitched_channels),
             "section_labels": list(self.section_labels),
+            "motif_values": list(self.motif_values),
             "emit_sections": self.emit_sections,
             "include_controllers": self.include_controllers,
             "vocab_version": self.vocab_version,
@@ -162,6 +174,9 @@ class TokenizerConfig:
             channels=tuple(data.get("channels", ("P1", "P2", "TR", "NO"))),
             unpitched_channels=tuple(data.get("unpitched_channels", ("NO",))),
             section_labels=tuple(data.get("section_labels", ("A", "B", "C", "D", "E", "F"))),
+            motif_values=tuple(
+                data.get("motif_values", ("high", "medium", "low", "unknown", "unspecified"))
+            ),
             emit_sections=bool(data.get("emit_sections", True)),
             include_controllers=bool(data.get("include_controllers", False)),
             vocab_version=version or VOCAB_VERSION,
@@ -260,6 +275,14 @@ DURATION = "Duration_"
 LOOP_START = "Loop_start"
 LOOP_END = "Loop_end"
 SECTION = "Section_"
+#: Requested motif recurrence, one token in the conditioning prefix.
+#:
+#: `unknown` and `unspecified` are different and both are needed.
+#: `unknown` is a measurement outcome: the window had too little melody to
+#: judge, which is true of 3168 of 9609 train windows. `unspecified` is a
+#: request: no condition is being asked for. Collapsing either into `low`
+#: would teach the model that absent evidence means absent recurrence.
+MOTIF = "Motif_"
 
 
 def build_vocabulary(config: TokenizerConfig | None = None) -> Vocabulary:
@@ -282,5 +305,8 @@ def build_vocabulary(config: TokenizerConfig | None = None) -> Vocabulary:
     tokens.extend(f"{DURATION}{steps}" for steps in range(1, config.max_duration_steps + 1))
     tokens.extend(f"{SECTION}{label}" for label in config.section_labels)
     tokens.extend((LOOP_START, LOOP_END))
+    # Appended last so every pre-existing token keeps its id: a migrated
+    # checkpoint's 267 pretrained rows must stay valid.
+    tokens.extend(f"{MOTIF}{value}" for value in config.motif_values)
 
     return Vocabulary(tokens=tuple(tokens), config=config)

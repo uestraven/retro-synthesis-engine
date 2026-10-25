@@ -362,6 +362,7 @@ def test_grammar_demands_a_value_then_velocity_then_duration(tokenizer):
         "Energy_low",
         "Tempo_120",
         "Length_8",
+        "Motif_unspecified",
         "Bar",
         "Position_0",
         "Channel_P1",
@@ -385,6 +386,7 @@ def test_grammar_requires_noise_values_on_the_noise_channel(tokenizer):
         "Energy_low",
         "Tempo_120",
         "Length_8",
+        "Motif_unspecified",
         "Bar",
         "Position_0",
         "Channel_NO",
@@ -470,7 +472,15 @@ def test_sections_round_trip(tokenizer):
 
 def test_the_grammar_requires_a_bar_after_a_section(tokenizer):
     grammar = TokenGrammar(tokenizer.vocabulary)
-    for token in (BOS, "Hardware_nes", "Mood_dark", "Energy_low", "Tempo_120", "Length_8"):
+    for token in (
+        BOS,
+        "Hardware_nes",
+        "Mood_dark",
+        "Energy_low",
+        "Tempo_120",
+        "Length_8",
+        "Motif_unspecified",
+    ):
         grammar.advance(token)
     assert grammar.advance("Section_A")
     assert not grammar.advance("Position_0")  # only Bar may follow a Section
@@ -487,6 +497,7 @@ def test_a_section_may_open_a_later_bar_too(tokenizer):
         "Energy_low",
         "Tempo_120",
         "Length_8",
+        "Motif_unspecified",
         "Bar",
         "Position_0",
         "Channel_P1",

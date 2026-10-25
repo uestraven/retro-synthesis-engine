@@ -26,6 +26,7 @@ from rse.tokenizers.vocab import (
     LOOP_END,
     LOOP_START,
     MOOD,
+    MOTIF,
     NOISE,
     PITCH,
     POSITION,
@@ -45,6 +46,10 @@ class State(Enum):
     EXPECT_ENERGY = auto()
     EXPECT_TEMPO = auto()
     EXPECT_LENGTH = auto()
+    #: A Motif token states the requested motif recurrence. Always present,
+    #: with `unspecified` when no condition is requested, so prefix length
+    #: is identical whether or not the sequence is conditioned.
+    EXPECT_MOTIF = auto()
     EXPECT_FIRST_BAR = auto()
     #: A Section token announces the bar that opens it, so only Bar may follow.
     EXPECT_BAR_AFTER_SECTION = auto()
@@ -71,10 +76,13 @@ class TokenGrammar:
         #: The channel named by the most recent Channel token, which decides
         #: whether a pitch or a noise value is legal next.
         self.channel: str | None = None
+        #: The requested motif condition, from this sequence's Motif token.
+        self.motif: str | None = None
 
     def reset(self) -> None:
         self.state = State.START
         self.channel = None
+        self.motif = None
 
     # -- what may come next -----------------------------------------------
 
@@ -92,6 +100,8 @@ class TokenGrammar:
             return (TEMPO,)
         if self.state is State.EXPECT_LENGTH:
             return (LENGTH,)
+        if self.state is State.EXPECT_MOTIF:
+            return (MOTIF,)
         if self.state is State.EXPECT_FIRST_BAR:
             return (LOOP_START, SECTION, BAR)
         if self.state is State.EXPECT_BAR_AFTER_SECTION:
@@ -159,6 +169,9 @@ class TokenGrammar:
         elif self.state is State.EXPECT_TEMPO:
             self.state = State.EXPECT_LENGTH
         elif self.state is State.EXPECT_LENGTH:
+            self.state = State.EXPECT_MOTIF
+        elif self.state is State.EXPECT_MOTIF:
+            self.motif = token[len(MOTIF) :]
             self.state = State.EXPECT_FIRST_BAR
         elif self.state is State.EXPECT_FIRST_BAR:
             if token == BAR:

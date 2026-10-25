@@ -573,3 +573,44 @@ def agreement(left: dict[str, str], right: dict[str, str]) -> dict[str, bool]:
 def describe_math(value: float) -> float:
     """Guard against NaN leaking into a label record."""
     return 0.0 if value is None or math.isnan(value) else value
+
+
+# -- Gate 3 experiment arms ----------------------------------------------------
+
+#: How many prefix tokens precede the first musical event, inclusive of the
+#: conditioning token: BOS, Hardware, Mood, Energy, Tempo, Length, Motif.
+PREFIX_TOKENS = 7
+
+
+def shuffled_labels(labels: list[str], *, seed: int = 0) -> list[str]:
+    """Permute labels while preserving prevalence exactly.
+
+    The shuffled-label arm tests whether the conditioning token carries useful
+    information or merely acts as extra capacity. Preserving prevalence is what
+    makes it a control: if the shuffled arm saw a different label distribution
+    it would differ from the true arm in two ways at once, and a null result
+    would be uninterpretable.
+
+    Deterministic for a given seed so an arm is reproducible.
+    """
+    import random as _random
+
+    out = list(labels)
+    _random.Random(seed).shuffle(out)
+    return out
+
+
+def arm_label(arm: str, true_label: str, shuffled: str) -> str:
+    """The conditioning value an arm supplies for one window.
+
+    Arm A uses `unspecified` rather than omitting the token, so prefix length,
+    vocabulary and architecture are identical across arms and the single
+    difference is the information the token carries.
+    """
+    if arm == "A":
+        return "unspecified"
+    if arm == "B":
+        return true_label
+    if arm == "C":
+        return shuffled
+    raise ValueError(f"unknown arm {arm!r}; expected A, B or C")

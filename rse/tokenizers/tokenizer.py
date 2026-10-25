@@ -31,6 +31,7 @@ from rse.tokenizers.vocab import (
     LOOP_END,
     LOOP_START,
     MOOD,
+    MOTIF,
     NOISE,
     PITCH,
     POSITION,
@@ -67,6 +68,10 @@ class Conditioning:
     energy: str = "unknown"
     tempo_bpm: float = 120.0
     n_bars: int = 16
+    #: Requested motif recurrence. `unspecified` is the neutral value, so
+    #: an unconditioned sequence has the same prefix length as a
+    #: conditioned one and the arms differ only in information content.
+    motif: str = "unspecified"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,6 +79,7 @@ class Conditioning:
             "energy": self.energy,
             "tempo_bpm": self.tempo_bpm,
             "n_bars": self.n_bars,
+            "motif": self.motif,
         }
 
 
@@ -244,6 +250,14 @@ class RseTokenizer:
         values = self.config.tempo_values
         return min(values, key=lambda value: abs(value - bpm))
 
+    def motif_token_value(self, motif: str) -> str:
+        """A valid motif value, falling back to `unspecified`.
+
+        Never falls back to `low`: an unrecognised request is an absent
+        request, not a request for little recurrence.
+        """
+        return motif if motif in self.config.motif_values else "unspecified"
+
     def length_token_value(self, n_bars: int) -> int:
         return min(self.config.lengths, key=lambda length: abs(length - n_bars))
 
@@ -341,6 +355,7 @@ class RseTokenizer:
             f"{ENERGY}{conditioning.energy}",
             f"{TEMPO}{self.tempo_token_value(conditioning.tempo_bpm)}",
             f"{LENGTH}{self.length_token_value(conditioning.n_bars)}",
+            f"{MOTIF}{self.motif_token_value(conditioning.motif)}",
         ]
         if composition.loop_start_tick is not None:
             tokens.append(LOOP_START)
@@ -434,6 +449,7 @@ class RseTokenizer:
         value: int | None = None
         velocity = 96
         tempo_bpm: float | None = None
+        motif = "unspecified"
         has_loop_start = False
         has_loop_end = False
 
@@ -459,6 +475,8 @@ class RseTokenizer:
                 break
             elif token.startswith(TEMPO):
                 tempo_bpm = float(token[len(TEMPO) :])
+            elif token.startswith(MOTIF):
+                motif = token[len(MOTIF) :]
             elif token.startswith(POSITION):
                 position = int(token[len(POSITION) :])
             elif token.startswith(CHANNEL):
@@ -505,6 +523,7 @@ class RseTokenizer:
         if has_loop_end:
             composition.loop_end_tick = max(bar + 1, 1) * self.config.steps_per_bar * step_ticks
         composition.normalize()
+        composition.source_metadata["requested_motif"] = motif
         return result
 
     # -- persistence ------------------------------------------------------
