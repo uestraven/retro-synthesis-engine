@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from rse.conditioning import (
@@ -591,3 +593,111 @@ def test_prefix_is_masked_from_the_loss_but_still_receives_gradient():
         ignore_index=pad,
     )
     assert torch.isnan(empty)
+
+
+# -- arm assignment by batch-time substitution ---------------------------------
+
+
+def _fake_window(cid: str, start_bar: int, ids: list[int]):
+    from dataclasses import dataclass
+
+    @dataclass
+    class W:
+        composition_id: str
+        start_bar: int
+        ids: list[int]
+        split: str = "train"
+
+    return W(cid, start_bar, ids)
+
+
+def _plan_file(tmp_path, rows):
+    import json
+
+    path = tmp_path / "labels.jsonl"
+    with path.open("w") as handle:
+        for piece, start_bar, label in rows:
+            handle.write(
+                json.dumps({"piece_id": piece, "start_bar": start_bar, "label": label}) + "\n"
+            )
+    return path
+
+
+def test_substitution_changes_only_the_conditioning_token(tmp_path):
+    """The whole point of sharing one cache: 'identical except one token' is
+    structurally true rather than a property to verify across three files."""
+    from rse.tokenizers.tokenizer import RseTokenizer
+    from rse.training.arms import apply_arm, load_plan, motif_token_ids
+
+    tokenizer = RseTokenizer()
+    ids = motif_token_ids(tokenizer.vocabulary)
+    plan = load_plan(_plan_file(tmp_path, [("p1", 0, "high"), ("p2", 0, "low")]), seed=0)
+    original = [1, 4, 9, 13, 30, 80, ids["unspecified"], 100, 143, 214]
+    window = _fake_window("p1", 0, original)
+
+    for arm in ("A", "B", "C"):
+        out = apply_arm(window, arm=arm, plan=plan, token_ids=ids, position=6)
+        differing = [i for i in range(len(out)) if out[i] != original[i]]
+        assert differing in ([], [6]), (arm, differing)
+    assert apply_arm(window, arm="B", plan=plan, token_ids=ids, position=6)[6] == ids["high"]
+    assert apply_arm(window, arm="A", plan=plan, token_ids=ids, position=6)[6] == ids["unspecified"]
+
+
+def test_shuffling_keeps_unknown_as_unknown(tmp_path):
+    """Permuting UNKNOWN into the labelled population would let arm C assign a
+    confident label to a window with no melodic evidence -- a different
+    intervention from 'the labels are wrong'."""
+    from rse.training.arms import load_plan
+
+    rows = [(f"p{i}", 0, "high") for i in range(20)]
+    rows += [(f"q{i}", 0, UNKNOWN) for i in range(20)]
+    rows += [(f"r{i}", 0, "low") for i in range(20)]
+    plan = load_plan(_plan_file(tmp_path, rows), seed=5)
+
+    for key, value in plan.true_labels.items():
+        if value == UNKNOWN:
+            assert plan.shuffled_labels[key] == UNKNOWN
+        else:
+            assert plan.shuffled_labels[key] != UNKNOWN
+    assert plan.prevalence()["B"] == plan.prevalence()["C"]
+
+
+def test_the_shuffle_is_fixed_not_per_batch(tmp_path):
+    """Reshuffling per batch would average over permutations instead of
+    testing one fixed wrong labelling."""
+    from rse.training.arms import load_plan
+
+    rows = [(f"p{i}", 0, lab) for i, lab in enumerate(["high", "low", "medium"] * 10)]
+    path = _plan_file(tmp_path, rows)
+    a, b = load_plan(path, seed=7), load_plan(path, seed=7)
+    assert a.shuffled_labels == b.shuffled_labels
+    assert load_plan(path, seed=8).shuffled_labels != a.shuffled_labels
+
+
+def test_substitution_refuses_a_malformed_prefix():
+    """Searching for the token instead of being told its position could
+    silently rewrite a musical token."""
+    from rse.training.arms import substitute
+
+    with pytest.raises(IndexError):
+        substitute([1, 2, 3], position=6, token_id=99)
+
+
+def test_prefix_masking_removes_only_prefix_targets():
+    """Attention must still see the prefix; only the loss ignores it, so the
+    condition embedding keeps learning through later music predictions."""
+    torch = pytest.importorskip("torch")
+    from rse.training.train import make_batch
+
+    @dataclasses.dataclass
+    class W:
+        ids: list[int]
+
+    windows = [W(list(range(1, 21)))]
+    inputs, targets, mask = make_batch(
+        windows, [0], pad_id=0, seq_len=64, device=torch.device("cpu"), mask_prefix=6
+    )
+    assert (targets[0, :6] == 0).all()
+    assert (targets[0, 6:] != 0).all()
+    # The pad mask is untouched, so attention still attends to the prefix.
+    assert mask[0].all()
