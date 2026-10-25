@@ -38,6 +38,13 @@ from rse.renderers.base import DEFAULT_SAMPLE_RATE, RenderSettings, notes_from_r
 from rse.renderers.nes_apu import NesApuRenderer
 from rse.tokenizers.tokenizer import Conditioning, RseTokenizer
 from rse.tokenizers.vocab import TokenizerConfig
+from rse.training.cache_contract import (
+    CacheContract,
+    CacheContractError,
+    contract_path,
+    save_contract,
+)
+from rse.training.cache_contract import verify as cache_verify
 from rse.ui.app import DEFAULT_HOST as UI_DEFAULT_HOST
 from rse.ui.app import DEFAULT_PORT as UI_DEFAULT_PORT
 
@@ -864,6 +871,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         )
     )
 
+    cache_contract: dict[str, Any] | None = None
     cached = args.windows is not None and args.windows.is_file() and not args.rebuild_windows
     if cached:
         print(f"windows   : reusing cache {args.windows}", flush=True)
@@ -874,6 +882,25 @@ def cmd_train(args: argparse.Namespace) -> int:
             window_stats.max_tokens = max(window_stats.max_tokens, len(window))
             window_stats.per_split[window.split] = window_stats.per_split.get(window.split, 0) + 1
         corpus_info = CorpusInfo(source=f"cache:{args.windows}")
+        # Verified against the tokens actually loaded, before a single step.
+        # A fresh encode would have passed while the Gate 3 cache was wrong.
+        try:
+            contract = cache_verify(args.windows, windows, tokenizer, window_bars=args.window_bars)
+        except CacheContractError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            print(
+                "       rebuild with --rebuild-windows, or point --windows at a "
+                "cache built by this tokenizer",
+                file=sys.stderr,
+            )
+            return 2
+        cache_contract = contract.to_dict()
+        print(
+            f"contract  : codec {contract.codec} k={contract.sub_row_divisions}, "
+            f"vocab {contract.vocab_size} ({contract.vocab_hash[:12]}), prefix "
+            f"{len(contract.prefix_schema)} tokens",
+            flush=True,
+        )
     else:
         if args.source == "procedural":
             entries, corpus_info = corpus_from_procedural(
@@ -896,7 +923,18 @@ def cmd_train(args: argparse.Namespace) -> int:
         del entries
         if args.windows is not None:
             save_windows(args.windows, windows)
-            print(f"windows   : cached to {args.windows}", flush=True)
+            contract = CacheContract.build(
+                tokenizer,
+                windows,
+                window_bars=args.window_bars,
+                corpus=corpus_info.to_dict(),
+            )
+            save_contract(args.windows, contract)
+            cache_contract = contract.to_dict()
+            print(
+                f"windows   : cached to {args.windows} (+ {contract_path(args.windows).name})",
+                flush=True,
+            )
 
     if not windows:
         print("error: the corpus produced no training windows", file=sys.stderr)
@@ -1028,6 +1066,8 @@ def cmd_train(args: argparse.Namespace) -> int:
         mask_prefix=args.mask_prefix,
     )
     report["corpus"] = corpus_info.to_dict()
+    if cache_contract is not None:
+        report["cache_contract"] = cache_contract
     if init_report is not None:
         report["init_from"] = init_report
     if arm_report is not None:
