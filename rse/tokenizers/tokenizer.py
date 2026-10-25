@@ -33,6 +33,7 @@ from rse.tokenizers.vocab import (
     MOOD,
     MOTIF,
     NOISE,
+    OFFSET,
     PITCH,
     POSITION,
     SECTION,
@@ -102,6 +103,25 @@ class GridFit:
 
     def tick_of(self, row: int) -> int:
         return int(round(self.phase_ticks + row * self.step_ticks))
+
+    def slot_of(self, tick: int, divisions: int) -> int:
+        """Nearest sub-row slot, counting `divisions` slots to the row.
+
+        `divisions=1` is `row_of` exactly, so codec A's arithmetic is
+        unchanged rather than merely equivalent.
+        """
+        if divisions < 1:
+            raise ValueError(f"divisions must be at least 1, got {divisions}")
+        if divisions == 1:
+            return self.row_of(tick)
+        return int(round((tick - self.phase_ticks) * divisions / self.step_ticks))
+
+    def tick_of_slot(self, slot: int, divisions: int) -> int:
+        if divisions < 1:
+            raise ValueError(f"divisions must be at least 1, got {divisions}")
+        if divisions == 1:
+            return self.tick_of(slot)
+        return int(round(self.phase_ticks + slot * self.step_ticks / divisions))
 
     @property
     def bpm(self) -> float:
@@ -281,6 +301,11 @@ class RseTokenizer:
         fit = fit if fit is not None else self.fit_grid(composition)
         step_ticks = fit.step_ticks
         steps_per_bar = self.config.steps_per_bar
+        onset_divisions = self.config.onset_divisions
+        duration_divisions = self.config.duration_divisions
+        # Slots per bar at onset resolution. Codec A has one per row, so this
+        # is `steps_per_bar` and every index below is the row index it was.
+        slots_per_bar = steps_per_bar * onset_divisions
         sounding = composition.sounding_events()
 
         if conditioning is None:
@@ -305,8 +330,8 @@ class RseTokenizer:
                     f"{event.channel_id} value {value} is outside the vocabulary; dropped"
                 )
                 continue
-            step = fit.row_of(event.tick)
-            error = abs(event.tick - fit.tick_of(step))
+            step = fit.slot_of(event.tick, onset_divisions)
+            error = abs(event.tick - fit.tick_of_slot(step, onset_divisions))
             result.max_start_error_ticks = max(result.max_start_error_ticks, int(round(error)))
             result.total_start_error_ticks += int(round(error))
             placed.append((step, event.channel_id, event))
@@ -336,6 +361,12 @@ class RseTokenizer:
         # Keeping the first and counting the rest is correct transcription, and
         # it stops the encoder emitting a chord on a monophonic channel, which
         # the hardware cannot play.
+        #
+        # A sub-row codec collapses per sub-row slot instead, which is what
+        # lets it keep an arpeggio's frames as separate events. The invariant
+        # that matters for the hardware is unchanged either way: at most one
+        # event per channel per slot, so a monophonic channel never receives
+        # two simultaneous voices however fine the grid gets.
         grid: dict[tuple[int, int], list[tuple[int, Note | Noise]]] = {}
         taken: set[tuple[int, str]] = set()
         for step, cid, event in sorted(
@@ -345,7 +376,7 @@ class RseTokenizer:
                 result.n_rows_collapsed += 1
                 continue
             taken.add((step, cid))
-            key = (step // steps_per_bar, step % steps_per_bar)
+            key = (step // slots_per_bar, step % slots_per_bar)
             grid.setdefault(key, []).append((channel_order[cid], event))
 
         tokens: list[str] = [
@@ -379,17 +410,30 @@ class RseTokenizer:
             # A Bar token for every bar, including empty ones, so bar count and
             # phrase position stay recoverable from the sequence alone.
             tokens.append(BAR)
-            for position in range(steps_per_bar):
-                events = grid.get((bar, position))
+            for slot in range(slots_per_bar):
+                events = grid.get((bar, slot))
                 if not events:
                     continue
-                tokens.append(f"{POSITION}{position}")
+                # Where the four codecs diverge, and the only place they do.
+                #
+                # A: one Position per row.
+                # B: a row Position followed by an Offset token. Both are
+                #    re-emitted per offset, which is the one extra token per
+                #    group that makes B strictly costlier than C.
+                # C and D: a single Position spanning row * k + offset.
+                if self.config.codec in ("C", "D"):
+                    tokens.append(f"{POSITION}{slot}")
+                else:
+                    tokens.append(f"{POSITION}{slot // onset_divisions}")
+                    if self.config.emits_offset_tokens:
+                        tokens.append(f"{OFFSET}{slot % onset_divisions}")
+                duration_unit = step_ticks / duration_divisions
                 for _order, event in sorted(events, key=lambda pair: pair[0]):
-                    duration_steps = int(round(event.duration / step_ticks))
+                    duration_steps = int(round(event.duration / duration_unit))
                     if duration_steps < 1:
                         duration_steps = 1
-                    if duration_steps > self.config.max_duration_steps:
-                        duration_steps = self.config.max_duration_steps
+                    if duration_steps > self.config.duration_token_max:
+                        duration_steps = self.config.duration_token_max
                         result.n_duration_clamped += 1
                     value = event.pitch if isinstance(event, Note) else event.value
                     prefix = PITCH if isinstance(event, Note) else NOISE
@@ -434,6 +478,12 @@ class RseTokenizer:
             token if isinstance(token, str) else self.vocabulary.token_of(token) for token in ids
         ]
         step_ticks = self.ticks_per_step(ticks_per_beat)
+        onset_divisions = self.config.onset_divisions
+        duration_divisions = self.config.duration_divisions
+        # Fractional, and rounded only at the final tick. Rounding the unit
+        # first would accumulate drift across a piece, which is the error the
+        # sub-row codecs exist to remove.
+        fine_ticks = step_ticks / onset_divisions
         grammar = TokenGrammar(self.vocabulary)
         result = DecodedComposition(
             composition=Composition(
@@ -445,6 +495,7 @@ class RseTokenizer:
         pending_section: str | None = None
         sections: list[SectionSpan] = []
         position = 0
+        offset = 0
         channel: str | None = None
         value: int | None = None
         velocity = 96
@@ -462,6 +513,7 @@ class RseTokenizer:
             if token == BAR:
                 bar += 1
                 position = 0
+                offset = 0
                 if pending_section is not None:
                     sections.append(SectionSpan(start_bar=bar, label=pending_section))
                     pending_section = None
@@ -479,6 +531,11 @@ class RseTokenizer:
                 motif = token[len(MOTIF) :]
             elif token.startswith(POSITION):
                 position = int(token[len(POSITION) :])
+                # A new Position cancels any offset from the previous one, or
+                # codec B would carry a stale offset onto the next row.
+                offset = 0
+            elif token.startswith(OFFSET):
+                offset = int(token[len(OFFSET) :])
             elif token.startswith(CHANNEL):
                 channel = token[len(CHANNEL) :]
                 value = None
@@ -493,8 +550,15 @@ class RseTokenizer:
                         f"a duration arrived with no note to attach it to at bar {bar}"
                     )
                     continue
-                tick = (bar * self.config.steps_per_bar + position) * step_ticks
-                duration = steps * step_ticks
+                # Codecs C and D carry the sub-row offset inside Position, so
+                # their `position` is already a fine slot; A and B carry a row
+                # Position with the offset alongside (zero for A).
+                if self.config.codec in ("C", "D"):
+                    slot = bar * self.config.steps_per_bar * onset_divisions + position
+                else:
+                    slot = (bar * self.config.steps_per_bar + position) * onset_divisions + offset
+                tick = int(round(slot * fine_ticks))
+                duration = int(round(steps * step_ticks / duration_divisions))
                 if self.config.is_pitched(channel):
                     event = Note(
                         channel_id=channel,

@@ -759,3 +759,55 @@ def test_validation_masks_the_prefix_too():
     assert evaluate(model, windows, config, mask_prefix=7, **kwargs) != pytest.approx(
         evaluate(model, windows, config, mask_prefix=0, **kwargs)
     )
+
+
+def test_substitution_refuses_a_cache_without_a_motif_token():
+    """The defect that invalidated the first Gate 3 run. The cache in use had
+    been built before the Motif token existed, so its prefix was six tokens
+    and index 6 held `Section_A`; substitution replaced a structural token in
+    every window of every arm. The arms stayed identical-except-one-token, so
+    the comparison looked sound while measuring nothing about conditioning."""
+    from rse.tokenizers.tokenizer import RseTokenizer
+    from rse.training.arms import verify_motif_position
+
+    tokenizer = RseTokenizer()
+    vocab = tokenizer.vocabulary
+
+    @dataclasses.dataclass
+    class W:
+        ids: list[int]
+
+    stale = [
+        W(
+            [
+                vocab.id_of(t)
+                for t in (
+                    "<bos>",
+                    "Hardware_nes",
+                    "Mood_unknown",
+                    "Energy_unknown",
+                    "Tempo_222",
+                    "Length_8",
+                    "Section_A",
+                    "Bar",
+                )
+            ]
+        )
+    ]
+    with pytest.raises(ValueError, match="does not hold a Motif token"):
+        verify_motif_position(stale, vocabulary=vocab, position=6)
+
+    current = [W(stale[0].ids[:6] + [vocab.id_of("Motif_high"), vocab.id_of("Bar")])]
+    verify_motif_position(current, vocabulary=vocab, position=6)
+
+
+def test_substitution_refuses_a_window_too_short_to_hold_the_prefix():
+    from rse.tokenizers.tokenizer import RseTokenizer
+    from rse.training.arms import verify_motif_position
+
+    @dataclasses.dataclass
+    class W:
+        ids: list[int]
+
+    with pytest.raises(ValueError, match="does not hold a Motif token"):
+        verify_motif_position([W([1, 2, 3])], vocabulary=RseTokenizer().vocabulary, position=6)

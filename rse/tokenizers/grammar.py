@@ -28,6 +28,7 @@ from rse.tokenizers.vocab import (
     MOOD,
     MOTIF,
     NOISE,
+    OFFSET,
     PITCH,
     POSITION,
     SECTION,
@@ -57,6 +58,9 @@ class State(Enum):
     EXPECT_POSITION = auto()
     #: After a Position: a Channel must follow.
     EXPECT_CHANNEL = auto()
+    #: Codec B only: a Position is followed by its sub-row Offset, which
+    #: applies to every event emitted until the next Position.
+    EXPECT_OFFSET = auto()
     #: After a Channel: the pitch or noise value for that channel.
     EXPECT_VALUE = auto()
     EXPECT_VELOCITY = auto()
@@ -108,6 +112,8 @@ class TokenGrammar:
             return (BAR,)
         if self.state is State.EXPECT_POSITION:
             return (POSITION, SECTION, BAR, LOOP_END, EOS)
+        if self.state is State.EXPECT_OFFSET:
+            return (OFFSET,)
         if self.state is State.EXPECT_CHANNEL:
             return (CHANNEL,)
         if self.state is State.EXPECT_VALUE:
@@ -190,10 +196,14 @@ class TokenGrammar:
             elif token == BAR or token == LOOP_END:
                 self.state = State.EXPECT_POSITION
             elif token.startswith(POSITION):
-                self.state = State.EXPECT_CHANNEL
+                self.state = (
+                    State.EXPECT_OFFSET if self.config.emits_offset_tokens else State.EXPECT_CHANNEL
+                )
             elif token.startswith(CHANNEL):
                 self.channel = token[len(CHANNEL) :]
                 self.state = State.EXPECT_VALUE
+        elif self.state is State.EXPECT_OFFSET:
+            self.state = State.EXPECT_CHANNEL
         elif self.state is State.EXPECT_CHANNEL:
             self.channel = token[len(CHANNEL) :]
             self.state = State.EXPECT_VALUE

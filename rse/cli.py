@@ -911,11 +911,21 @@ def cmd_train(args: argparse.Namespace) -> int:
         from dataclasses import replace as dc_replace
 
         from rse.conditioning import PREFIX_TOKENS
-        from rse.training.arms import apply_arm, load_plan, motif_token_ids
+        from rse.training.arms import (
+            apply_arm,
+            load_plan,
+            motif_token_ids,
+            verify_motif_position,
+        )
 
         plan = load_plan(args.labels, seed=args.shuffle_seed, label_field=args.label_field)
         token_ids = motif_token_ids(tokenizer.vocabulary)
         position = PREFIX_TOKENS - 1
+        try:
+            verify_motif_position(windows, vocabulary=tokenizer.vocabulary, position=position)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         unmatched = 0
         substituted = []
         for window in windows:

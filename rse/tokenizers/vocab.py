@@ -31,6 +31,9 @@ SPECIAL_TOKENS = (PAD, BOS, EOS, UNK)
 MOODS = ("heroic", "dark", "mysterious", "melancholic", "unknown")
 ENERGIES = ("low", "medium", "high", "unknown")
 
+#: Codec versions. See `TokenizerConfig.codec`.
+CODECS = ("A", "B", "C", "D")
+
 
 @dataclass(frozen=True)
 class TokenizerConfig:
@@ -47,6 +50,21 @@ class TokenizerConfig:
     #: rather than treating one source frame as one step. False reproduces
     #: the old encoding, which is what the training A/B compares against.
     aligned_grid: bool = True
+    #: Which codec to encode with. Branch B compares four:
+    #:
+    #: - ``A`` row grid, row durations. The baseline the foundation was
+    #:   trained on, and bit-exact at the default settings.
+    #: - ``B`` row Position plus an explicit ``Offset_`` token, row durations.
+    #: - ``C`` one Position token spanning ``row * k + offset``, row durations.
+    #: - ``D`` as ``C``, and durations measured in sub-row steps too.
+    #:
+    #: B and C quantize onsets identically and so must report identical
+    #: fidelity, differing only in token cost -- which is what makes the pair
+    #: a usable cross-check rather than two guesses.
+    codec: str = "A"
+    #: Sub-row divisions, the ``k`` of codecs B, C and D. One means no
+    #: sub-row resolution, which is codec A.
+    sub_row_divisions: int = 1
     #: Pitch range covered by PITCH tokens, inclusive.
     pitch_min: int = 21
     pitch_max: int = 108
@@ -123,12 +141,31 @@ class TokenizerConfig:
         unknown = set(self.unpitched_channels) - set(self.channels)
         if unknown:
             raise ValueError(f"unpitched channels not in channels: {sorted(unknown)}")
+        if self.codec not in CODECS:
+            raise ValueError(f"unknown codec {self.codec!r}; expected one of {CODECS}")
+        if self.sub_row_divisions < 1:
+            raise ValueError(f"sub_row_divisions must be at least 1, got {self.sub_row_divisions}")
+        if self.codec == "A" and self.sub_row_divisions != 1:
+            # Rejected rather than ignored: a config that claims sub-row
+            # resolution the codec does not use would be reported as codec A
+            # at k=8 in the comparison table and read as a fidelity result.
+            raise ValueError(
+                f"codec A has no sub-row resolution, so sub_row_divisions must "
+                f"be 1, got {self.sub_row_divisions}"
+            )
+        if self.codec != "A" and self.sub_row_divisions == 1:
+            raise ValueError(
+                f"codec {self.codec} is a sub-row codec, so sub_row_divisions "
+                f"must exceed 1; use codec A for row resolution"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "profile_id": self.profile_id,
             "steps_per_bar": self.steps_per_bar,
             "aligned_grid": self.aligned_grid,
+            "codec": self.codec,
+            "sub_row_divisions": self.sub_row_divisions,
             "beats_per_bar": self.beats_per_bar,
             "pitch_min": self.pitch_min,
             "pitch_max": self.pitch_max,
@@ -160,6 +197,8 @@ class TokenizerConfig:
             profile_id=data.get("profile_id", "nes"),
             steps_per_bar=int(data.get("steps_per_bar", 16)),
             aligned_grid=bool(data.get("aligned_grid", True)),
+            codec=str(data.get("codec", "A")),
+            sub_row_divisions=int(data.get("sub_row_divisions", 1)),
             beats_per_bar=int(data.get("beats_per_bar", 4)),
             pitch_min=int(data.get("pitch_min", 21)),
             pitch_max=int(data.get("pitch_max", 108)),
@@ -194,6 +233,51 @@ class TokenizerConfig:
 
     def is_pitched(self, channel_id: str) -> bool:
         return channel_id not in self.unpitched_channels
+
+    # -- codec geometry ----------------------------------------------------
+    #
+    # Derived rather than stored so that `steps_per_bar` keeps one meaning --
+    # rows per bar, the tracker convention -- in every codec. A codec that
+    # redefined it would make `Duration_4` mean a different musical length
+    # depending on configuration, which is exactly the ambiguity this
+    # comparison exists to remove.
+
+    @property
+    def onset_divisions(self) -> int:
+        """Sub-row slots an onset can land on."""
+        return self.sub_row_divisions if self.codec in ("B", "C", "D") else 1
+
+    @property
+    def duration_divisions(self) -> int:
+        """Sub-row slots a duration is measured in. Only codec D refines it."""
+        return self.sub_row_divisions if self.codec == "D" else 1
+
+    @property
+    def position_count(self) -> int:
+        """Distinct Position values per bar.
+
+        Codecs C and D fold the sub-row offset into the Position token, so
+        their Position family is `k` times larger. Codec B keeps row
+        Positions and spends a separate Offset token instead.
+        """
+        if self.codec in ("C", "D"):
+            return self.steps_per_bar * self.onset_divisions
+        return self.steps_per_bar
+
+    @property
+    def duration_token_max(self) -> int:
+        """Largest Duration value, in this codec's duration unit.
+
+        Scaled with `duration_divisions` so the longest *musical* note stays
+        the same length across codecs. Leaving it at `max_duration_steps`
+        would quietly cut codec D's maximum note to a `k`th of the others
+        and show up as an articulation win for everyone else.
+        """
+        return self.max_duration_steps * self.duration_divisions
+
+    @property
+    def emits_offset_tokens(self) -> bool:
+        return self.codec == "B" and self.onset_divisions > 1
 
 
 @dataclass
@@ -283,6 +367,9 @@ SECTION = "Section_"
 #: request: no condition is being asked for. Collapsing either into `low`
 #: would teach the model that absent evidence means absent recurrence.
 MOTIF = "Motif_"
+#: Sub-row onset offset, codec B only. Follows a Position token and applies to
+#: the events emitted after it, so several channels can share one offset.
+OFFSET = "Offset_"
 
 
 def build_vocabulary(config: TokenizerConfig | None = None) -> Vocabulary:
@@ -297,16 +384,21 @@ def build_vocabulary(config: TokenizerConfig | None = None) -> Vocabulary:
     tokens.extend(f"{LENGTH}{length}" for length in config.lengths)
 
     tokens.append(BAR)
-    tokens.extend(f"{POSITION}{step}" for step in range(config.steps_per_bar))
+    tokens.extend(f"{POSITION}{step}" for step in range(config.position_count))
     tokens.extend(f"{CHANNEL}{channel}" for channel in config.channels)
     tokens.extend(f"{PITCH}{pitch}" for pitch in range(config.pitch_min, config.pitch_max + 1))
     tokens.extend(f"{NOISE}{value}" for value in range(config.noise_min, config.noise_max + 1))
     tokens.extend(f"{VELOCITY}{bucket}" for bucket in range(config.velocity_buckets))
-    tokens.extend(f"{DURATION}{steps}" for steps in range(1, config.max_duration_steps + 1))
+    tokens.extend(f"{DURATION}{steps}" for steps in range(1, config.duration_token_max + 1))
     tokens.extend(f"{SECTION}{label}" for label in config.section_labels)
     tokens.extend((LOOP_START, LOOP_END))
     # Appended last so every pre-existing token keeps its id: a migrated
     # checkpoint's 267 pretrained rows must stay valid.
     tokens.extend(f"{MOTIF}{value}" for value in config.motif_values)
+    # Offsets after Motif for the same reason. Codec A never reaches here, so
+    # its vocabulary is byte-identical to the one the foundation was trained
+    # on and that checkpoint stays loadable.
+    if config.emits_offset_tokens:
+        tokens.extend(f"{OFFSET}{slot}" for slot in range(config.onset_divisions))
 
     return Vocabulary(tokens=tuple(tokens), config=config)

@@ -110,6 +110,47 @@ def motif_token_ids(vocabulary: Any) -> dict[str, int]:
     }
 
 
+def verify_motif_position(
+    windows: list[Any],
+    *,
+    vocabulary: Any,
+    position: int,
+    sample: int = 200,
+) -> None:
+    """Refuse to substitute unless `position` really holds a Motif token.
+
+    This is the check whose absence invalidated the first Gate 3 run. The
+    cache in use had been built before the Motif token existed, so its prefix
+    was six tokens and index 6 held `Section_A`. Substitution therefore
+    replaced a structural token with a conditioning one in every window of
+    every arm: the arms stayed identical-except-one-token, so the comparison
+    looked sound, but the token was never in a conditioning position and the
+    null result measured nothing about conditioning.
+
+    A position index is only meaningful relative to the tokenizer that
+    produced the sequence, and a cached window carries no record of which one
+    that was -- so the token itself has to be inspected.
+    """
+    offenders: Counter[str] = Counter()
+    for window in windows[:sample]:
+        ids = window.ids
+        if position >= len(ids):
+            offenders[f"<window of {len(ids)} tokens>"] += 1
+            continue
+        token = vocabulary.token_of(ids[position])
+        if not token.startswith(MOTIF):
+            offenders[token] += 1
+    if offenders:
+        found = ", ".join(f"{token!r} x{count}" for token, count in offenders.most_common(3))
+        raise ValueError(
+            f"position {position} does not hold a Motif token in "
+            f"{sum(offenders.values())} of {min(len(windows), sample)} sampled "
+            f"windows; found {found}. The windows were built by a different "
+            f"tokenizer than this one -- rebuild the cache before training a "
+            f"conditioned arm."
+        )
+
+
 def substitute(
     ids: list[int],
     *,
