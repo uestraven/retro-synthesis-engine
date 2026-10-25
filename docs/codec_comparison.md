@@ -142,3 +142,136 @@ the codec's main measurable gain stays bottled up behind a label error.
   used in the generation analysis (median 50). The two are not comparable.
 - 70 of 600 train pieces have no fitted row and are excluded from every column,
   so these figures describe the row-fitting subset of the corpus.
+
+---
+
+# Tempo precision, and what it does not fix
+
+Run with `scripts/tempo_precision.py --split train --limit 600`. Same source
+pieces, window boundaries, event matching and monophony repair throughout.
+
+| config | vocab | recall | grid MAE | abs MAE | dur MAE | jitter | drift | IOI |
+|---|---|---|---|---|---|---|---|---|
+| A/1.03 | 272 | 0.636 | 15.57 ms | 40.97 ms | 49.39 ms | 18.52 ms | −1.69 ms/s | 20% |
+| A/1.01 | 386 | 0.653 | 15.57 ms | 19.76 ms | 49.38 ms | 8.39 ms | 1.39 ms/s | 20% |
+| D4/1.03 | 416 | 0.758 | 5.70 ms | 39.88 ms | 11.01 ms | 12.22 ms | −1.71 ms/s | 65% |
+| **D4/1.01** | 530 | 0.779 | 5.70 ms | 16.05 ms | 9.54 ms | **4.79 ms** | 1.54 ms/s | 65% |
+| A/exact | 386 | 0.655 | 15.57 ms | 12.08 ms | 49.70 ms | 7.80 ms | 0.01 ms/s | 20% |
+| D4/exact | 530 | 0.783 | 5.70 ms | 6.81 ms | 9.23 ms | 4.21 ms | 0.01 ms/s | 65% |
+
+`exact` is an oracle: the true fitted row rate, unquantized. It is a ceiling
+measurement, not a deployable configuration — a decoder has only the Tempo
+token to rebuild time from.
+
+Absolute error decomposes into three things a listener experiences very
+differently, fitted per window:
+
+- **offset** — every onset shifted equally, because the encoder anchors the
+  first sounding row at bar 0. Inaudible.
+- **drift** — error growing with elapsed time, from a mislabelled global row
+  rate. A sub-0.2% playback-speed change, not a rhythmic defect.
+- **jitter** — what remains: note-to-note timing error. This is what sounds
+  sloppy, and what a finer grid fixes.
+
+## The drift mechanism is confirmed, not assumed
+
+Signed error against elapsed time, which is the discriminating evidence:
+
+| elapsed | A/1.03 | A/1.01 | D4/1.01 | D4/exact |
+|---|---|---|---|---|
+| 0 s+ | −7.02 | −7.37 | −9.02 | −9.04 |
+| 2 s+ | −10.38 | −7.54 | −8.92 | −9.19 |
+| 4 s+ | −14.16 | −7.90 | −8.51 | −9.79 |
+| 6 s+ | −15.91 | −8.26 | −7.88 | −9.13 |
+
+Under ratio 1.03 the error grows with time; at 1.01 and with an exact rate it
+is flat. Per window the fitted slope matches the label error arithmetically: a
+0.165% rate error is 1.65 ms per second, and 1.54 was measured.
+
+## Answers to the three questions
+
+**How much absolute error is tempo quantization?** 70% of codec A's
+(40.97 against a 12.08 oracle) and 83% of D4/1.03's (39.88 against 6.81).
+
+**What does sub-row resolution contribute independently?** Holding tempo
+exact, A → D4 cuts absolute error 12.08 → 6.81, jitter 7.80 → 4.21, grid error
+15.57 → 5.70, duration error 49.70 → 9.23, and raises IOI retention 20% → 65%.
+
+**How close does D4/1.01 get to achievable?** On jitter, 4.79 against the
+oracle's 4.21 — within 14% of the floor. On absolute error, 16.05 against
+6.81. The 9 ms residual is almost entirely drift, so it is a global speed
+error of under 0.2% rather than rhythmic damage.
+
+## Why 1.01 and not finer
+
+Ratio 1.005 was measured and rejected: median label error 0.169% against
+1.01's 0.176%. `int(round(...))` makes **integer BPM** the floor below about
+ratio 1.025, so a finer ratio buys nothing at the low end of the range.
+Non-integer labels were measured too and do not improve the median.
+
+**Coverage gap found.** Fitted rates span 21.5 to 374.9 BPM, and 8 of 181
+sampled pieces fall outside the `[40, 360]` token range. `fit_grid` declines
+those rather than clipping them, which is part of why 70 of 600 pieces have no
+fitted row. Widening the range to about `[20, 380]` would let roughly 4% more
+of the corpus use the row grid at all — independent of the ratio question.
+
+# Context policy: no silent truncation
+
+`scripts/context_policy.py`, D4/1.01, train split.
+
+8-bar windows (1,173 windows): median 1,071 tokens, p90 2,141, p95 2,435,
+p99 3,153, **max 4,757**.
+
+| context | over | share | density inside | density excluded | bias |
+|---|---|---|---|---|---|
+| 2048 | 135 | 11.5% | 247 | 708 | 2.87× |
+| 2304 | 93 | 7.9% | 254 | 777 | **3.06×** |
+| 2560 | 43 | 3.7% | 263 | 951 | 3.62× |
+| 3072 | 15 | 1.3% | 268 | 1150 | 4.29× |
+| 4096 | 2 | 0.2% | 269 | 1445 | 5.37× |
+
+**Excluding overflow is not a neutral choice.** The windows that do not fit
+carry about three times the events of those that do, and the bias worsens as
+the context tightens. Dropping them would systematically discard the densest
+music — exactly the arpeggio and passage material D4 was adopted to preserve.
+
+4-bar windows (2,274 windows) overflow 3 at 2,304 and **none at 2,560**.
+
+**Recommendation: 8-bar windows at 3,072 context, splitting the 1.3% that
+overflow at bar boundaries.** This keeps the 8-bar unit the motif analysis
+depends on, loses no music, and introduces no density bias. 4-bar windows at
+2,560 is the cheaper alternative but halves the musical context per example.
+
+# Does D4 make conditioning viable?
+
+`scripts/conditioning_gate2.py --codec D --k 4 --tempo-ratio 1.01`, 300 train
+pieces, against codec A at 1.03. Label preservation through encode/decode:
+
+| axis | A | D4/1.01 |
+|---|---|---|
+| motif | 0.738 | **0.840** |
+| rhythm | 0.650 | 0.773 |
+| phrase | 0.709 | 0.739 |
+
+Motif eligibility lost on round-trip falls from 21 pieces to 12.
+
+| label | prec A | prec D4 | recall A | recall D4 |
+|---|---|---|---|---|
+| motif `high` | 0.954 | 0.966 | 0.586 | **0.800** |
+| rhythm `driving` | 0.481 | **0.706** | 0.342 | **0.316** |
+| rhythm `moderate` | 0.765 | 0.821 | 0.503 | 0.742 |
+| phrase `variation` | 0.717 | 0.667 | 0.745 | **0.588** |
+
+**Motif conditioning is now substantially more viable**: preservation 0.84 and
+`high` recall up from 0.586 to 0.800 at essentially unchanged precision.
+
+**Repairing IOI entropy did not repair the `driving` label.** Its precision
+improves sharply (0.481 → 0.706, so far fewer false positives) but recall does
+not move (0.342 → 0.316). Two thirds of genuinely driving pieces still fail to
+read as driving after a round trip, even with 65% of IOI entropy retained. So
+rhythmic conditioning remains unsupported, and the cause is not the entropy
+loss that was assumed to explain it.
+
+**Phrase is mixed and should not be read as improved**: preservation barely
+moves, `stable` recall rises 0.475 → 0.850 while `variation` recall falls
+0.745 → 0.588, on only 86–92 eligible pieces.

@@ -1,0 +1,713 @@
+{
+  "thresholds": {
+    "motif_low": 0.6682,
+    "motif_high": 0.8963,
+    "rhythm_sparse_onset": 14.5887,
+    "rhythm_driving_onset": 24.5155,
+    "rhythm_driving_pulse": 0.9622,
+    "phrase_stable": 0.6667,
+    "phrase_variation": 1.0,
+    "fitted_on": "train",
+    "n_fitted": 300
+  },
+  "threshold_provenance": "fitted on the train split only, then frozen",
+  "composer": "null by design: no composer field exists in the ingested records",
+  "n_pieces": 300,
+  "eligibility": {
+    "motif/train": {
+      "n": 300,
+      "orig": 231,
+      "rt": 219,
+      "both": 219
+    },
+    "rhythm/train": {
+      "n": 300,
+      "orig": 289,
+      "rt": 286,
+      "both": 286
+    },
+    "phrase/train": {
+      "n": 300,
+      "orig": 102,
+      "rt": 106,
+      "both": 92
+    }
+  },
+  "distributions": {
+    "motif/train": {
+      "orig": {
+        "low": 92,
+        "high": 70,
+        "unknown": 69,
+        "medium": 69
+      },
+      "rt": {
+        "low": 102,
+        "high": 58,
+        "unknown": 81,
+        "medium": 59
+      }
+    },
+    "rhythm/train": {
+      "orig": {
+        "sparse": 96,
+        "moderate": 155,
+        "driving": 38,
+        "unknown": 11
+      },
+      "rt": {
+        "sparse": 129,
+        "moderate": 140,
+        "driving": 17,
+        "unknown": 14
+      }
+    },
+    "phrase/train": {
+      "orig": {
+        "unknown": 198,
+        "contrast": 11,
+        "variation": 51,
+        "stable": 40
+      },
+      "rt": {
+        "unknown": 194,
+        "variation": 45,
+        "stable": 54,
+        "contrast": 7
+      }
+    }
+  },
+  "confusion": {
+    "motif": {
+      "low": {
+        "low": 80,
+        "medium": 1,
+        "unknown": 11
+      },
+      "high": {
+        "high": 56,
+        "low": 3,
+        "medium": 10,
+        "unknown": 1
+      },
+      "unknown": {
+        "unknown": 69
+      },
+      "medium": {
+        "medium": 48,
+        "low": 19,
+        "high": 2
+      }
+    },
+    "rhythm": {
+      "sparse": {
+        "sparse": 94,
+        "unknown": 2
+      },
+      "moderate": {
+        "moderate": 115,
+        "sparse": 34,
+        "driving": 5,
+        "unknown": 1
+      },
+      "driving": {
+        "driving": 12,
+        "moderate": 25,
+        "sparse": 1
+      },
+      "unknown": {
+        "unknown": 11
+      }
+    },
+    "phrase": {
+      "unknown": {
+        "unknown": 184,
+        "stable": 6,
+        "variation": 8
+      },
+      "contrast": {
+        "variation": 3,
+        "contrast": 4,
+        "stable": 3,
+        "unknown": 1
+      },
+      "variation": {
+        "variation": 30,
+        "stable": 11,
+        "unknown": 7,
+        "contrast": 3
+      },
+      "stable": {
+        "stable": 34,
+        "unknown": 2,
+        "variation": 4
+      }
+    }
+  },
+  "agreement": {
+    "motif": {
+      "class_preservation_both_eligible": 0.8402,
+      "n_both_eligible": 219,
+      "eligibility_preservation": 0.96,
+      "eligibility_lost": 12,
+      "eligibility_gained": 0,
+      "naive_agreement_all_pieces": 0.8433
+    },
+    "rhythm": {
+      "class_preservation_both_eligible": 0.7727,
+      "n_both_eligible": 286,
+      "eligibility_preservation": 0.99,
+      "eligibility_lost": 3,
+      "eligibility_gained": 0,
+      "naive_agreement_all_pieces": 0.7733
+    },
+    "phrase": {
+      "class_preservation_both_eligible": 0.7391,
+      "n_both_eligible": 92,
+      "eligibility_preservation": 0.92,
+      "eligibility_lost": 10,
+      "eligibility_gained": 14,
+      "naive_agreement_all_pieces": 0.84
+    }
+  },
+  "precision_recall": {
+    "motif": {
+      "high": {
+        "support": 70,
+        "precision": 0.9655,
+        "recall": 0.8
+      },
+      "low": {
+        "support": 92,
+        "precision": 0.7843,
+        "recall": 0.8696
+      },
+      "medium": {
+        "support": 69,
+        "precision": 0.8136,
+        "recall": 0.6957
+      },
+      "unknown": {
+        "support": 69,
+        "precision": 0.8519,
+        "recall": 1.0
+      }
+    },
+    "rhythm": {
+      "driving": {
+        "support": 38,
+        "precision": 0.7059,
+        "recall": 0.3158
+      },
+      "moderate": {
+        "support": 155,
+        "precision": 0.8214,
+        "recall": 0.7419
+      },
+      "sparse": {
+        "support": 96,
+        "precision": 0.7287,
+        "recall": 0.9792
+      },
+      "unknown": {
+        "support": 11,
+        "precision": 0.7857,
+        "recall": 1.0
+      }
+    },
+    "phrase": {
+      "contrast": {
+        "support": 11,
+        "precision": 0.5714,
+        "recall": 0.3636
+      },
+      "stable": {
+        "support": 40,
+        "precision": 0.6296,
+        "recall": 0.85
+      },
+      "unknown": {
+        "support": 198,
+        "precision": 0.9485,
+        "recall": 0.9293
+      },
+      "variation": {
+        "support": 51,
+        "precision": 0.6667,
+        "recall": 0.5882
+      }
+    }
+  },
+  "phrase_survival": {
+    "variation -> stable": 11,
+    "variation -> unknown": 7,
+    "variation -> variation": 30,
+    "variation -> contrast": 3,
+    "stable -> variation": 4,
+    "n_original_variation": 51,
+    "variation_retained_fraction": 0.5882,
+    "variation_rows_accounted": 51,
+    "variation_unaccounted": 0,
+    "all_transitions": {
+      "contrast -> contrast": 4,
+      "contrast -> stable": 3,
+      "contrast -> unknown": 1,
+      "contrast -> variation": 3,
+      "stable -> stable": 34,
+      "stable -> unknown": 2,
+      "stable -> variation": 4,
+      "unknown -> stable": 6,
+      "unknown -> unknown": 184,
+      "unknown -> variation": 8,
+      "variation -> contrast": 3,
+      "variation -> stable": 11,
+      "variation -> unknown": 7,
+      "variation -> variation": 30
+    }
+  },
+  "combinations": {
+    "low|moderate|unknown": {
+      "pieces": 37,
+      "games": 34,
+      "all_axes_agree": 22
+    },
+    "unknown|sparse|unknown": {
+      "pieces": 30,
+      "games": 27,
+      "all_axes_agree": 28
+    },
+    "low|sparse|unknown": {
+      "pieces": 26,
+      "games": 24,
+      "all_axes_agree": 23
+    },
+    "unknown|moderate|unknown": {
+      "pieces": 23,
+      "games": 19,
+      "all_axes_agree": 16
+    },
+    "high|moderate|unknown": {
+      "pieces": 16,
+      "games": 16,
+      "all_axes_agree": 8
+    },
+    "high|moderate|stable": {
+      "pieces": 14,
+      "games": 14,
+      "all_axes_agree": 6
+    },
+    "medium|moderate|unknown": {
+      "pieces": 14,
+      "games": 13,
+      "all_axes_agree": 6
+    },
+    "high|moderate|variation": {
+      "pieces": 13,
+      "games": 11,
+      "all_axes_agree": 5
+    },
+    "medium|sparse|unknown": {
+      "pieces": 11,
+      "games": 10,
+      "all_axes_agree": 5
+    },
+    "unknown|unknown|unknown": {
+      "pieces": 11,
+      "games": 11,
+      "all_axes_agree": 11
+    },
+    "medium|moderate|variation": {
+      "pieces": 8,
+      "games": 8,
+      "all_axes_agree": 4
+    },
+    "medium|moderate|stable": {
+      "pieces": 8,
+      "games": 8,
+      "all_axes_agree": 5
+    },
+    "high|sparse|unknown": {
+      "pieces": 8,
+      "games": 8,
+      "all_axes_agree": 5
+    },
+    "low|driving|unknown": {
+      "pieces": 7,
+      "games": 7,
+      "all_axes_agree": 2
+    },
+    "low|moderate|variation": {
+      "pieces": 7,
+      "games": 7,
+      "all_axes_agree": 3
+    },
+    "medium|driving|unknown": {
+      "pieces": 7,
+      "games": 7,
+      "all_axes_agree": 0
+    },
+    "medium|moderate|contrast": {
+      "pieces": 6,
+      "games": 6,
+      "all_axes_agree": 1
+    },
+    "unknown|driving|unknown": {
+      "pieces": 5,
+      "games": 5,
+      "all_axes_agree": 1
+    }
+  },
+  "target_combination": {
+    "labels": [
+      "high",
+      "driving",
+      "variation"
+    ],
+    "train_pieces": 4,
+    "train_games": 4,
+    "all_axes_survive_roundtrip": 0
+  },
+  "axis_combinations": {
+    "motif": {
+      "low": {
+        "pieces_original": 92,
+        "pieces_roundtrip": 102,
+        "games_original": 74
+      },
+      "high": {
+        "pieces_original": 70,
+        "pieces_roundtrip": 58,
+        "games_original": 54
+      },
+      "medium": {
+        "pieces_original": 69,
+        "pieces_roundtrip": 59,
+        "games_original": 57
+      }
+    },
+    "rhythm": {
+      "moderate": {
+        "pieces_original": 155,
+        "pieces_roundtrip": 140,
+        "games_original": 104
+      },
+      "sparse": {
+        "pieces_original": 96,
+        "pieces_roundtrip": 129,
+        "games_original": 69
+      },
+      "driving": {
+        "pieces_original": 38,
+        "pieces_roundtrip": 17,
+        "games_original": 31
+      }
+    },
+    "phrase": {
+      "variation": {
+        "pieces_original": 51,
+        "pieces_roundtrip": 45,
+        "games_original": 45
+      },
+      "stable": {
+        "pieces_original": 40,
+        "pieces_roundtrip": 54,
+        "games_original": 36
+      },
+      "contrast": {
+        "pieces_original": 11,
+        "pieces_roundtrip": 7,
+        "games_original": 10
+      }
+    },
+    "motif+rhythm": {
+      "low|moderate": {
+        "pieces_original": 49,
+        "pieces_roundtrip": 46,
+        "games_original": 44
+      },
+      "high|moderate": {
+        "pieces_original": 47,
+        "pieces_roundtrip": 35,
+        "games_original": 40
+      },
+      "medium|moderate": {
+        "pieces_original": 36,
+        "pieces_roundtrip": 32,
+        "games_original": 31
+      },
+      "low|sparse": {
+        "pieces_original": 32,
+        "pieces_roundtrip": 46,
+        "games_original": 27
+      },
+      "medium|sparse": {
+        "pieces_original": 20,
+        "pieces_roundtrip": 24,
+        "games_original": 19
+      },
+      "high|sparse": {
+        "pieces_original": 14,
+        "pieces_roundtrip": 20,
+        "games_original": 13
+      },
+      "medium|driving": {
+        "pieces_original": 13,
+        "pieces_roundtrip": 3,
+        "games_original": 12
+      },
+      "low|driving": {
+        "pieces_original": 11,
+        "pieces_roundtrip": 10,
+        "games_original": 11
+      },
+      "high|driving": {
+        "pieces_original": 9,
+        "pieces_roundtrip": 3,
+        "games_original": 8
+      }
+    },
+    "motif+phrase": {
+      "high|variation": {
+        "pieces_original": 21,
+        "pieces_roundtrip": 15,
+        "games_original": 19
+      },
+      "high|stable": {
+        "pieces_original": 17,
+        "pieces_roundtrip": 20,
+        "games_original": 17
+      },
+      "medium|stable": {
+        "pieces_original": 16,
+        "pieces_roundtrip": 19,
+        "games_original": 16
+      },
+      "medium|variation": {
+        "pieces_original": 15,
+        "pieces_roundtrip": 16,
+        "games_original": 14
+      },
+      "low|variation": {
+        "pieces_original": 15,
+        "pieces_roundtrip": 14,
+        "games_original": 14
+      },
+      "low|stable": {
+        "pieces_original": 7,
+        "pieces_roundtrip": 15,
+        "games_original": 7
+      },
+      "medium|contrast": {
+        "pieces_original": 6,
+        "pieces_roundtrip": 2,
+        "games_original": 6
+      },
+      "high|contrast": {
+        "pieces_original": 5,
+        "pieces_roundtrip": 5,
+        "games_original": 5
+      }
+    },
+    "rhythm+phrase": {
+      "moderate|variation": {
+        "pieces_original": 28,
+        "pieces_roundtrip": 26,
+        "games_original": 26
+      },
+      "moderate|stable": {
+        "pieces_original": 27,
+        "pieces_roundtrip": 29,
+        "games_original": 25
+      },
+      "sparse|variation": {
+        "pieces_original": 13,
+        "pieces_roundtrip": 17,
+        "games_original": 12
+      },
+      "driving|variation": {
+        "pieces_original": 10,
+        "pieces_roundtrip": 2,
+        "games_original": 10
+      },
+      "moderate|contrast": {
+        "pieces_original": 10,
+        "pieces_roundtrip": 5,
+        "games_original": 9
+      },
+      "sparse|stable": {
+        "pieces_original": 8,
+        "pieces_roundtrip": 18,
+        "games_original": 7
+      },
+      "driving|stable": {
+        "pieces_original": 5,
+        "pieces_roundtrip": 7,
+        "games_original": 5
+      },
+      "driving|contrast": {
+        "pieces_original": 1,
+        "pieces_roundtrip": 1,
+        "games_original": 1
+      },
+      "sparse|contrast": {
+        "pieces_original": 0,
+        "pieces_roundtrip": 1,
+        "games_original": 0
+      }
+    },
+    "motif+rhythm+phrase": {
+      "high|moderate|stable": {
+        "pieces_original": 14,
+        "pieces_roundtrip": 11,
+        "games_original": 14
+      },
+      "high|moderate|variation": {
+        "pieces_original": 13,
+        "pieces_roundtrip": 10,
+        "games_original": 11
+      },
+      "medium|moderate|variation": {
+        "pieces_original": 8,
+        "pieces_roundtrip": 9,
+        "games_original": 8
+      },
+      "medium|moderate|stable": {
+        "pieces_original": 8,
+        "pieces_roundtrip": 10,
+        "games_original": 8
+      },
+      "low|moderate|variation": {
+        "pieces_original": 7,
+        "pieces_roundtrip": 7,
+        "games_original": 7
+      },
+      "medium|moderate|contrast": {
+        "pieces_original": 6,
+        "pieces_roundtrip": 1,
+        "games_original": 6
+      },
+      "medium|sparse|stable": {
+        "pieces_original": 5,
+        "pieces_roundtrip": 7,
+        "games_original": 5
+      },
+      "low|sparse|variation": {
+        "pieces_original": 5,
+        "pieces_roundtrip": 6,
+        "games_original": 5
+      },
+      "low|moderate|stable": {
+        "pieces_original": 5,
+        "pieces_roundtrip": 8,
+        "games_original": 5
+      },
+      "high|driving|variation": {
+        "pieces_original": 4,
+        "pieces_roundtrip": 1,
+        "games_original": 4
+      },
+      "medium|sparse|variation": {
+        "pieces_original": 4,
+        "pieces_roundtrip": 7,
+        "games_original": 4
+      },
+      "high|sparse|variation": {
+        "pieces_original": 4,
+        "pieces_roundtrip": 4,
+        "games_original": 4
+      },
+      "high|moderate|contrast": {
+        "pieces_original": 4,
+        "pieces_roundtrip": 4,
+        "games_original": 4
+      },
+      "medium|driving|variation": {
+        "pieces_original": 3,
+        "pieces_roundtrip": 0,
+        "games_original": 3
+      },
+      "medium|driving|stable": {
+        "pieces_original": 3,
+        "pieces_roundtrip": 2,
+        "games_original": 3
+      },
+      "low|driving|variation": {
+        "pieces_original": 3,
+        "pieces_roundtrip": 1,
+        "games_original": 3
+      },
+      "high|sparse|stable": {
+        "pieces_original": 2,
+        "pieces_roundtrip": 7,
+        "games_original": 2
+      },
+      "low|sparse|stable": {
+        "pieces_original": 1,
+        "pieces_roundtrip": 4,
+        "games_original": 1
+      },
+      "low|driving|stable": {
+        "pieces_original": 1,
+        "pieces_roundtrip": 3,
+        "games_original": 1
+      },
+      "high|driving|contrast": {
+        "pieces_original": 1,
+        "pieces_roundtrip": 0,
+        "games_original": 1
+      },
+      "high|driving|stable": {
+        "pieces_original": 1,
+        "pieces_roundtrip": 2,
+        "games_original": 1
+      },
+      "high|sparse|contrast": {
+        "pieces_original": 0,
+        "pieces_roundtrip": 1,
+        "games_original": 0
+      },
+      "medium|driving|contrast": {
+        "pieces_original": 0,
+        "pieces_roundtrip": 1,
+        "games_original": 0
+      }
+    }
+  },
+  "phrase_thresholds": {
+    "population": "all phrase pairs within train pieces, pooled unweighted; pairs inside one composition are correlated, so pooled percentiles are dominated by a few long repetitive pieces",
+    "n_pieces": 205,
+    "n_pairs": 82295,
+    "median": 0.1091,
+    "p90": 0.3235,
+    "p99": 0.8889,
+    "piece_weighted_median": 0.2,
+    "share_above_related": 0.0556,
+    "share_above_same": 0.0083,
+    "by_length": {
+      "2-3": {
+        "n_pairs": 82,
+        "median": 0.286,
+        "p90": 0.6391,
+        "share_above_related": 0.2195
+      },
+      "4-6": {
+        "n_pairs": 503,
+        "median": 0.2462,
+        "p90": 0.7852,
+        "share_above_related": 0.2366
+      },
+      "7-12": {
+        "n_pairs": 2859,
+        "median": 0.2086,
+        "p90": 0.6867,
+        "share_above_related": 0.1973
+      },
+      "13+": {
+        "n_pairs": 78851,
+        "median": 0.1067,
+        "p90": 0.3038,
+        "share_above_related": 0.0491
+      }
+    }
+  }
+}
