@@ -103,6 +103,18 @@ class Accumulator:
     density_original: list[float] = field(default_factory=list)
     density_reconstructed: list[float] = field(default_factory=list)
     overlaps_before_repair: int = 0
+    #: Errors restricted to events every codec under test retained, so the
+    #: timing columns compare identical music rather than each codec's own
+    #: easiest survivors.
+    common_onset: list[float] = field(default_factory=list)
+    common_duration: list[float] = field(default_factory=list)
+    #: Encode-side grid quantization error: how far the codec's own grid moved
+    #: each onset, with no tempo-label drift in it. This is the quantity the
+    #: codecs actually differ in. The absolute columns above also carry the
+    #: Tempo token's bucket error, which accumulates over a window and is the
+    #: same for every codec -- enough to hide the grid difference entirely.
+    grid_onset: list[float] = field(default_factory=list)
+    tempo_rel_error: list[float] = field(default_factory=list)
 
     def add(self, metrics: FidelityMetrics, *, overlaps: int) -> None:
         self.n_pieces += 1
@@ -143,6 +155,11 @@ class Accumulator:
             },
             "n_by_class": {name: self.total_by_class[name] for name in CLASSES},
             "onset_mae_sec": summarize(self.onset_mae),
+            "grid_onset_mae_sec": summarize(self.grid_onset),
+            "tempo_rel_error": summarize([abs(e) for e in self.tempo_rel_error]),
+            "common_onset_mae_sec": summarize(self.common_onset),
+            "common_duration_mae_sec": summarize(self.common_duration),
+            "n_common_events": len(self.common_onset),
             "onset_p95_sec": summarize(self.onset_p95),
             "duration_mae_sec": summarize(self.duration_mae),
             "ioi_entropy_retained": summarize(self.ioi_retained),
@@ -213,6 +230,13 @@ def main() -> int:
     parser.add_argument("--k", type=int, nargs="+", default=[2, 4, 8])
     parser.add_argument("--codecs", nargs="+", default=["A", "B", "C", "D"])
     parser.add_argument("--out", type=Path, default=Path("codec_comparison.json"))
+    parser.add_argument(
+        "--render",
+        type=int,
+        default=0,
+        help="render this many pieces per codec, plus the original, for listening",
+    )
+    parser.add_argument("--render-dir", type=Path, default=Path("codec_audio"))
     args = parser.parse_args()
 
     if args.split == "test" and not args.allow_test:
@@ -260,6 +284,7 @@ def main() -> int:
             classes = classify_events(source, row_ticks=row_ticks, events=events).labels
             # The window's own grid, taken from the parent piece so every
             # codec and every window agrees about where the rows are.
+            per_codec: dict[str, Any] = {}
             for spec in specs:
                 tokenizer = tokenizers[spec.label]
                 fit = type(tokenizer.fit_grid(source))(
@@ -292,6 +317,27 @@ def main() -> int:
                 acc.density_reconstructed.append(
                     sum(1 for e in reconstructed if isinstance(e, Note) and e.channel_id != "NO")
                 )
+                if encoded.n_encoded:
+                    acc.grid_onset.append(
+                        encoded.total_start_error_ticks / encoded.n_encoded * original_spt
+                    )
+                acc.tempo_rel_error.append(
+                    tokenizer.tempo_token_value(fit.bpm) / fit.bpm - 1.0 if fit.bpm else 0.0
+                )
+                per_codec[spec.label] = metrics
+
+            # Timing on the events every codec kept. Without this the means
+            # describe different sets of music: codec A's survivors are its
+            # easiest events, which is why raw onset MAE came out flat while
+            # retention differed by 18 points.
+            if per_codec:
+                common = set.intersection(
+                    *(set(m.onset_error_by_index) for m in per_codec.values())
+                )
+                for label, metrics in per_codec.items():
+                    acc = accumulators[label]
+                    acc.common_onset.extend(metrics.onset_error_by_index[i] for i in common)
+                    acc.common_duration.extend(metrics.duration_error_by_index[i] for i in common)
         if index % 20 == 0:
             print(f"          : {index}/{len(entries)} pieces", flush=True)
 

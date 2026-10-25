@@ -213,6 +213,16 @@ class FidelityMetrics:
     note_length_cv_original: float = 0.0
     note_length_cv_reconstructed: float = 0.0
     n_tokens: int = 0
+    #: Per-original-event errors, keyed by index into the original stream.
+    #:
+    #: Needed because a mean over each codec's own survivors is not a
+    #: like-for-like comparison: a codec that retains 64% of events keeps the
+    #: easy ones, and a codec that retains 81% is also placing the events the
+    #: first one dropped. Measured that way, onset MAE came out flat at 40.7 ms
+    #: for both codec A and C8 while retention differed by 18 points. A caller
+    #: intersects these keys across codecs to compare on identical events.
+    onset_error_by_index: dict[int, float] = field(default_factory=dict)
+    duration_error_by_index: dict[int, float] = field(default_factory=dict)
 
     @property
     def ioi_entropy_retained(self) -> float:
@@ -274,16 +284,18 @@ def measure_fidelity(
         reconstructed_scale=reconstructed_sec_per_tick,
     )
 
-    onset_errors: list[float] = []
-    duration_errors: list[float] = []
+    onset_by_index: dict[int, float] = {}
+    duration_by_index: dict[int, float] = {}
     for oi, ri in result.pairs:
         o, r = original[oi], reconstructed[ri]
-        onset_errors.append(
-            abs(o.tick * original_sec_per_tick - r.tick * reconstructed_sec_per_tick)
+        onset_by_index[oi] = abs(
+            o.tick * original_sec_per_tick - r.tick * reconstructed_sec_per_tick
         )
-        duration_errors.append(
-            abs(o.duration * original_sec_per_tick - r.duration * reconstructed_sec_per_tick)
+        duration_by_index[oi] = abs(
+            o.duration * original_sec_per_tick - r.duration * reconstructed_sec_per_tick
         )
+    onset_errors = list(onset_by_index.values())
+    duration_errors = list(duration_by_index.values())
 
     matched_original = {oi for oi, _ in result.pairs}
     totals: Counter[str] = Counter(classes)
@@ -312,6 +324,8 @@ def measure_fidelity(
             [e.duration * reconstructed_sec_per_tick for e in reconstructed]
         ),
         n_tokens=n_tokens,
+        onset_error_by_index=onset_by_index,
+        duration_error_by_index=duration_by_index,
     )
     return metrics
 

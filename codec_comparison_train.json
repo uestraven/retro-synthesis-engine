@@ -1,0 +1,629 @@
+{
+  "corpus": {
+    "source": "dataset",
+    "n_compositions": 600,
+    "n_skipped": 841,
+    "per_split": {
+      "train": 600
+    },
+    "synthetic": false,
+    "detail": {
+      "dataset_id": "nesmdb",
+      "release_id": "midi",
+      "exclude_duplicates": true,
+      "require_compliant": false,
+      "splits": [
+        "train"
+      ],
+      "splits_from_index": true
+    }
+  },
+  "split": "train",
+  "window_bars": 8,
+  "context_limit": 2304,
+  "n_pieces_declined_no_row": 70,
+  "vocab_size": {
+    "A": 272,
+    "B2": 274,
+    "B4": 276,
+    "B8": 280,
+    "C2": 288,
+    "C4": 320,
+    "C8": 384,
+    "D2": 320,
+    "D4": 416,
+    "D8": 608
+  },
+  "codecs": {
+    "A": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.63607,
+      "n_missing": 137098,
+      "n_spurious": 12049,
+      "spurious_rate": 0.03198,
+      "n_truncated_for_monophony": 1130,
+      "overlaps_before_repair": 1130,
+      "recall_by_class": {
+        "attack": 0.89517,
+        "arpeggio": 0.09436,
+        "vibrato": 0.18319,
+        "retrigger": 0.33633,
+        "passage": 0.17418
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.040681,
+        "p95": 0.146102,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.077881,
+        "p95": 0.340897,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.049208,
+        "p95": 0.145264,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.196999,
+        "p95": 0.756896,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.7958
+      },
+      "tokens": {
+        "median": 954,
+        "p90": 1648,
+        "max": 2198,
+        "over_context": 0,
+        "over_context_share": 0.0
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 154
+      }
+    },
+    "B2": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.69994,
+      "n_missing": 113037,
+      "n_spurious": 14147,
+      "spurious_rate": 0.03755,
+      "n_truncated_for_monophony": 55784,
+      "overlaps_before_repair": 55784,
+      "recall_by_class": {
+        "attack": 0.92601,
+        "arpeggio": 0.19836,
+        "vibrato": 0.32607,
+        "retrigger": 0.55988,
+        "passage": 0.3136
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.03734,
+        "p95": 0.147327,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.070797,
+        "p95": 0.340875,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.041535,
+        "p95": 0.114349,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.430589,
+        "p95": 0.868109,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.8824
+      },
+      "tokens": {
+        "median": 1120,
+        "p90": 2078,
+        "max": 3265,
+        "over_context": 63,
+        "over_context_share": 0.05371
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 162
+      }
+    },
+    "B4": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.75832,
+      "n_missing": 91046,
+      "n_spurious": 15305,
+      "spurious_rate": 0.04063,
+      "n_truncated_for_monophony": 93241,
+      "overlaps_before_repair": 93241,
+      "recall_by_class": {
+        "attack": 0.93189,
+        "arpeggio": 0.31117,
+        "vibrato": 0.5073,
+        "retrigger": 0.82735,
+        "passage": 0.50127
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.039321,
+        "p95": 0.151315,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.072457,
+        "p95": 0.341674,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.037017,
+        "p95": 0.112501,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.649842,
+        "p95": 1.0,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.9249
+      },
+      "tokens": {
+        "median": 1202,
+        "p90": 2407,
+        "max": 5269,
+        "over_context": 137,
+        "over_context_share": 0.11679
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 166
+      }
+    },
+    "B8": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.81435,
+      "n_missing": 69939,
+      "n_spurious": 16704,
+      "spurious_rate": 0.04434,
+      "n_truncated_for_monophony": 132794,
+      "overlaps_before_repair": 132794,
+      "recall_by_class": {
+        "attack": 0.93419,
+        "arpeggio": 0.39794,
+        "vibrato": 0.64635,
+        "retrigger": 0.86327,
+        "passage": 0.72523
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.040656,
+        "p95": 0.144531,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.072293,
+        "p95": 0.34166,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.033426,
+        "p95": 0.107407,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.757133,
+        "p95": 1.126118,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.978
+      },
+      "tokens": {
+        "median": 1226,
+        "p90": 2743,
+        "max": 7289,
+        "over_context": 182,
+        "over_context_share": 0.15516
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 170
+      }
+    },
+    "C2": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.69994,
+      "n_missing": 113037,
+      "n_spurious": 14147,
+      "spurious_rate": 0.03755,
+      "n_truncated_for_monophony": 55784,
+      "overlaps_before_repair": 55784,
+      "recall_by_class": {
+        "attack": 0.92601,
+        "arpeggio": 0.19836,
+        "vibrato": 0.32607,
+        "retrigger": 0.55988,
+        "passage": 0.3136
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.03734,
+        "p95": 0.147327,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.070797,
+        "p95": 0.340875,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.041535,
+        "p95": 0.114349,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.430589,
+        "p95": 0.868109,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.8824
+      },
+      "tokens": {
+        "median": 1007,
+        "p90": 1887,
+        "max": 3015,
+        "over_context": 38,
+        "over_context_share": 0.0324
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 162
+      }
+    },
+    "C4": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.75832,
+      "n_missing": 91046,
+      "n_spurious": 15305,
+      "spurious_rate": 0.04063,
+      "n_truncated_for_monophony": 93241,
+      "overlaps_before_repair": 93241,
+      "recall_by_class": {
+        "attack": 0.93189,
+        "arpeggio": 0.31117,
+        "vibrato": 0.5073,
+        "retrigger": 0.82735,
+        "passage": 0.50127
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.039321,
+        "p95": 0.151315,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.072457,
+        "p95": 0.341674,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.037017,
+        "p95": 0.112501,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.649842,
+        "p95": 1.0,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.9249
+      },
+      "tokens": {
+        "median": 1071,
+        "p90": 2141,
+        "max": 4757,
+        "over_context": 93,
+        "over_context_share": 0.07928
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 166
+      }
+    },
+    "C8": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.81435,
+      "n_missing": 69939,
+      "n_spurious": 16704,
+      "spurious_rate": 0.04434,
+      "n_truncated_for_monophony": 132794,
+      "overlaps_before_repair": 132794,
+      "recall_by_class": {
+        "attack": 0.93419,
+        "arpeggio": 0.39794,
+        "vibrato": 0.64635,
+        "retrigger": 0.86327,
+        "passage": 0.72523
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.040656,
+        "p95": 0.144531,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.072293,
+        "p95": 0.34166,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.033426,
+        "p95": 0.107407,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.757133,
+        "p95": 1.126118,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 0.978
+      },
+      "tokens": {
+        "median": 1086,
+        "p90": 2424,
+        "max": 6521,
+        "over_context": 143,
+        "over_context_share": 0.12191
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 170
+      }
+    },
+    "D2": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.69994,
+      "n_missing": 113037,
+      "n_spurious": 14147,
+      "spurious_rate": 0.03755,
+      "n_truncated_for_monophony": 3366,
+      "overlaps_before_repair": 3366,
+      "recall_by_class": {
+        "attack": 0.92601,
+        "arpeggio": 0.19836,
+        "vibrato": 0.32607,
+        "retrigger": 0.55988,
+        "passage": 0.3136
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.03734,
+        "p95": 0.147327,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.070797,
+        "p95": 0.340875,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.022854,
+        "p95": 0.0686,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.430589,
+        "p95": 0.868109,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 1.0577
+      },
+      "tokens": {
+        "median": 1007,
+        "p90": 1887,
+        "max": 3015,
+        "over_context": 38,
+        "over_context_share": 0.0324
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 162
+      }
+    },
+    "D4": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.75832,
+      "n_missing": 91046,
+      "n_spurious": 15305,
+      "spurious_rate": 0.04063,
+      "n_truncated_for_monophony": 5451,
+      "overlaps_before_repair": 5451,
+      "recall_by_class": {
+        "attack": 0.93189,
+        "arpeggio": 0.31117,
+        "vibrato": 0.5073,
+        "retrigger": 0.82735,
+        "passage": 0.50127
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.039321,
+        "p95": 0.151315,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.072457,
+        "p95": 0.341674,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.010968,
+        "p95": 0.045023,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.649842,
+        "p95": 1.0,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 1.1965
+      },
+      "tokens": {
+        "median": 1071,
+        "p90": 2141,
+        "max": 4757,
+        "over_context": 93,
+        "over_context_share": 0.07928
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 166
+      }
+    },
+    "D8": {
+      "n_pieces": 1173,
+      "n_original_events": 376720,
+      "event_recall": 0.81435,
+      "n_missing": 69939,
+      "n_spurious": 16704,
+      "spurious_rate": 0.04434,
+      "n_truncated_for_monophony": 6888,
+      "overlaps_before_repair": 6888,
+      "recall_by_class": {
+        "attack": 0.93419,
+        "arpeggio": 0.39794,
+        "vibrato": 0.64635,
+        "retrigger": 0.86327,
+        "passage": 0.72523
+      },
+      "n_by_class": {
+        "attack": 246618,
+        "arpeggio": 51473,
+        "vibrato": 15880,
+        "retrigger": 1002,
+        "passage": 61747
+      },
+      "onset_mae_sec": {
+        "median": 0.040656,
+        "p95": 0.144531,
+        "n": 1173
+      },
+      "onset_p95_sec": {
+        "median": 0.072293,
+        "p95": 0.34166,
+        "n": 1173
+      },
+      "duration_mae_sec": {
+        "median": 0.00674,
+        "p95": 0.040553,
+        "n": 1173
+      },
+      "ioi_entropy_retained": {
+        "median": 0.757133,
+        "p95": 1.126118,
+        "n": 1173
+      },
+      "note_length_cv": {
+        "original_median": 1.3209,
+        "reconstructed_median": 1.2546
+      },
+      "tokens": {
+        "median": 1086,
+        "p90": 2424,
+        "max": 6521,
+        "over_context": 143,
+        "over_context_share": 0.12191
+      },
+      "melodic_density_per_8_bars": {
+        "original_median": 195,
+        "reconstructed_median": 170
+      }
+    }
+  }
+}
