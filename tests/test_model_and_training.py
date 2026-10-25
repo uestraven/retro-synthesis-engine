@@ -8,6 +8,7 @@ produces good music; that is what `rse evaluate` is for.
 from __future__ import annotations
 
 import dataclasses
+
 import pytest
 
 torch = pytest.importorskip("torch")

@@ -1,0 +1,182 @@
+{
+  "corpus": {
+    "source": "dataset",
+    "n_compositions": 400,
+    "n_skipped": 841,
+    "per_split": {
+      "train": 400
+    },
+    "synthetic": false,
+    "detail": {
+      "dataset_id": "nesmdb",
+      "release_id": "midi",
+      "exclude_duplicates": true,
+      "require_compliant": false,
+      "splits": [
+        "train"
+      ],
+      "splits_from_index": true
+    }
+  },
+  "split": "train",
+  "window_bars": 8,
+  "drum_key_shift": 1,
+  "n_declined_no_row": 39,
+  "rse_onset_unit": "beat/16",
+  "percussion_round_trip": {
+    "no_shift": {
+      "drum_key_shift": 0,
+      "n_periods": 16,
+      "n_exact": 16,
+      "n_wrong_period": 0,
+      "n_lost": 0,
+      "mapping": {
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7,
+        "8": 8,
+        "9": 9,
+        "10": 10,
+        "11": 11,
+        "12": 12,
+        "13": 13,
+        "14": 14,
+        "15": 15,
+        "16": 16
+      }
+    },
+    "fermata_plus_one": {
+      "drum_key_shift": 1,
+      "n_periods": 16,
+      "n_exact": 0,
+      "n_wrong_period": 0,
+      "n_lost": 16,
+      "mapping": {
+        "1": null,
+        "2": null,
+        "3": null,
+        "4": null,
+        "5": null,
+        "6": null,
+        "7": null,
+        "8": null,
+        "9": null,
+        "10": null,
+        "11": null,
+        "12": null,
+        "13": null,
+        "14": null,
+        "15": null,
+        "16": null
+      }
+    }
+  },
+  "resolutions": {
+    "8": {
+      "n_windows": 827,
+      "n_original_events": 223925,
+      "event_recall": 0.69011,
+      "spurious_rate": 0.0,
+      "recall_by_class": {
+        "attack": 0.80927,
+        "arpeggio": 0.93363,
+        "vibrato": 0.99843,
+        "retrigger": 0.08665,
+        "passage": 0.49818
+      },
+      "recall_by_channel": {
+        "NO": 0.0,
+        "P1": 0.93924,
+        "P2": 0.93397,
+        "TR": 0.93748
+      },
+      "n_by_channel": {
+        "P1": 51433,
+        "P2": 51580,
+        "TR": 61921,
+        "NO": 58991
+      },
+      "onset_mae_ms": 12.196,
+      "onset_p95_ms": 23.829,
+      "duration_mae_ms": 15.761,
+      "ioi_entropy_retained": 0.7777,
+      "note_length_cv": 1.0497,
+      "melodic_density_in": 181,
+      "melodic_density_out": 178,
+      "onset_collisions": 17221,
+      "percussion_lost_in_conversion": 52172
+    },
+    "24": {
+      "n_windows": 827,
+      "n_original_events": 223925,
+      "event_recall": 0.73656,
+      "spurious_rate": 0.0,
+      "recall_by_class": {
+        "attack": 0.80952,
+        "arpeggio": 1.0,
+        "vibrato": 1.0,
+        "retrigger": 0.08665,
+        "passage": 0.53977
+      },
+      "recall_by_channel": {
+        "NO": 0.0,
+        "P1": 1.0,
+        "P2": 1.0,
+        "TR": 1.0
+      },
+      "n_by_channel": {
+        "P1": 51433,
+        "P2": 51580,
+        "TR": 61921,
+        "NO": 58991
+      },
+      "onset_mae_ms": 4.548,
+      "onset_p95_ms": 8.78,
+      "duration_mae_ms": 5.527,
+      "ioi_entropy_retained": 1.1385,
+      "note_length_cv": 1.1331,
+      "melodic_density_in": 181,
+      "melodic_density_out": 181,
+      "onset_collisions": 0,
+      "percussion_lost_in_conversion": 58991
+    },
+    "48": {
+      "n_windows": 827,
+      "n_original_events": 223925,
+      "event_recall": 0.73656,
+      "spurious_rate": 0.0,
+      "recall_by_class": {
+        "attack": 0.80952,
+        "arpeggio": 1.0,
+        "vibrato": 1.0,
+        "retrigger": 0.08665,
+        "passage": 0.53977
+      },
+      "recall_by_channel": {
+        "NO": 0.0,
+        "P1": 1.0,
+        "P2": 1.0,
+        "TR": 1.0
+      },
+      "n_by_channel": {
+        "P1": 51433,
+        "P2": 51580,
+        "TR": 61921,
+        "NO": 58991
+      },
+      "onset_mae_ms": 2.322,
+      "onset_p95_ms": 4.369,
+      "duration_mae_ms": 0.453,
+      "ioi_entropy_retained": 1.0109,
+      "note_length_cv": 1.1156,
+      "melodic_density_in": 181,
+      "melodic_density_out": 181,
+      "onset_collisions": 0,
+      "percussion_lost_in_conversion": 58991
+    }
+  }
+}
