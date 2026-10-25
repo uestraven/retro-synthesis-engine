@@ -1,0 +1,57 @@
+{
+  "aligned_grid": true,
+  "build_commit": "7c3e3c9fc49dc5247da842c94339eb4cc5798e12",
+  "codec": "D",
+  "conditioning_grammar_version": "rse-prefix/1.0.0-motif",
+  "context_tokens": 3072,
+  "corpus": {
+    "detail": {
+      "dataset_id": "nesmdb",
+      "exclude_duplicates": true,
+      "release_id": "midi",
+      "require_compliant": false,
+      "splits": null,
+      "splits_from_index": true
+    },
+    "n_compositions": 5205,
+    "n_skipped": 73,
+    "per_split": {
+      "test": 370,
+      "train": 4437,
+      "valid": 398
+    },
+    "source": "dataset",
+    "synthetic": false
+  },
+  "corpus_hash": "88458232d61f06573c221ad01e0c35b67418128f9135e483a7e726c8f4036066",
+  "emit_sections": true,
+  "n_fragments": 348,
+  "n_windows": 11151,
+  "overflow_policy": "split-at-bar-boundaries",
+  "per_split": {
+    "test": 679,
+    "train": 9702,
+    "valid": 770
+  },
+  "prefix_schema": [
+    "<bos>",
+    "Hardware_",
+    "Mood_",
+    "Energy_",
+    "Tempo_",
+    "Length_",
+    "Motif_"
+  ],
+  "representation_id": "rse-repr/1.0.0-d4k4-tempo1.01",
+  "rse_version": "0.1.0.dev0",
+  "source_manifest_hash": "3511c19ef29ced2d071381c6f6725761b4b4e6b258d02307694ab196a2f51d2f",
+  "steps_per_bar": 16,
+  "sub_row_divisions": 4,
+  "tempo_max": 380,
+  "tempo_min": 20,
+  "tempo_ratio": 1.01,
+  "vocab_hash": "ac331d2f71bc68c9bad321e393722f4127432504fb6651c5524f4208c58f7904",
+  "vocab_size": 555,
+  "vocab_version": "rse-vocab/1.4.0",
+  "window_bars": 8
+}

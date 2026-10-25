@@ -1,0 +1,160 @@
+{
+  "cache": "caches/d4_full.jsonl",
+  "ok": true,
+  "checks": [
+    {
+      "name": "semantic cache contract",
+      "passed": true,
+      "note": "all fields match the frozen tokenizer"
+    },
+    {
+      "name": "representation id",
+      "passed": true,
+      "note": "'rse-repr/1.0.0-d4k4-tempo1.01'"
+    },
+    {
+      "name": "vocabulary hash",
+      "passed": true,
+      "note": "ac331d2f71bc68c9 (555 tokens)"
+    },
+    {
+      "name": "source is the real dataset",
+      "passed": true,
+      "note": "source='dataset' synthetic=False generated-id windows=0"
+    },
+    {
+      "name": "no composition appears in two splits",
+      "passed": true,
+      "note": "windows {'test': 679, 'train': 9702, 'valid': 770}"
+    },
+    {
+      "name": "every window fits 3072 tokens",
+      "passed": true,
+      "note": "max 3069, over 0"
+    },
+    {
+      "name": "fragments carry complete provenance",
+      "passed": true,
+      "note": "348 fragments from 174 split windows"
+    },
+    {
+      "name": "fragment groups cover their window with no gap or overlap",
+      "passed": true,
+      "note": "174 groups checked"
+    },
+    {
+      "name": "cache keys are unique",
+      "passed": true,
+      "note": "0 duplicated"
+    },
+    {
+      "name": "position 6 holds a Motif token in every sampled window",
+      "passed": true,
+      "note": "0 wrong"
+    },
+    {
+      "name": "foundation is unconditioned: every Motif token is `unspecified`",
+      "passed": true,
+      "note": "{'unspecified': 2000}"
+    },
+    {
+      "name": "--mask-prefix 7 masks no musical token",
+      "passed": true,
+      "note": "0 windows mask music"
+    },
+    {
+      "name": "every sampled window is grammatical",
+      "passed": true,
+      "note": "0 rejected"
+    },
+    {
+      "name": "no fragment claims an inherited label",
+      "passed": true,
+      "note": "348 fragments checked"
+    }
+  ],
+  "detail": {
+    "contract": {
+      "rse_version": "0.1.0.dev0",
+      "build_commit": "7c3e3c9fc49dc5247da842c94339eb4cc5798e12",
+      "vocab_version": "rse-vocab/1.4.0",
+      "vocab_hash": "ac331d2f71bc68c9bad321e393722f4127432504fb6651c5524f4208c58f7904",
+      "vocab_size": 555,
+      "codec": "D",
+      "sub_row_divisions": 4,
+      "steps_per_bar": 16,
+      "aligned_grid": true,
+      "representation_id": "rse-repr/1.0.0-d4k4-tempo1.01",
+      "conditioning_grammar_version": "rse-prefix/1.0.0-motif",
+      "tempo_ratio": 1.01,
+      "tempo_min": 20,
+      "tempo_max": 380,
+      "context_tokens": 3072,
+      "overflow_policy": "split-at-bar-boundaries",
+      "n_fragments": 348,
+      "source_manifest_hash": "3511c19ef29ced2d071381c6f6725761b4b4e6b258d02307694ab196a2f51d2f",
+      "emit_sections": true,
+      "prefix_schema": [
+        "<bos>",
+        "Hardware_",
+        "Mood_",
+        "Energy_",
+        "Tempo_",
+        "Length_",
+        "Motif_"
+      ],
+      "window_bars": 8,
+      "n_windows": 11151,
+      "per_split": {
+        "test": 679,
+        "train": 9702,
+        "valid": 770
+      },
+      "corpus": {
+        "detail": {
+          "dataset_id": "nesmdb",
+          "exclude_duplicates": true,
+          "release_id": "midi",
+          "require_compliant": false,
+          "splits": null,
+          "splits_from_index": true
+        },
+        "n_compositions": 5205,
+        "n_skipped": 73,
+        "per_split": {
+          "test": 370,
+          "train": 4437,
+          "valid": 398
+        },
+        "source": "dataset",
+        "synthetic": false
+      },
+      "corpus_hash": "88458232d61f06573c221ad01e0c35b67418128f9135e483a7e726c8f4036066"
+    },
+    "per_split_windows": {
+      "test": 679,
+      "train": 9702,
+      "valid": 770
+    },
+    "per_split_pieces": {
+      "test": 370,
+      "train": 4437,
+      "valid": 398
+    },
+    "tokens": {
+      "median": 888,
+      "p90": 2052,
+      "p99": 2866,
+      "max": 3069
+    },
+    "motif_values_in_cache": {
+      "unspecified": 2000
+    },
+    "unused_motif_values": [
+      "high",
+      "low",
+      "medium",
+      "unknown"
+    ]
+  }
+}
