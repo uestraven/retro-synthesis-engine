@@ -103,14 +103,48 @@ def corpus_distributions(cache: Path, tokenizer, *, split: str, limit: int) -> d
     return out
 
 
-def classify_termination(result, *, max_tokens: int, bars_requested: int, n_bars: int) -> str:
-    """Why generation stopped. These need different fixes."""
-    ids = result.ids
-    if len(ids) >= max_tokens:
+def bar_occupancy(composition, *, ticks_per_bar: int, n_bars: int) -> list[int]:
+    """Events in each requested bar, by index."""
+    counts = [0] * max(1, n_bars)
+    for event in composition.sounding_events():
+        index = event.tick // ticks_per_bar if ticks_per_bar else 0
+        if 0 <= index < len(counts):
+            counts[index] += 1
+    return counts
+
+
+def classify_termination(
+    result,
+    *,
+    max_tokens: int,
+    bars_requested: int,
+    bar_tokens: int,
+    occupancy: list[int],
+    ends_with_eos: bool,
+) -> str:
+    """Why the piece is the length it is.
+
+    The previous version called anything short of the requested bars
+    `early_eos_short`, which was wrong and misled a whole round of analysis.
+    The sampler **masks `<eos>` out of the legal set until the requested bar
+    count is emitted**, so the model cannot stop early. A short piece is one
+    whose later bars were emitted but left *empty* -- a different failure with
+    a different fix, and one EOS handling cannot touch.
+    """
+    if len(result.ids) >= max_tokens:
         return "token_budget_exhausted"
-    if n_bars < bars_requested:
-        return "early_eos_short"
-    return "eos_complete"
+    trailing_empty = 0
+    for count in reversed(occupancy):
+        if count:
+            break
+        trailing_empty += 1
+    if bar_tokens < bars_requested:
+        return "fewer_bar_tokens_than_requested"
+    if trailing_empty:
+        return "empty_trailing_bars"
+    if any(count == 0 for count in occupancy):
+        return "empty_interior_bars"
+    return "complete_all_bars_occupied" if ends_with_eos else "complete_no_eos"
 
 
 def main() -> int:
@@ -215,6 +249,16 @@ def main() -> int:
                 repeated_row, unique_row = repetition_metrics(
                     bar_signatures(final, quantize_ticks=row_ticks)
                 )
+                tokens = [tokenizer.vocabulary.token_of(i) for i in result.ids]
+                bar_tokens = sum(1 for t in tokens if t == "Bar")
+                ends_with_eos = bool(tokens) and tokens[-1] == "<eos>"
+                ticks_per_bar = row_ticks * tokenizer.config.steps_per_bar
+                occupancy = bar_occupancy(final, ticks_per_bar=int(ticks_per_bar), n_bars=args.bars)
+                trailing_empty = 0
+                for count in reversed(occupancy):
+                    if count:
+                        break
+                    trailing_empty += 1
                 by_channel = Counter(e.channel_id for e in events)
                 durations = Counter(e.duration for e in events)
                 onsets = sorted({e.tick for e in events})
@@ -229,10 +273,24 @@ def main() -> int:
                         result,
                         max_tokens=args.max_tokens,
                         bars_requested=args.bars,
-                        n_bars=metrics.n_bars,
+                        bar_tokens=bar_tokens,
+                        occupancy=occupancy,
+                        ends_with_eos=ends_with_eos,
                     ),
                     "n_bars": metrics.n_bars,
-                    "completed_8_bars": metrics.n_bars >= args.bars,
+                    "completed_8_bars": sum(1 for c in occupancy if c) >= args.bars,
+                    # The sampler masks <eos> until the requested bars are
+                    # emitted, so a short piece is one with empty late bars,
+                    # not one that stopped early. Recording both separately
+                    # because conflating them misdirected a round of analysis.
+                    "n_bar_tokens": bar_tokens,
+                    "ends_with_eos": ends_with_eos,
+                    "bars_with_content": sum(1 for c in occupancy if c),
+                    "empty_trailing_bars": trailing_empty,
+                    "bar_occupancy": occupancy,
+                    "min_bar_events": min(occupancy) if occupancy else 0,
+                    "held_from_stopping": bool(result.underran_length),
+                    "held_from_continuing": bool(result.overran_length),
                     "n_events": len(events),
                     "channels": {c: by_channel.get(c, 0) for c in ("P1", "P2", "TR", "NO")},
                     "n_channels_used": sum(1 for c in by_channel.values() if c),
@@ -352,8 +410,8 @@ def main() -> int:
     arms = sorted({r["structural_temperature"] for r in rows}, key=lambda v: (v is None, v))
     if len(arms) > 1 or True:
         hdr = (
-            f"\n{'structT':<10}{'n':>4}{'8bar%':>7}{'bars':>6}{'ev':>6}{'n/bar':>7}"
-            f"{'4chan':>7}{'perc%':>7}{'ioiH':>7}{'pitchH':>8}{'ngram':>7}"
+            f"\n{'structT':<10}{'n':>4}{'full%':>7}{'barsOK':>8}{'emptyT':>8}"
+            f"{'ev':>6}{'n/bar':>7}{'4chan':>7}{'perc%':>7}{'ioiH':>7}{'pitchH':>8}"
         )
         print(hdr)
         print("-" * (len(hdr) - 1))
@@ -364,14 +422,14 @@ def main() -> int:
             print(
                 f"{label:<10}{len(group):>4}"
                 f"{len(done) / len(group):>7.0%}"
-                f"{st.median([r['n_bars'] for r in group]):>6.1f}"
+                f"{st.median([r['bars_with_content'] for r in group]):>8.1f}"
+                f"{st.median([r['empty_trailing_bars'] for r in group]):>8.1f}"
                 f"{st.median([r['n_events'] for r in group]):>6.0f}"
                 f"{st.median([r['notes_per_bar'] for r in group]):>7.1f}"
                 f"{sum(1 for r in group if r['n_channels_used'] == 4) / len(group):>7.0%}"
                 f"{sum(1 for r in group if r['n_percussion'] > 0) / len(group):>7.0%}"
                 f"{st.median([r['ioi_entropy'] for r in group]):>7.2f}"
                 f"{st.median([r['pitch_class_entropy'] for r in group]):>8.2f}"
-                f"{st.median([r['ngram_repetition_rate'] for r in group]):>7.3f}"
             )
         # Completed-only, so premature endings cannot flatter the rhythm.
         print("\n  completed 8-bar samples only:")
