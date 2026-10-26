@@ -1,0 +1,2519 @@
+{
+  "n_pairs": 24,
+  "seeds": [
+    800,
+    801,
+    802,
+    803
+  ],
+  "treatment_in_a": 15,
+  "rhythms_chosen": {
+    "two_per_bar": 6,
+    "accelerating": 7,
+    "tonic_pedal": 3,
+    "two_bar_hold": 8
+  },
+  "truncation": {
+    "pairs_with_any": 2,
+    "total_notes": 32,
+    "total_rows": 256
+  },
+  "control_violations": 0,
+  "treatment_violations": 0,
+  "pairs": [
+    {
+      "name": "boss_s800",
+      "style": "boss",
+      "seed": 800,
+      "tempo_bpm": 150,
+      "mode": "harmonic_minor",
+      "key": "A",
+      "progression_numerals": "i - vii\u00b0 - bVI - V",
+      "progression_chords": "Am - G#dim - F - E",
+      "motif": {
+        "degrees": [
+          0,
+          2,
+          4,
+          2,
+          0,
+          -1
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          2,
+          2,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 887,
+        "n_melody_notes": 240,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 16,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 870,
+        "n_melody_notes": 224,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 23,
+          "first_bar_onsets": 22,
+          "first_bar_rms": 7021.8,
+          "final_bar_rms": 6631.5,
+          "energy_ratio": 1.059,
+          "boundary_step": 2953,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 13% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 22,
+          "first_bar_onsets": 22,
+          "first_bar_rms": 6808.3,
+          "final_bar_rms": 6846.8,
+          "energy_ratio": 0.994,
+          "boundary_step": 9645,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 42% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_15"
+    },
+    {
+      "name": "boss_s801",
+      "style": "boss",
+      "seed": 801,
+      "tempo_bpm": 150,
+      "mode": "harmonic_minor",
+      "key": "A",
+      "progression_numerals": "i - i - bVI - vii\u00b0",
+      "progression_chords": "Am - Am - F - G#dim",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          1
+        ],
+        "rhythm": [
+          2,
+          2,
+          2,
+          2,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 855,
+        "n_melody_notes": 208,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 871,
+        "n_melody_notes": 224,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 25,
+          "first_bar_onsets": 22,
+          "first_bar_rms": 6404.7,
+          "final_bar_rms": 6677.4,
+          "energy_ratio": 0.959,
+          "boundary_step": 3394,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 15% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 23,
+          "first_bar_onsets": 22,
+          "first_bar_rms": 6727.7,
+          "final_bar_rms": 7457.1,
+          "energy_ratio": 0.902,
+          "boundary_step": 1784,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_13"
+    },
+    {
+      "name": "boss_s802",
+      "style": "boss",
+      "seed": 802,
+      "tempo_bpm": 150,
+      "mode": "harmonic_minor",
+      "key": "A",
+      "progression_numerals": "i - vii\u00b0 - bVI - V",
+      "progression_chords": "Am - G#dim - F - E",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          3,
+          2,
+          0,
+          1
+        ],
+        "rhythm": [
+          2,
+          2,
+          2,
+          2,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 880,
+        "n_melody_notes": 232,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "tonic_pedal",
+        "pedal": true,
+        "chord_changes_per_section": 16,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 952,
+        "n_melody_notes": 304,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 23,
+          "first_bar_onsets": 22,
+          "first_bar_rms": 6879.3,
+          "final_bar_rms": 7222.5,
+          "energy_ratio": 0.952,
+          "boundary_step": 8197,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 35% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 26,
+          "first_bar_onsets": 24,
+          "first_bar_rms": 7812.1,
+          "final_bar_rms": 7366.3,
+          "energy_ratio": 1.061,
+          "boundary_step": 6124,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 26% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_12"
+    },
+    {
+      "name": "boss_s803",
+      "style": "boss",
+      "seed": 803,
+      "tempo_bpm": 150,
+      "mode": "harmonic_minor",
+      "key": "A",
+      "progression_numerals": "i - iv - V - i",
+      "progression_chords": "Am - Dm - E - Am",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          1
+        ],
+        "rhythm": [
+          2,
+          2,
+          2,
+          2,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 888,
+        "n_melody_notes": 240,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 16,
+        "bars": 40,
+        "duration_sec": 64.0,
+        "n_events": 984,
+        "n_melody_notes": 336,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 24,
+          "first_bar_onsets": 22,
+          "first_bar_rms": 7114.8,
+          "final_bar_rms": 7382.7,
+          "energy_ratio": 0.964,
+          "boundary_step": 2084,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 26,
+          "first_bar_onsets": 24,
+          "first_bar_rms": 7210.2,
+          "final_bar_rms": 7183.2,
+          "energy_ratio": 1.004,
+          "boundary_step": 1325,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_04"
+    },
+    {
+      "name": "action_s800",
+      "style": "action",
+      "seed": 800,
+      "tempo_bpm": 168,
+      "mode": "minor",
+      "key": "C",
+      "progression_numerals": "i - bVI - bIII - bVII",
+      "progression_chords": "Cm - Ab - Eb - Bb",
+      "motif": {
+        "degrees": [
+          0,
+          2,
+          4,
+          2,
+          0
+        ],
+        "rhythm": [
+          4,
+          2,
+          2,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1064,
+        "n_melody_notes": 176,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 16,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1112,
+        "n_melody_notes": 224,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 30,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 6442.6,
+          "final_bar_rms": 7054.9,
+          "energy_ratio": 0.913,
+          "boundary_step": 8370,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 36% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 28,
+          "first_bar_onsets": 27,
+          "first_bar_rms": 5971.6,
+          "final_bar_rms": 7206.0,
+          "energy_ratio": 0.829,
+          "boundary_step": 11236,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 48% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_05"
+    },
+    {
+      "name": "action_s801",
+      "style": "action",
+      "seed": 801,
+      "tempo_bpm": 168,
+      "mode": "minor",
+      "key": "C",
+      "progression_numerals": "i - bVI - bIII - bVII",
+      "progression_chords": "Cm - Ab - Eb - Bb",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          1
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          2,
+          2,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1073,
+        "n_melody_notes": 184,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1123,
+        "n_melody_notes": 236,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 30,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 6665.1,
+          "final_bar_rms": 6353.0,
+          "energy_ratio": 1.049,
+          "boundary_step": 7710,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 33% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 29,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 6625.6,
+          "final_bar_rms": 7233.7,
+          "energy_ratio": 0.916,
+          "boundary_step": 12102,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 52% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_14"
+    },
+    {
+      "name": "action_s802",
+      "style": "action",
+      "seed": 802,
+      "tempo_bpm": 168,
+      "mode": "minor",
+      "key": "C",
+      "progression_numerals": "i - iv - bVII - v",
+      "progression_chords": "Cm - Fm - Bb - Gm",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          3,
+          2,
+          0,
+          1
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          2,
+          2,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1119,
+        "n_melody_notes": 232,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 16,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1128,
+        "n_melody_notes": 240,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 29,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 7031.2,
+          "final_bar_rms": 6587.6,
+          "energy_ratio": 1.067,
+          "boundary_step": 12185,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 53% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 30,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 6615.7,
+          "final_bar_rms": 7389.3,
+          "energy_ratio": 0.895,
+          "boundary_step": 11792,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 51% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_08"
+    },
+    {
+      "name": "action_s803",
+      "style": "action",
+      "seed": 803,
+      "tempo_bpm": 168,
+      "mode": "minor",
+      "key": "C",
+      "progression_numerals": "i - bVII - iv - bVI",
+      "progression_chords": "Cm - Bb - Fm - Ab",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          1
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          2,
+          2,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "A'2",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1128,
+        "n_melody_notes": 240,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 40,
+        "duration_sec": 57.143,
+        "n_events": 1115,
+        "n_melody_notes": 228,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 29,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 6741.5,
+          "final_bar_rms": 6485.3,
+          "energy_ratio": 1.04,
+          "boundary_step": 10693,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 46% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 76800,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 30,
+          "first_bar_onsets": 28,
+          "first_bar_rms": 6695.6,
+          "final_bar_rms": 6966.3,
+          "energy_ratio": 0.961,
+          "boundary_step": 6319,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 27% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_01"
+    },
+    {
+      "name": "adventure_s800",
+      "style": "adventure",
+      "seed": 800,
+      "tempo_bpm": 137,
+      "mode": "major",
+      "key": "C",
+      "progression_numerals": "I - V - vi - IV",
+      "progression_chords": "C - G - Am - F",
+      "motif": {
+        "degrees": [
+          0,
+          2,
+          4
+        ],
+        "rhythm": [
+          8,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 571,
+        "n_melody_notes": 112,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 506,
+        "n_melody_notes": 48,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 20,
+          "first_bar_onsets": 17,
+          "first_bar_rms": 6248.8,
+          "final_bar_rms": 6387.1,
+          "energy_ratio": 0.978,
+          "boundary_step": 7745,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 33% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 17,
+          "first_bar_onsets": 17,
+          "first_bar_rms": 5960.1,
+          "final_bar_rms": 4701.9,
+          "energy_ratio": 1.268,
+          "boundary_step": 5968,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 26% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_03"
+    },
+    {
+      "name": "adventure_s801",
+      "style": "adventure",
+      "seed": 801,
+      "tempo_bpm": 137,
+      "mode": "major",
+      "key": "C",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "C - F - G - C",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "rhythm": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 579,
+        "n_melody_notes": 120,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 568,
+        "n_melody_notes": 112,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 21,
+          "first_bar_onsets": 18,
+          "first_bar_rms": 6428.2,
+          "final_bar_rms": 7381.4,
+          "energy_ratio": 0.871,
+          "boundary_step": 7593,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 33% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 21,
+          "first_bar_onsets": 18,
+          "first_bar_rms": 5655.3,
+          "final_bar_rms": 6571.1,
+          "energy_ratio": 0.861,
+          "boundary_step": 6367,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 27% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_16"
+    },
+    {
+      "name": "adventure_s802",
+      "style": "adventure",
+      "seed": 802,
+      "tempo_bpm": 137,
+      "mode": "major",
+      "key": "C",
+      "progression_numerals": "I - vi - IV - V",
+      "progression_chords": "C - Am - F - G",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          3,
+          2
+        ],
+        "rhythm": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 577,
+        "n_melody_notes": 120,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 524,
+        "n_melody_notes": 68,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 21,
+          "first_bar_onsets": 18,
+          "first_bar_rms": 6300.5,
+          "final_bar_rms": 6818.7,
+          "energy_ratio": 0.924,
+          "boundary_step": 5949,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 26% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 16,
+          "first_bar_onsets": 18,
+          "first_bar_rms": 6301.3,
+          "final_bar_rms": 5182.0,
+          "energy_ratio": 1.216,
+          "boundary_step": 4409,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 19% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_23"
+    },
+    {
+      "name": "adventure_s803",
+      "style": "adventure",
+      "seed": 803,
+      "tempo_bpm": 137,
+      "mode": "major",
+      "key": "C",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "C - F - G - C",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "rhythm": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 592,
+        "n_melody_notes": 136,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 32,
+        "duration_sec": 56.058,
+        "n_events": 584,
+        "n_melody_notes": 128,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 19,
+          "first_bar_onsets": 18,
+          "first_bar_rms": 7273.7,
+          "final_bar_rms": 6365.7,
+          "energy_ratio": 1.143,
+          "boundary_step": 6597,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 28% of peak, which may click"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 21,
+          "first_bar_onsets": 18,
+          "first_bar_rms": 7049.9,
+          "final_bar_rms": 6583.5,
+          "energy_ratio": 1.071,
+          "boundary_step": 5522,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 24% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_21"
+    },
+    {
+      "name": "town_s800",
+      "style": "town",
+      "seed": 800,
+      "tempo_bpm": 128,
+      "mode": "major",
+      "key": "D",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "D - G - A - D",
+      "motif": {
+        "degrees": [
+          0,
+          2
+        ],
+        "rhythm": [
+          8,
+          8
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 304,
+        "n_melody_notes": 72,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 262,
+        "n_melody_notes": 44,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 9,
+          "first_bar_onsets": 9,
+          "first_bar_rms": 5634.5,
+          "final_bar_rms": 3708.1,
+          "energy_ratio": 1.52,
+          "boundary_step": 4137,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 18% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 10,
+          "first_bar_onsets": 9,
+          "first_bar_rms": 5990.2,
+          "final_bar_rms": 5565.6,
+          "energy_ratio": 1.076,
+          "boundary_step": 1862,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_18"
+    },
+    {
+      "name": "town_s801",
+      "style": "town",
+      "seed": 801,
+      "tempo_bpm": 128,
+      "mode": "major",
+      "key": "D",
+      "progression_numerals": "I - vi - IV - V",
+      "progression_chords": "D - Bm - G - A",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "rhythm": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 355,
+        "n_melody_notes": 120,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 279,
+        "n_melody_notes": 64,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 8,
+          "first_bar_onsets": 11,
+          "first_bar_rms": 5531.4,
+          "final_bar_rms": 4764.8,
+          "energy_ratio": 1.161,
+          "boundary_step": 585,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 14,
+          "first_bar_onsets": 11,
+          "first_bar_rms": 6242.6,
+          "final_bar_rms": 7117.5,
+          "energy_ratio": 0.877,
+          "boundary_step": 4000,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 17% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_09"
+    },
+    {
+      "name": "town_s802",
+      "style": "town",
+      "seed": 802,
+      "tempo_bpm": 128,
+      "mode": "major",
+      "key": "D",
+      "progression_numerals": "I - V - I - V",
+      "progression_chords": "D - A - D - A",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          3,
+          2
+        ],
+        "rhythm": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 344,
+        "n_melody_notes": 112,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 284,
+        "n_melody_notes": 68,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 8,
+          "first_bar_onsets": 11,
+          "first_bar_rms": 5797.0,
+          "final_bar_rms": 5046.1,
+          "energy_ratio": 1.149,
+          "boundary_step": 619,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 12,
+          "first_bar_onsets": 11,
+          "first_bar_rms": 6115.1,
+          "final_bar_rms": 7030.4,
+          "energy_ratio": 0.87,
+          "boundary_step": 4105,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 18% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_19"
+    },
+    {
+      "name": "town_s803",
+      "style": "town",
+      "seed": 803,
+      "tempo_bpm": 128,
+      "mode": "major",
+      "key": "D",
+      "progression_numerals": "I - vi - IV - V",
+      "progression_chords": "D - Bm - G - A",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "rhythm": [
+          4,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 368,
+        "n_melody_notes": 136,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 32,
+        "duration_sec": 60.0,
+        "n_events": 286,
+        "n_melody_notes": 68,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 8,
+          "first_bar_onsets": 11,
+          "first_bar_rms": 6154.9,
+          "final_bar_rms": 5046.5,
+          "energy_ratio": 1.22,
+          "boundary_step": 1176,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 12,
+          "first_bar_onsets": 11,
+          "first_bar_rms": 6309.1,
+          "final_bar_rms": 6751.0,
+          "energy_ratio": 0.935,
+          "boundary_step": 3956,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 17% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_11"
+    },
+    {
+      "name": "tension_s800",
+      "style": "tension",
+      "seed": 800,
+      "tempo_bpm": 104,
+      "mode": "phrygian",
+      "key": "G",
+      "progression_numerals": "i - bII - i - bII",
+      "progression_chords": "Gm - Ab - Gm - Ab",
+      "motif": {
+        "degrees": [
+          0
+        ],
+        "rhythm": [
+          16
+        ]
+      },
+      "form": [
+        "A",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 152,
+        "n_melody_notes": 24,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 132,
+        "n_melody_notes": 16,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 7,
+          "first_bar_onsets": 6,
+          "first_bar_rms": 6771.2,
+          "final_bar_rms": 3354.6,
+          "energy_ratio": 2.018,
+          "boundary_step": 3698,
+          "peak": 23197,
+          "notes": [
+            "the first bar is much louder than the last (ratio 2.02); the wrap jumps in level",
+            "sample discontinuity at the boundary is 16% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 8,
+          "first_bar_onsets": 6,
+          "first_bar_rms": 6753.9,
+          "final_bar_rms": 7153.5,
+          "energy_ratio": 0.944,
+          "boundary_step": 4362,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 19% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_24"
+    },
+    {
+      "name": "tension_s801",
+      "style": "tension",
+      "seed": 801,
+      "tempo_bpm": 104,
+      "mode": "phrygian",
+      "key": "G",
+      "progression_numerals": "i - bvii - i - bII",
+      "progression_chords": "Gm - Fm - Gm - Ab",
+      "motif": {
+        "degrees": [
+          0,
+          1
+        ],
+        "rhythm": [
+          8,
+          8
+        ]
+      },
+      "form": [
+        "A",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 185,
+        "n_melody_notes": 56,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "tonic_pedal",
+        "pedal": true,
+        "chord_changes_per_section": 16,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 199,
+        "n_melody_notes": 48,
+        "notes_truncated": 16,
+        "rows_removed": 128,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 10,
+          "first_bar_onsets": 8,
+          "first_bar_rms": 6403.6,
+          "final_bar_rms": 6944.3,
+          "energy_ratio": 0.922,
+          "boundary_step": 4977,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 21% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 10,
+          "first_bar_onsets": 7,
+          "first_bar_rms": 6924.9,
+          "final_bar_rms": 7164.3,
+          "energy_ratio": 0.967,
+          "boundary_step": 2892,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 12% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_07"
+    },
+    {
+      "name": "tension_s802",
+      "style": "tension",
+      "seed": 802,
+      "tempo_bpm": 104,
+      "mode": "phrygian",
+      "key": "G",
+      "progression_numerals": "i - i - bII - bII",
+      "progression_chords": "Gm - Gm - Ab - Ab",
+      "motif": {
+        "degrees": [
+          0,
+          1
+        ],
+        "rhythm": [
+          8,
+          8
+        ]
+      },
+      "form": [
+        "A",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 185,
+        "n_melody_notes": 56,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_bar_hold",
+        "pedal": false,
+        "chord_changes_per_section": 4,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 136,
+        "n_melody_notes": 24,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 5,
+          "first_bar_onsets": 7,
+          "first_bar_rms": 7422.9,
+          "final_bar_rms": 3440.2,
+          "energy_ratio": 2.158,
+          "boundary_step": 3556,
+          "peak": 23197,
+          "notes": [
+            "the first bar is much louder than the last (ratio 2.16); the wrap jumps in level",
+            "sample discontinuity at the boundary is 15% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 10,
+          "first_bar_onsets": 7,
+          "first_bar_rms": 7376.8,
+          "final_bar_rms": 7822.5,
+          "energy_ratio": 0.943,
+          "boundary_step": 5313,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 23% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_02"
+    },
+    {
+      "name": "tension_s803",
+      "style": "tension",
+      "seed": 803,
+      "tempo_bpm": 104,
+      "mode": "phrygian",
+      "key": "G",
+      "progression_numerals": "i - bvii - i - bII",
+      "progression_chords": "Gm - Fm - Gm - Ab",
+      "motif": {
+        "degrees": [
+          0,
+          1
+        ],
+        "rhythm": [
+          8,
+          8
+        ]
+      },
+      "form": [
+        "A",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 166,
+        "n_melody_notes": 40,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "tonic_pedal",
+        "pedal": true,
+        "chord_changes_per_section": 16,
+        "bars": 24,
+        "duration_sec": 55.385,
+        "n_events": 197,
+        "n_melody_notes": 48,
+        "notes_truncated": 16,
+        "rows_removed": 128,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 10,
+          "first_bar_onsets": 8,
+          "first_bar_rms": 7619.4,
+          "final_bar_rms": 7815.2,
+          "energy_ratio": 0.975,
+          "boundary_step": 5445,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 23% of peak, which may click"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 46080,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 10,
+          "first_bar_onsets": 7,
+          "first_bar_rms": 6822.7,
+          "final_bar_rms": 7330.6,
+          "energy_ratio": 0.931,
+          "boundary_step": 2328,
+          "peak": 23197,
+          "notes": [
+            "sample discontinuity at the boundary is 10% of peak, which may click"
+          ]
+        }
+      },
+      "pair": "pair_20"
+    },
+    {
+      "name": "victory_s800",
+      "style": "victory",
+      "seed": 800,
+      "tempo_bpm": 144,
+      "mode": "major",
+      "key": "E",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "E - A - B - E",
+      "motif": {
+        "degrees": [
+          0,
+          2,
+          4,
+          2,
+          0
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": false,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 807,
+        "n_melody_notes": 160,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 16,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 838,
+        "n_melody_notes": 192,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 26,
+          "first_bar_onsets": 25,
+          "first_bar_rms": 5797.6,
+          "final_bar_rms": 5861.7,
+          "energy_ratio": 0.989,
+          "boundary_step": 101,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 27,
+          "first_bar_onsets": 26,
+          "first_bar_rms": 6308.3,
+          "final_bar_rms": 7171.8,
+          "energy_ratio": 0.88,
+          "boundary_step": 302,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_10"
+    },
+    {
+      "name": "victory_s801",
+      "style": "victory",
+      "seed": 801,
+      "tempo_bpm": 144,
+      "mode": "major",
+      "key": "E",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "E - A - B - E",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 784,
+        "n_melody_notes": 136,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 793,
+        "n_melody_notes": 148,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 28,
+          "first_bar_onsets": 25,
+          "first_bar_rms": 6053.5,
+          "final_bar_rms": 7144.4,
+          "energy_ratio": 0.847,
+          "boundary_step": 1520,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 27,
+          "first_bar_onsets": 25,
+          "first_bar_rms": 6049.5,
+          "final_bar_rms": 6697.5,
+          "energy_ratio": 0.903,
+          "boundary_step": 939,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_06"
+    },
+    {
+      "name": "victory_s802",
+      "style": "victory",
+      "seed": 802,
+      "tempo_bpm": 144,
+      "mode": "major",
+      "key": "E",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "E - A - B - E",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          3,
+          2,
+          0
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 799,
+        "n_melody_notes": 152,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "two_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 16,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 822,
+        "n_melody_notes": 176,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 27,
+          "first_bar_onsets": 26,
+          "first_bar_rms": 6464.3,
+          "final_bar_rms": 7192.5,
+          "energy_ratio": 0.899,
+          "boundary_step": 1074,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 26,
+          "first_bar_onsets": 25,
+          "first_bar_rms": 5990.7,
+          "final_bar_rms": 6058.3,
+          "energy_ratio": 0.989,
+          "boundary_step": 12,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_17"
+    },
+    {
+      "name": "victory_s803",
+      "style": "victory",
+      "seed": 803,
+      "tempo_bpm": 144,
+      "mode": "major",
+      "key": "E",
+      "progression_numerals": "I - IV - V - I",
+      "progression_chords": "E - A - B - E",
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0
+        ],
+        "rhythm": [
+          2,
+          2,
+          4,
+          4,
+          4
+        ]
+      },
+      "form": [
+        "A",
+        "A'1",
+        "B",
+        "A''"
+      ],
+      "treatment_is_a": true,
+      "control": {
+        "rhythm": "one_per_bar",
+        "pedal": false,
+        "chord_changes_per_section": 8,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 797,
+        "n_melody_notes": 152,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "treatment": {
+        "rhythm": "accelerating",
+        "pedal": false,
+        "chord_changes_per_section": 12,
+        "bars": 32,
+        "duration_sec": 53.333,
+        "n_events": 821,
+        "n_melody_notes": 176,
+        "notes_truncated": 0,
+        "rows_removed": 0,
+        "hardware_violations": 0
+      },
+      "loop": {
+        "treatment": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 27,
+          "first_bar_onsets": 25,
+          "first_bar_rms": 6668.8,
+          "final_bar_rms": 7147.9,
+          "energy_ratio": 0.933,
+          "boundary_step": 1220,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        },
+        "control": {
+          "loop_start_tick": 0,
+          "loop_end_tick": 61440,
+          "timing_continuous": true,
+          "n_crossing_events": 0,
+          "crossing": [],
+          "n_past_end": 0,
+          "final_bar_onsets": 26,
+          "first_bar_onsets": 25,
+          "first_bar_rms": 6668.8,
+          "final_bar_rms": 6156.3,
+          "energy_ratio": 1.083,
+          "boundary_step": 839,
+          "peak": 23197,
+          "notes": [
+            "no timing or level discontinuity found at the boundary"
+          ]
+        }
+      },
+      "pair": "pair_22"
+    }
+  ],
+  "listening_key": [
+    {
+      "pair": "pair_01",
+      "A": "treatment",
+      "B": "control",
+      "name": "action_s803",
+      "style": "action",
+      "seed": 803,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_02",
+      "A": "treatment",
+      "B": "control",
+      "name": "tension_s802",
+      "style": "tension",
+      "seed": 802,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_03",
+      "A": "control",
+      "B": "treatment",
+      "name": "adventure_s800",
+      "style": "adventure",
+      "seed": 800,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_04",
+      "A": "control",
+      "B": "treatment",
+      "name": "boss_s803",
+      "style": "boss",
+      "seed": 803,
+      "treatment_rhythm": "two_per_bar"
+    },
+    {
+      "pair": "pair_05",
+      "A": "treatment",
+      "B": "control",
+      "name": "action_s800",
+      "style": "action",
+      "seed": 800,
+      "treatment_rhythm": "two_per_bar"
+    },
+    {
+      "pair": "pair_06",
+      "A": "treatment",
+      "B": "control",
+      "name": "victory_s801",
+      "style": "victory",
+      "seed": 801,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_07",
+      "A": "treatment",
+      "B": "control",
+      "name": "tension_s801",
+      "style": "tension",
+      "seed": 801,
+      "treatment_rhythm": "tonic_pedal"
+    },
+    {
+      "pair": "pair_08",
+      "A": "control",
+      "B": "treatment",
+      "name": "action_s802",
+      "style": "action",
+      "seed": 802,
+      "treatment_rhythm": "two_per_bar"
+    },
+    {
+      "pair": "pair_09",
+      "A": "treatment",
+      "B": "control",
+      "name": "town_s801",
+      "style": "town",
+      "seed": 801,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_10",
+      "A": "control",
+      "B": "treatment",
+      "name": "victory_s800",
+      "style": "victory",
+      "seed": 800,
+      "treatment_rhythm": "two_per_bar"
+    },
+    {
+      "pair": "pair_11",
+      "A": "treatment",
+      "B": "control",
+      "name": "town_s803",
+      "style": "town",
+      "seed": 803,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_12",
+      "A": "control",
+      "B": "treatment",
+      "name": "boss_s802",
+      "style": "boss",
+      "seed": 802,
+      "treatment_rhythm": "tonic_pedal"
+    },
+    {
+      "pair": "pair_13",
+      "A": "treatment",
+      "B": "control",
+      "name": "boss_s801",
+      "style": "boss",
+      "seed": 801,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_14",
+      "A": "treatment",
+      "B": "control",
+      "name": "action_s801",
+      "style": "action",
+      "seed": 801,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_15",
+      "A": "control",
+      "B": "treatment",
+      "name": "boss_s800",
+      "style": "boss",
+      "seed": 800,
+      "treatment_rhythm": "two_per_bar"
+    },
+    {
+      "pair": "pair_16",
+      "A": "control",
+      "B": "treatment",
+      "name": "adventure_s801",
+      "style": "adventure",
+      "seed": 801,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_17",
+      "A": "treatment",
+      "B": "control",
+      "name": "victory_s802",
+      "style": "victory",
+      "seed": 802,
+      "treatment_rhythm": "two_per_bar"
+    },
+    {
+      "pair": "pair_18",
+      "A": "treatment",
+      "B": "control",
+      "name": "town_s800",
+      "style": "town",
+      "seed": 800,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_19",
+      "A": "treatment",
+      "B": "control",
+      "name": "town_s802",
+      "style": "town",
+      "seed": 802,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_20",
+      "A": "treatment",
+      "B": "control",
+      "name": "tension_s803",
+      "style": "tension",
+      "seed": 803,
+      "treatment_rhythm": "tonic_pedal"
+    },
+    {
+      "pair": "pair_21",
+      "A": "control",
+      "B": "treatment",
+      "name": "adventure_s803",
+      "style": "adventure",
+      "seed": 803,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_22",
+      "A": "treatment",
+      "B": "control",
+      "name": "victory_s803",
+      "style": "victory",
+      "seed": 803,
+      "treatment_rhythm": "accelerating"
+    },
+    {
+      "pair": "pair_23",
+      "A": "control",
+      "B": "treatment",
+      "name": "adventure_s802",
+      "style": "adventure",
+      "seed": 802,
+      "treatment_rhythm": "two_bar_hold"
+    },
+    {
+      "pair": "pair_24",
+      "A": "treatment",
+      "B": "control",
+      "name": "tension_s800",
+      "style": "tension",
+      "seed": 800,
+      "treatment_rhythm": "two_bar_hold"
+    }
+  ]
+}

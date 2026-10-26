@@ -409,7 +409,7 @@ def render_melody(
     *,
     bar_offset: int,
     harmony_plan: list[tuple[int, int, int]],
-) -> list[Note]:
+) -> tuple[list[Note], dict[str, int]]:
     """Melody on P1, re-harmonised bar by bar against the progression.
 
     Each phrase starts on a tone of the bar's chord and follows the motif's
@@ -417,6 +417,14 @@ def render_melody(
     in the scale, so a passing tone is a passing tone and never an accident.
     """
     notes: list[Note] = []
+    # Measurement only. Truncating a melody note at a chord change is an
+    # EXPERIMENTAL CONSTRAINT, not a music-theory requirement: a common tone
+    # held from C major into A minor moves from third to fifth with no
+    # conflict, and a suspension that resolves is a device rather than a
+    # mistake. Counting the cost here so the listening test can say whether
+    # the constraint is worth keeping.
+    truncated = 0
+    rows_removed = 0
     base = bar_offset * TICKS_PER_BAR
     for chord_index, start_row, span in harmony_plan:
         chord_root = plan.progression[chord_index % len(plan.progression)]
@@ -432,20 +440,21 @@ def render_melody(
             if absolute % ROWS_PER_BEAT == 0 and rng.random() > style.passing_chance:
                 degree = min(tones, key=lambda t: abs(t - degree))
             pitch = clamp(scale_pitch(style.tonic, style.mode, degree))
+            kept = min(length, span - row)
+            if kept < length:
+                truncated += 1
+                rows_removed += length - kept
             notes.append(
                 Note(
                     channel_id="P1",
                     tick=base + absolute * TICKS_PER_ROW,
                     pitch=pitch,
-                    # Never ring past the chord it belongs to: a melody note
-                    # held across a chord change is the clash the shared
-                    # harmonic plan exists to prevent.
-                    duration=min(length, span - row) * TICKS_PER_ROW,
+                    duration=kept * TICKS_PER_ROW,
                     velocity=100,
                 )
             )
             row += length
-    return notes
+    return notes, {"notes_truncated": truncated, "rows_removed": rows_removed}
 
 
 def render_harmony(
@@ -607,6 +616,8 @@ class ProceduralResult:
     sections: list[SectionPlan]
     seed: int
     rhythm: HarmonicRhythm = ONE_PER_BAR
+    #: How much melody the chord-boundary constraint removed.
+    truncation: dict[str, int] = field(default_factory=dict)
     variations: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -614,6 +625,7 @@ class ProceduralResult:
             "seed": self.seed,
             "style": self.style.to_dict(),
             "harmonic_rhythm": self.rhythm.to_dict(),
+            "truncation": dict(self.truncation),
             "motif": self.motif.to_dict(),
             "sections": [s.to_dict() for s in self.sections],
             "variations": self.variations,
@@ -660,6 +672,7 @@ def compose(
 
     events: list[Note | Noise] = []
     variations: list[dict[str, Any]] = []
+    truncation = {"notes_truncated": 0, "rows_removed": 0}
     bar_offset = 0
     contrast_motif: Motif | None = None
     for plan in plans:
@@ -678,9 +691,12 @@ def compose(
                 "n_chord_changes": len(harmony_plan),
             }
         )
-        events += render_melody(
+        melody, melody_stats = render_melody(
             rng, style, used, plan, bar_offset=bar_offset, harmony_plan=harmony_plan
         )
+        events += melody
+        truncation["notes_truncated"] += melody_stats["notes_truncated"]
+        truncation["rows_removed"] += melody_stats["rows_removed"]
         events += render_harmony(
             style, plan, bar_offset=bar_offset, harmony_plan=harmony_plan
         )
@@ -711,5 +727,6 @@ def compose(
         sections=plans,
         seed=seed,
         rhythm=rhythm,
+        truncation=truncation,
         variations=variations,
     )
