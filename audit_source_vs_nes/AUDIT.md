@@ -22,12 +22,12 @@ something you'd never use.
 
 | piece | more musical: MIDI / NES / SAME | either one good? YES / NO | notes |
 |---|---|---|---|
-| piece_A |  |  |  |
-| piece_B |  |  |  |
-| piece_C |  |  |  |
-| piece_D |  |  |  |
-| piece_E |  |  |  |
-| piece_F |  |  |  |
+| piece_A | same | not bad not good |  |
+| piece_B | NES | yes |  |
+| piece_C | NES | not bad not good |  |
+| piece_D | NES | no |  |
+| piece_E | NES | yes |  |
+| piece_F | NES | no | worst one |
 
 Notes are optional. Anything is useful — "no tune", "wrong notes", "too busy",
 "good until it stops".
