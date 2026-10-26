@@ -1,0 +1,182 @@
+[
+  {
+    "file": "piece_01.wav",
+    "name": "action_s8664",
+    "scenario": "action",
+    "seed": 8664
+  },
+  {
+    "file": "piece_02.wav",
+    "name": "ominous_s2260",
+    "scenario": "ominous",
+    "seed": 2260
+  },
+  {
+    "file": "piece_03.wav",
+    "name": "exploration_s11310",
+    "scenario": "exploration",
+    "seed": 11310
+  },
+  {
+    "file": "piece_04.wav",
+    "name": "fast_rhythmic_s6032",
+    "scenario": "fast_rhythmic",
+    "seed": 6032
+  },
+  {
+    "file": "piece_05.wav",
+    "name": "action_s8661",
+    "scenario": "action",
+    "seed": 8661
+  },
+  {
+    "file": "piece_06.wav",
+    "name": "exploration_s11313",
+    "scenario": "exploration",
+    "seed": 11313
+  },
+  {
+    "file": "piece_07.wav",
+    "name": "fast_rhythmic_s6033",
+    "scenario": "fast_rhythmic",
+    "seed": 6033
+  },
+  {
+    "file": "piece_08.wav",
+    "name": "ominous_s2264",
+    "scenario": "ominous",
+    "seed": 2264
+  },
+  {
+    "file": "piece_09.wav",
+    "name": "action_s8663",
+    "scenario": "action",
+    "seed": 8663
+  },
+  {
+    "file": "piece_10.wav",
+    "name": "ominous_s2261",
+    "scenario": "ominous",
+    "seed": 2261
+  },
+  {
+    "file": "piece_11.wav",
+    "name": "sparse_s5297",
+    "scenario": "sparse",
+    "seed": 5297
+  },
+  {
+    "file": "piece_12.wav",
+    "name": "town_s10042",
+    "scenario": "town",
+    "seed": 10042
+  },
+  {
+    "file": "piece_13.wav",
+    "name": "fast_rhythmic_s6031",
+    "scenario": "fast_rhythmic",
+    "seed": 6031
+  },
+  {
+    "file": "piece_14.wav",
+    "name": "town_s10041",
+    "scenario": "town",
+    "seed": 10041
+  },
+  {
+    "file": "piece_15.wav",
+    "name": "fast_rhythmic_s6034",
+    "scenario": "fast_rhythmic",
+    "seed": 6034
+  },
+  {
+    "file": "piece_16.wav",
+    "name": "sparse_s5294",
+    "scenario": "sparse",
+    "seed": 5294
+  },
+  {
+    "file": "piece_17.wav",
+    "name": "sparse_s5298",
+    "scenario": "sparse",
+    "seed": 5298
+  },
+  {
+    "file": "piece_18.wav",
+    "name": "town_s10040",
+    "scenario": "town",
+    "seed": 10040
+  },
+  {
+    "file": "piece_19.wav",
+    "name": "action_s8662",
+    "scenario": "action",
+    "seed": 8662
+  },
+  {
+    "file": "piece_20.wav",
+    "name": "action_s8660",
+    "scenario": "action",
+    "seed": 8660
+  },
+  {
+    "file": "piece_21.wav",
+    "name": "sparse_s5290",
+    "scenario": "sparse",
+    "seed": 5290
+  },
+  {
+    "file": "piece_22.wav",
+    "name": "exploration_s11312",
+    "scenario": "exploration",
+    "seed": 11312
+  },
+  {
+    "file": "piece_23.wav",
+    "name": "exploration_s11311",
+    "scenario": "exploration",
+    "seed": 11311
+  },
+  {
+    "file": "piece_24.wav",
+    "name": "ominous_s2263",
+    "scenario": "ominous",
+    "seed": 2263
+  },
+  {
+    "file": "piece_25.wav",
+    "name": "town_s10043",
+    "scenario": "town",
+    "seed": 10043
+  },
+  {
+    "file": "piece_26.wav",
+    "name": "sparse_s5293",
+    "scenario": "sparse",
+    "seed": 5293
+  },
+  {
+    "file": "piece_27.wav",
+    "name": "exploration_s11314",
+    "scenario": "exploration",
+    "seed": 11314
+  },
+  {
+    "file": "piece_28.wav",
+    "name": "town_s10044",
+    "scenario": "town",
+    "seed": 10044
+  },
+  {
+    "file": "piece_29.wav",
+    "name": "fast_rhythmic_s6030",
+    "scenario": "fast_rhythmic",
+    "seed": 6030
+  },
+  {
+    "file": "piece_30.wav",
+    "name": "ominous_s2262",
+    "scenario": "ominous",
+    "seed": 2262
+  }
+]
