@@ -141,7 +141,7 @@ def test_prompt_to_song_runs_repair_on_the_assembled_track() -> None:
     checks the script actually repairs before validating.
     """
     source = (_ROOT / "scripts" / "prompt_to_song.py").read_text()
-    assembly = source[source.index("track = concatenate(") :]
+    assembly = source[source.index(", placement = concatenate(") :]
     repair_at = assembly.index("engine.apply(track)")
     validate_at = assembly.index("violations = engine.validate(track)")
     assert repair_at < validate_at, "repair must precede validation"
@@ -240,3 +240,75 @@ def test_padding_never_truncates(tmp_path) -> None:
     assert report["padded"] is False
     with wave.open(str(path), "rb") as handle:
         assert handle.getnframes() == int(rate * 60.0)
+
+
+def test_sections_are_placed_where_the_music_ends(engine: ConstraintEngine) -> None:
+    """No dead air between sections.
+
+    Fermata's eight-bar generations stop around bar 7.2, so placing each
+    section on an eight-bar grid left 1.4 s of silence at three of four
+    boundaries -- 4.3 s, 7% of a 60 s track, which the listener heard as
+    "there are silent sections".
+    """
+    from rse.song.build import occupied_bars
+
+    section = section_with_overhanging_note()
+    # Its last onset is in bar 7, so it occupies 8 bars.
+    assert occupied_bars(section, bar_ticks=BAR_TICKS) == SECTION_BARS
+
+    short = Composition(
+        hardware_profile="nes",
+        ticks_per_beat=480,
+        events=[
+            Note(channel_id="P1", tick=bar * BAR_TICKS, pitch=60, duration=480)
+            for bar in range(6)
+        ],
+    )
+    short.normalize()
+    assert occupied_bars(short, bar_ticks=BAR_TICKS) == 6, (
+        "a section whose music stops in bar 6 occupies 6 bars, not 8"
+    )
+
+
+def test_occupied_bars_of_an_empty_section_is_zero() -> None:
+    from rse.song.build import occupied_bars
+
+    empty = Composition(hardware_profile="nes", ticks_per_beat=480, events=[])
+    assert occupied_bars(empty, bar_ticks=BAR_TICKS) == 0
+
+
+def test_drop_channel_keeps_the_rest_intact() -> None:
+    """Thinning a return must change texture, not pitch material."""
+    from rse.song.build import drop_channel
+
+    events = [
+        Note(channel_id="P1", tick=0, pitch=72, duration=480),
+        Note(channel_id="P2", tick=0, pitch=60, duration=480),
+        Note(channel_id="TR", tick=0, pitch=36, duration=480),
+    ]
+    full = Composition(hardware_profile="nes", ticks_per_beat=480, events=events)
+    full.normalize()
+    thin = drop_channel(full, "P2")
+    assert {e.channel_id for e in thin.sounding_events()} == {"P1", "TR"}
+    assert [e.pitch for e in thin.sounding_events() if e.channel_id == "P1"] == [72]
+    # The original is untouched.
+    assert {e.channel_id for e in full.sounding_events()} == {"P1", "P2", "TR"}
+
+
+def test_prompt_to_song_places_sections_contiguously() -> None:
+    """Guard the call site, because the library fix alone was not enough.
+
+    `occupied_bars` was added to rse/song/build.py and `SongBuilder.assemble`
+    was fixed to use it -- and the silence stayed at 4.3 s, byte-identical,
+    because prompt_to_song.py has its OWN concatenate() and never calls the
+    shared assembler. The module was extracted to prevent exactly that
+    duplication, then patched while the duplicate was left in place.
+    """
+    source = (_ROOT / "scripts" / "prompt_to_song.py").read_text()
+    body = source[source.index("def concatenate(") : source.index("def main(")]
+    assert "music_end_bar(" in body, (
+        "the script's own concatenate must place sections where the music stops"
+    )
+    assert "index * section_bars * bar_ticks" not in body, (
+        "nominal-grid placement is what produced the dead air"
+    )

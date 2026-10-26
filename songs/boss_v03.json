@@ -1,0 +1,589 @@
+{
+  "version": "rse-prompt-to-song/0.1",
+  "prompt": "Create a dark, energetic, 60-second NES boss battle theme. Give it a memorable opening riff, driving percussion, a contrasting middle section, and a strong return to the main melody. Make it loop seamlessly.",
+  "plan": {
+    "prompt": "Create a dark, energetic, 60-second NES boss battle theme. Give it a memorable opening riff, driving percussion, a contrasting middle section, and a strong return to the main melody. Make it loop seamlessly.",
+    "style": "nes",
+    "scenario": "boss_battle",
+    "mood": "dark",
+    "energy": "high",
+    "loop": true,
+    "genre": "soundtrack",
+    "ensemble": "band",
+    "tempo_bpm": 128,
+    "key": "0:minor",
+    "beats_per_bar": 4,
+    "target_seconds": 60.0,
+    "seconds_per_bar": 1.875,
+    "programs": [
+      80,
+      81,
+      38
+    ],
+    "percussion": true,
+    "structure": [
+      "contrast_section",
+      "theme_return",
+      "loop"
+    ],
+    "requirements": [
+      {
+        "text": "60-second",
+        "status": "satisfied",
+        "detail": "target 60 s"
+      },
+      {
+        "text": "driving",
+        "status": "approximated",
+        "detail": "read as 170 BPM"
+      },
+      {
+        "text": "dark",
+        "status": "approximated",
+        "detail": "read as minor key"
+      },
+      {
+        "text": "boss battle",
+        "status": "approximated",
+        "detail": "recorded as scenario 'boss_battle'; the composer has no scenario input, so it reaches generation only through genre, key and tempo"
+      },
+      {
+        "text": "nes",
+        "status": "approximated",
+        "detail": "recorded as style 'nes'; expressed to the composer as a genre token and to the arranger as the NES profile"
+      },
+      {
+        "text": "battle",
+        "status": "approximated",
+        "detail": "genre token 'soundtrack'"
+      },
+      {
+        "text": "melody",
+        "status": "satisfied",
+        "detail": "GM program 80, square lead"
+      },
+      {
+        "text": "percussion",
+        "status": "satisfied",
+        "detail": "drum track requested in the plan"
+      },
+      {
+        "text": "contrasting",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "middle section",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "return",
+        "status": "imposed",
+        "detail": "theme_return built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "loop",
+        "status": "imposed",
+        "detail": "loop built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "memorable",
+        "status": "unsupported",
+        "detail": "no conditioning expresses memorability; nothing in the model takes it as input"
+      },
+      {
+        "text": "tempo_bpm from the prompt",
+        "status": "approximated",
+        "detail": "overridden by profile 'nes_battle': 170 -> 128"
+      },
+      {
+        "text": "4 sections, A A'1 B A''",
+        "status": "imposed",
+        "detail": "section form chosen by the assembler"
+      }
+    ]
+  },
+  "composition_profile": {
+    "name": "nes_battle",
+    "hardware": "nes_2a03_4voice",
+    "duration_seconds": 60.0,
+    "tempo_bpm": 128,
+    "meter": "4/4",
+    "genre": "soundtrack",
+    "ensemble": "band",
+    "key": "0:minor",
+    "roles": {
+      "pulse1": "melody",
+      "pulse2": "accompaniment",
+      "triangle": "bass",
+      "noise": "percussion"
+    },
+    "programs": [
+      80,
+      81,
+      38
+    ],
+    "percussion_requested": true,
+    "sections": [
+      {
+        "label": "A",
+        "bars": 8,
+        "source": "fresh",
+        "continue_from": null,
+        "key_offset": 0
+      },
+      {
+        "label": "A'1",
+        "bars": 8,
+        "source": "continue_from",
+        "continue_from": "A",
+        "key_offset": 0
+      },
+      {
+        "label": "B",
+        "bars": 8,
+        "source": "fresh",
+        "continue_from": null,
+        "key_offset": 1
+      },
+      {
+        "label": "A''",
+        "bars": 8,
+        "source": "continue_from",
+        "continue_from": "A",
+        "key_offset": 0
+      }
+    ],
+    "total_bars": 32,
+    "planned_seconds": 60.0,
+    "primary_motifs": 1,
+    "theme_bars": 4,
+    "preferences": {
+      "preserve_lead_clarity": true,
+      "encourage_phrase_rests": true,
+      "avoid_competing_melodies": true,
+      "allow_arpeggios": true
+    }
+  },
+  "profile_reachability": {
+    "composer_conditioning": [
+      {
+        "field": "tempo_bpm",
+        "detail": "<TEMPO_128>"
+      },
+      {
+        "field": "meter",
+        "detail": "<METER_4/4>"
+      },
+      {
+        "field": "genre",
+        "detail": "<GENRE_soundtrack>"
+      },
+      {
+        "field": "ensemble",
+        "detail": "<ENSEMBLE_band>"
+      },
+      {
+        "field": "key",
+        "detail": "<KEY_0:minor>, per section"
+      },
+      {
+        "field": "roles",
+        "detail": "as a track plan: <TRACK_80> <TRACK_81> <TRACK_38> <DRUM_TRACK>"
+      }
+    ],
+    "enforced_downstream": [
+      {
+        "field": "hardware",
+        "detail": "nes_2a03_4voice: four monophonic voices, pitch range, one note per channel per tick"
+      },
+      {
+        "field": "roles",
+        "detail": "the arranger honours the declared melody/harmony/bass roles rather than inferring them from note activity"
+      },
+      {
+        "field": "duration_seconds",
+        "detail": "32 bars at 128 BPM = 60.0 s"
+      },
+      {
+        "field": "preserve_lead_clarity",
+        "detail": "partly enforced: the arranger honours the declared melody role instead of guessing it, but the composer is not asked to keep the lead clear"
+      },
+      {
+        "field": "allow_arpeggios",
+        "detail": "enforced downstream: the arranger arpeggiates chords across sub-row slots rather than dropping them"
+      }
+    ],
+    "assembler_imposed": [
+      {
+        "field": "form",
+        "detail": "A-A'1-B-A''; returns are generated by continuing the opening bars, contrast by changing the key"
+      },
+      {
+        "field": "primary_motifs",
+        "detail": "1 principal idea, reused by continuation; the composer is not asked to limit itself to one motif"
+      }
+    ],
+    "unsupported": [
+      {
+        "field": "encourage_phrase_rests",
+        "detail": "unsupported: no conditioning expresses rests or phrase boundaries"
+      },
+      {
+        "field": "avoid_competing_melodies",
+        "detail": "unsupported: the composer cannot be told to subordinate one voice"
+      }
+    ]
+  },
+  "form": [
+    "A",
+    "A'1",
+    "B",
+    "A''"
+  ],
+  "section_bars": 8,
+  "theme_bars": 4,
+  "total_bars": 29,
+  "placement": [
+    {
+      "start_bar": 0,
+      "nominal_bars": 8,
+      "occupied_bars": 7,
+      "trimmed_bars": 1
+    },
+    {
+      "start_bar": 7,
+      "nominal_bars": 8,
+      "occupied_bars": 7,
+      "trimmed_bars": 1
+    },
+    {
+      "start_bar": 14,
+      "nominal_bars": 8,
+      "occupied_bars": 8,
+      "trimmed_bars": 0
+    },
+    {
+      "start_bar": 22,
+      "nominal_bars": 8,
+      "occupied_bars": 7,
+      "trimmed_bars": 1
+    }
+  ],
+  "bars_trimmed_total": 3,
+  "duration_sec": 54.375,
+  "requested_seconds": 60.0,
+  "loop": {
+    "start_tick": 0,
+    "end_tick": 55680
+  },
+  "loop_diagnostic": {
+    "loop_start_tick": 0,
+    "loop_end_tick": 55680,
+    "timing_continuous": true,
+    "n_crossing_events": 0,
+    "crossing": [],
+    "n_past_end": 0,
+    "final_bar_onsets": 21,
+    "first_bar_onsets": 31,
+    "first_bar_rms": 4546.7,
+    "final_bar_rms": 4975.5,
+    "energy_ratio": 0.914,
+    "boundary_step": 260,
+    "peak": 23197,
+    "notes": [
+      "no timing or level discontinuity found at the boundary"
+    ]
+  },
+  "render_padding": {
+    "padded": false,
+    "frames_before": 2397938,
+    "frames_after": 2397938,
+    "seconds_before": 54.375,
+    "seconds_after": 54.375,
+    "loop_seconds": 54.375
+  },
+  "ogg": {
+    "exported": false,
+    "reason": "no Vorbis encoder available: the renderer writes WAV only, and neither ffmpeg nor oggenc is installed"
+  },
+  "hardware_violations": 0,
+  "seam_repairs": 0,
+  "seed": 20261026,
+  "sampling": {
+    "temperature": 0.7,
+    "top_k": 24,
+    "repetition_penalty": 1.12
+  },
+  "sections": [
+    {
+      "index": 1,
+      "role": "A",
+      "origin": "fresh generation from the interpreted plan",
+      "thinned_channel": null,
+      "termination": "bar_limit",
+      "tempo_bpm": 128.0,
+      "n_events": 201,
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1209,
+        "n_skipped": 5,
+        "n_events": 232,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 1,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 232,
+        "n_events_out": 227,
+        "retention": 0.97845,
+        "n_polyphony_dropped": 5,
+        "n_polyphony_arpeggiated": 86,
+        "n_stolen_truncated": 69,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 45,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 1,
+        "role_assignment": {
+          "0": "percussion->NO",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": [
+          "track 3 merged onto NO"
+        ]
+      },
+      "hardware_violations": 0,
+      "attempts": 1
+    },
+    {
+      "index": 2,
+      "role": "A'1",
+      "origin": "continuation of section A's first 4 bars; bars 1-4 are A's material, bars 5-8 newly generated; accompaniment channel P2 muted to vary the texture",
+      "thinned_channel": "P2",
+      "termination": "bar_limit",
+      "tempo_bpm": 128.0,
+      "n_events": 224,
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1308,
+        "n_skipped": 5,
+        "n_events": 252,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 1,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 252,
+        "n_events_out": 248,
+        "retention": 0.98413,
+        "n_polyphony_dropped": 4,
+        "n_polyphony_arpeggiated": 88,
+        "n_stolen_truncated": 73,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 47,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 1,
+        "role_assignment": {
+          "0": "percussion->NO",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": [
+          "track 3 merged onto NO"
+        ]
+      },
+      "hardware_violations": 0,
+      "attempts": 1
+    },
+    {
+      "index": 3,
+      "role": "B",
+      "origin": "fresh generation with the key moved to 0:minor -- contrast comes from altered conditioning, the model was not asked for a contrasting section",
+      "thinned_channel": null,
+      "termination": "bar_limit",
+      "tempo_bpm": 128.0,
+      "n_events": 327,
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1679,
+        "n_skipped": 5,
+        "n_events": 327,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 26,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 327,
+        "n_events_out": 327,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 71,
+        "n_stolen_truncated": 62,
+        "n_transposed": 1,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 129,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "hardware_violations": 0,
+      "attempts": 2
+    },
+    {
+      "index": 4,
+      "role": "A''",
+      "origin": "continuation of section A's first 4 bars; bars 1-4 are A's material, bars 5-8 newly generated",
+      "thinned_channel": null,
+      "termination": "bar_limit",
+      "tempo_bpm": 128.0,
+      "n_events": 188,
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1209,
+        "n_skipped": 5,
+        "n_events": 232,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 1,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 232,
+        "n_events_out": 214,
+        "retention": 0.92241,
+        "n_polyphony_dropped": 18,
+        "n_polyphony_arpeggiated": 91,
+        "n_stolen_truncated": 67,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 55,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 1,
+        "role_assignment": {
+          "0": "percussion->NO",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": [
+          "track 3 merged onto NO"
+        ]
+      },
+      "hardware_violations": 0,
+      "attempts": 1
+    }
+  ],
+  "failed_sections": [],
+  "requirement_report": {
+    "satisfied": [
+      {
+        "text": "60-second",
+        "status": "satisfied",
+        "detail": "target 60 s"
+      },
+      {
+        "text": "melody",
+        "status": "satisfied",
+        "detail": "GM program 80, square lead"
+      },
+      {
+        "text": "percussion",
+        "status": "satisfied",
+        "detail": "drum track requested in the plan"
+      }
+    ],
+    "approximated": [
+      {
+        "text": "driving",
+        "status": "approximated",
+        "detail": "read as 170 BPM"
+      },
+      {
+        "text": "dark",
+        "status": "approximated",
+        "detail": "read as minor key"
+      },
+      {
+        "text": "boss battle",
+        "status": "approximated",
+        "detail": "recorded as scenario 'boss_battle'; the composer has no scenario input, so it reaches generation only through genre, key and tempo"
+      },
+      {
+        "text": "nes",
+        "status": "approximated",
+        "detail": "recorded as style 'nes'; expressed to the composer as a genre token and to the arranger as the NES profile"
+      },
+      {
+        "text": "battle",
+        "status": "approximated",
+        "detail": "genre token 'soundtrack'"
+      },
+      {
+        "text": "tempo_bpm from the prompt",
+        "status": "approximated",
+        "detail": "overridden by profile 'nes_battle': 170 -> 128"
+      }
+    ],
+    "imposed": [
+      {
+        "text": "contrasting",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "middle section",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "return",
+        "status": "imposed",
+        "detail": "theme_return built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "loop",
+        "status": "imposed",
+        "detail": "loop built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "4 sections, A A'1 B A''",
+        "status": "imposed",
+        "detail": "section form chosen by the assembler"
+      }
+    ],
+    "unsupported": [
+      {
+        "text": "memorable",
+        "status": "unsupported",
+        "detail": "no conditioning expresses memorability; nothing in the model takes it as input"
+      }
+    ]
+  },
+  "files": {
+    "wav": "songs/boss_v03.wav",
+    "midi": "songs/boss_v03.mid"
+  }
+}

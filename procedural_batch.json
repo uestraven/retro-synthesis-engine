@@ -1,0 +1,4574 @@
+{
+  "n_pieces": 24,
+  "per_style": 4,
+  "styles": [
+    "action",
+    "adventure",
+    "boss",
+    "tension",
+    "town",
+    "victory"
+  ],
+  "benchmark": {
+    "fermata_pass_rate": "12/20 = 60%",
+    "fermata_best_good": "5/20 = 25%"
+  },
+  "total_hardware_violations": 0,
+  "loops_timing_clean": 24,
+  "pieces": [
+    {
+      "name": "boss_s800",
+      "style": "boss",
+      "seed": 800,
+      "bars": 40,
+      "duration_sec": 64.0,
+      "n_events": 887,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 800,
+        "style": {
+          "name": "boss",
+          "mode": "harmonic_minor",
+          "tempo_bpm": 150,
+          "harmony_style": "offbeat",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 57,
+          "passing_chance": 0.35
+        },
+        "motif": {
+          "degrees": [
+            0,
+            2,
+            4,
+            2,
+            0,
+            -1
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            2,
+            2,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0,
+                -1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                5,
+                2,
+                0,
+                -1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                4,
+                5
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0,
+                -1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 887
+      },
+      "render": {
+        "file": "proc_07.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 23,
+        "first_bar_onsets": 22,
+        "first_bar_rms": 7021.8,
+        "final_bar_rms": 6631.5,
+        "energy_ratio": 1.059,
+        "boundary_step": 2953,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 13% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "boss_s801",
+      "style": "boss",
+      "seed": 801,
+      "bars": 40,
+      "duration_sec": 64.0,
+      "n_events": 855,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 801,
+        "style": {
+          "name": "boss",
+          "mode": "harmonic_minor",
+          "tempo_bpm": 150,
+          "harmony_style": "offbeat",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 57,
+          "passing_chance": 0.35
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1,
+            0,
+            1
+          ],
+          "rhythm": [
+            2,
+            2,
+            2,
+            2,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              5,
+              6
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              5,
+              6
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              5,
+              6
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              5,
+              6
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0,
+                -1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 855
+      },
+      "render": {
+        "file": "proc_09.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 23,
+        "first_bar_onsets": 22,
+        "first_bar_rms": 6727.7,
+        "final_bar_rms": 7457.1,
+        "energy_ratio": 0.902,
+        "boundary_step": 1784,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    },
+    {
+      "name": "boss_s802",
+      "style": "boss",
+      "seed": 802,
+      "bars": 40,
+      "duration_sec": 64.0,
+      "n_events": 880,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 802,
+        "style": {
+          "name": "boss",
+          "mode": "harmonic_minor",
+          "tempo_bpm": 150,
+          "harmony_style": "offbeat",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 57,
+          "passing_chance": 0.35
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            3,
+            2,
+            0,
+            1
+          ],
+          "rhythm": [
+            2,
+            2,
+            2,
+            2,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                4,
+                3
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                4,
+                3
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 880
+      },
+      "render": {
+        "file": "proc_19.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 23,
+        "first_bar_onsets": 22,
+        "first_bar_rms": 6879.3,
+        "final_bar_rms": 7222.5,
+        "energy_ratio": 0.952,
+        "boundary_step": 8197,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 35% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "boss_s803",
+      "style": "boss",
+      "seed": 803,
+      "bars": 40,
+      "duration_sec": 64.0,
+      "n_events": 888,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 803,
+        "style": {
+          "name": "boss",
+          "mode": "harmonic_minor",
+          "tempo_bpm": 150,
+          "harmony_style": "offbeat",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 57,
+          "passing_chance": 0.35
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1,
+            0,
+            1
+          ],
+          "rhythm": [
+            2,
+            2,
+            2,
+            2,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              5,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                -1,
+                0,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 888
+      },
+      "render": {
+        "file": "proc_21.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 24,
+        "first_bar_onsets": 22,
+        "first_bar_rms": 7114.8,
+        "final_bar_rms": 7382.7,
+        "energy_ratio": 0.964,
+        "boundary_step": 2084,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    },
+    {
+      "name": "action_s800",
+      "style": "action",
+      "seed": 800,
+      "bars": 40,
+      "duration_sec": 57.143,
+      "n_events": 1064,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 800,
+        "style": {
+          "name": "action",
+          "mode": "minor",
+          "tempo_bpm": 168,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.3
+        },
+        "motif": {
+          "degrees": [
+            0,
+            2,
+            4,
+            2,
+            0
+          ],
+          "rhythm": [
+            4,
+            2,
+            2,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                8,
+                4,
+                4,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                8,
+                4,
+                4,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0,
+                -1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 1064
+      },
+      "render": {
+        "file": "proc_04.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 28,
+        "first_bar_onsets": 27,
+        "first_bar_rms": 5971.6,
+        "final_bar_rms": 7206.0,
+        "energy_ratio": 0.829,
+        "boundary_step": 11236,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 48% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "action_s801",
+      "style": "action",
+      "seed": 801,
+      "bars": 40,
+      "duration_sec": 57.143,
+      "n_events": 1073,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 801,
+        "style": {
+          "name": "action",
+          "mode": "minor",
+          "tempo_bpm": 168,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.3
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1,
+            0,
+            1
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            2,
+            2,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              2,
+              6
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                8,
+                4,
+                4,
+                8
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                8,
+                4,
+                4,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 1073
+      },
+      "render": {
+        "file": "proc_14.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 29,
+        "first_bar_onsets": 28,
+        "first_bar_rms": 6625.6,
+        "final_bar_rms": 7233.7,
+        "energy_ratio": 0.916,
+        "boundary_step": 12102,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 52% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "action_s802",
+      "style": "action",
+      "seed": 802,
+      "bars": 40,
+      "duration_sec": 57.143,
+      "n_events": 1119,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 802,
+        "style": {
+          "name": "action",
+          "mode": "minor",
+          "tempo_bpm": 168,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.3
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            3,
+            2,
+            0,
+            1
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            2,
+            2,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              6,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              6,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              6,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              6,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                4,
+                3
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                4,
+                3
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                8
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 1119
+      },
+      "render": {
+        "file": "proc_20.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 29,
+        "first_bar_onsets": 28,
+        "first_bar_rms": 7031.2,
+        "final_bar_rms": 6587.6,
+        "energy_ratio": 1.067,
+        "boundary_step": 12185,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 53% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "action_s803",
+      "style": "action",
+      "seed": 803,
+      "bars": 40,
+      "duration_sec": 57.143,
+      "n_events": 1128,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 803,
+        "style": {
+          "name": "action",
+          "mode": "minor",
+          "tempo_bpm": 168,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.3
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1,
+            0,
+            1
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            2,
+            2,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "A'2",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              6,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              3,
+              5
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'2",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                -1,
+                0,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 1128
+      },
+      "render": {
+        "file": "proc_17.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 76800,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 30,
+        "first_bar_onsets": 28,
+        "first_bar_rms": 6695.6,
+        "final_bar_rms": 6966.3,
+        "energy_ratio": 0.961,
+        "boundary_step": 6319,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 27% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "adventure_s800",
+      "style": "adventure",
+      "seed": 800,
+      "bars": 32,
+      "duration_sec": 56.058,
+      "n_events": 571,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 800,
+        "style": {
+          "name": "adventure",
+          "mode": "major",
+          "tempo_bpm": 137,
+          "harmony_style": "arpeggio",
+          "hat_every": 4,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.25
+        },
+        "motif": {
+          "degrees": [
+            0,
+            2,
+            4
+          ],
+          "rhythm": [
+            8,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              5,
+              3
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              5,
+              3
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              5,
+              3
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4
+              ],
+              "rhythm": [
+                8,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                -2,
+                -4
+              ],
+              "rhythm": [
+                8,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4
+              ],
+              "rhythm": [
+                8,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 571
+      },
+      "render": {
+        "file": "proc_13.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 20,
+        "first_bar_onsets": 17,
+        "first_bar_rms": 6248.8,
+        "final_bar_rms": 6387.1,
+        "energy_ratio": 0.978,
+        "boundary_step": 7745,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 33% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "adventure_s801",
+      "style": "adventure",
+      "seed": 801,
+      "bars": 32,
+      "duration_sec": 56.058,
+      "n_events": 579,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 801,
+        "style": {
+          "name": "adventure",
+          "mode": "major",
+          "tempo_bpm": 137,
+          "harmony_style": "arpeggio",
+          "hat_every": 4,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.25
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1
+          ],
+          "rhythm": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              5,
+              3
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                8,
+                8,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 579
+      },
+      "render": {
+        "file": "proc_10.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 21,
+        "first_bar_onsets": 18,
+        "first_bar_rms": 6428.2,
+        "final_bar_rms": 7381.4,
+        "energy_ratio": 0.871,
+        "boundary_step": 7593,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 33% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "adventure_s802",
+      "style": "adventure",
+      "seed": 802,
+      "bars": 32,
+      "duration_sec": 56.058,
+      "n_events": 577,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 802,
+        "style": {
+          "name": "adventure",
+          "mode": "major",
+          "tempo_bpm": 137,
+          "harmony_style": "arpeggio",
+          "hat_every": 4,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.25
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            3,
+            2
+          ],
+          "rhythm": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                -1,
+                0
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                1
+              ],
+              "rhythm": [
+                8,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 577
+      },
+      "render": {
+        "file": "proc_12.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 21,
+        "first_bar_onsets": 18,
+        "first_bar_rms": 6300.5,
+        "final_bar_rms": 6818.7,
+        "energy_ratio": 0.924,
+        "boundary_step": 5949,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 26% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "adventure_s803",
+      "style": "adventure",
+      "seed": 803,
+      "bars": 32,
+      "duration_sec": 56.058,
+      "n_events": 592,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 803,
+        "style": {
+          "name": "adventure",
+          "mode": "major",
+          "tempo_bpm": 137,
+          "harmony_style": "arpeggio",
+          "hat_every": 4,
+          "backbeat": true,
+          "tonic": 60,
+          "passing_chance": 0.25
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1
+          ],
+          "rhythm": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                4,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 592
+      },
+      "render": {
+        "file": "proc_16.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 19,
+        "first_bar_onsets": 18,
+        "first_bar_rms": 7273.7,
+        "final_bar_rms": 6365.7,
+        "energy_ratio": 1.143,
+        "boundary_step": 6597,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 28% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "town_s800",
+      "style": "town",
+      "seed": 800,
+      "bars": 32,
+      "duration_sec": 60.0,
+      "n_events": 304,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 800,
+        "style": {
+          "name": "town",
+          "mode": "major",
+          "tempo_bpm": 128,
+          "harmony_style": "pad",
+          "hat_every": 4,
+          "backbeat": false,
+          "tonic": 62,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            2
+          ],
+          "rhythm": [
+            8,
+            8
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                2
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                2
+              ],
+              "rhythm": [
+                16,
+                16
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                2
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          }
+        ],
+        "n_events": 304
+      },
+      "render": {
+        "file": "proc_06.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 10,
+        "first_bar_onsets": 9,
+        "first_bar_rms": 5990.2,
+        "final_bar_rms": 5565.6,
+        "energy_ratio": 1.076,
+        "boundary_step": 1862,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    },
+    {
+      "name": "town_s801",
+      "style": "town",
+      "seed": 801,
+      "bars": 32,
+      "duration_sec": 60.0,
+      "n_events": 355,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 801,
+        "style": {
+          "name": "town",
+          "mode": "major",
+          "tempo_bpm": 128,
+          "harmony_style": "pad",
+          "hat_every": 4,
+          "backbeat": false,
+          "tonic": 62,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1
+          ],
+          "rhythm": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                8,
+                8,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                4,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 355
+      },
+      "render": {
+        "file": "proc_15.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 14,
+        "first_bar_onsets": 11,
+        "first_bar_rms": 6242.6,
+        "final_bar_rms": 7117.5,
+        "energy_ratio": 0.877,
+        "boundary_step": 4000,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 17% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "town_s802",
+      "style": "town",
+      "seed": 802,
+      "bars": 32,
+      "duration_sec": 60.0,
+      "n_events": 344,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 802,
+        "style": {
+          "name": "town",
+          "mode": "major",
+          "tempo_bpm": 128,
+          "harmony_style": "pad",
+          "hat_every": 4,
+          "backbeat": false,
+          "tonic": 62,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            3,
+            2
+          ],
+          "rhythm": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                -1,
+                0
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 344
+      },
+      "render": {
+        "file": "proc_03.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 12,
+        "first_bar_onsets": 11,
+        "first_bar_rms": 6115.1,
+        "final_bar_rms": 7030.4,
+        "energy_ratio": 0.87,
+        "boundary_step": 4105,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 18% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "town_s803",
+      "style": "town",
+      "seed": 803,
+      "bars": 32,
+      "duration_sec": 60.0,
+      "n_events": 368,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 803,
+        "style": {
+          "name": "town",
+          "mode": "major",
+          "tempo_bpm": 128,
+          "harmony_style": "pad",
+          "hat_every": 4,
+          "backbeat": false,
+          "tonic": 62,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1
+          ],
+          "rhythm": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              5,
+              3,
+              4
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                0,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                4,
+                4,
+                2,
+                2,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 368
+      },
+      "render": {
+        "file": "proc_08.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 12,
+        "first_bar_onsets": 11,
+        "first_bar_rms": 6309.1,
+        "final_bar_rms": 6751.0,
+        "energy_ratio": 0.935,
+        "boundary_step": 3956,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 17% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "tension_s800",
+      "style": "tension",
+      "seed": 800,
+      "bars": 24,
+      "duration_sec": 55.385,
+      "n_events": 152,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 800,
+        "style": {
+          "name": "tension",
+          "mode": "phrygian",
+          "tempo_bpm": 104,
+          "harmony_style": "pad",
+          "hat_every": 8,
+          "backbeat": false,
+          "tonic": 55,
+          "passing_chance": 0.15
+        },
+        "motif": {
+          "degrees": [
+            0
+          ],
+          "rhythm": [
+            16
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0
+              ],
+              "rhythm": [
+                16
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0
+              ],
+              "rhythm": [
+                16
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0
+              ],
+              "rhythm": [
+                16
+              ]
+            }
+          }
+        ],
+        "n_events": 152
+      },
+      "render": {
+        "file": "proc_23.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 46080,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 8,
+        "first_bar_onsets": 6,
+        "first_bar_rms": 6753.9,
+        "final_bar_rms": 7153.5,
+        "energy_ratio": 0.944,
+        "boundary_step": 4362,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 19% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "tension_s801",
+      "style": "tension",
+      "seed": 801,
+      "bars": 24,
+      "duration_sec": 55.385,
+      "n_events": 185,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 801,
+        "style": {
+          "name": "tension",
+          "mode": "phrygian",
+          "tempo_bpm": 104,
+          "harmony_style": "pad",
+          "hat_every": 8,
+          "backbeat": false,
+          "tonic": 55,
+          "passing_chance": 0.15
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1
+          ],
+          "rhythm": [
+            8,
+            8
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              0,
+              1
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              0,
+              1
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                -1,
+                0
+              ],
+              "rhythm": [
+                8,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          }
+        ],
+        "n_events": 185
+      },
+      "render": {
+        "file": "proc_22.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 46080,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 10,
+        "first_bar_onsets": 7,
+        "first_bar_rms": 6924.9,
+        "final_bar_rms": 7164.3,
+        "energy_ratio": 0.967,
+        "boundary_step": 2892,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 12% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "tension_s802",
+      "style": "tension",
+      "seed": 802,
+      "bars": 24,
+      "duration_sec": 55.385,
+      "n_events": 185,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 802,
+        "style": {
+          "name": "tension",
+          "mode": "phrygian",
+          "tempo_bpm": 104,
+          "harmony_style": "pad",
+          "hat_every": 8,
+          "backbeat": false,
+          "tonic": 55,
+          "passing_chance": 0.15
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1
+          ],
+          "rhythm": [
+            8,
+            8
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              0,
+              1
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                1
+              ],
+              "rhythm": [
+                8,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          }
+        ],
+        "n_events": 185
+      },
+      "render": {
+        "file": "proc_11.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 46080,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 10,
+        "first_bar_onsets": 7,
+        "first_bar_rms": 7376.8,
+        "final_bar_rms": 7822.5,
+        "energy_ratio": 0.943,
+        "boundary_step": 5313,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 23% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "tension_s803",
+      "style": "tension",
+      "seed": 803,
+      "bars": 24,
+      "duration_sec": 55.385,
+      "n_events": 166,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 803,
+        "style": {
+          "name": "tension",
+          "mode": "phrygian",
+          "tempo_bpm": 104,
+          "harmony_style": "pad",
+          "hat_every": 8,
+          "backbeat": false,
+          "tonic": 55,
+          "passing_chance": 0.15
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1
+          ],
+          "rhythm": [
+            8,
+            8
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              0,
+              1
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              6,
+              0,
+              1
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0
+              ],
+              "rhythm": [
+                16
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1
+              ],
+              "rhythm": [
+                8,
+                8
+              ]
+            }
+          }
+        ],
+        "n_events": 166
+      },
+      "render": {
+        "file": "proc_05.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 46080,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 10,
+        "first_bar_onsets": 7,
+        "first_bar_rms": 6822.7,
+        "final_bar_rms": 7330.6,
+        "energy_ratio": 0.931,
+        "boundary_step": 2328,
+        "peak": 23197,
+        "notes": [
+          "sample discontinuity at the boundary is 10% of peak, which may click"
+        ]
+      }
+    },
+    {
+      "name": "victory_s800",
+      "style": "victory",
+      "seed": 800,
+      "bars": 32,
+      "duration_sec": 53.333,
+      "n_events": 807,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 800,
+        "style": {
+          "name": "victory",
+          "mode": "major",
+          "tempo_bpm": 144,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 64,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            2,
+            4,
+            2,
+            0
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                5,
+                2,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                2,
+                2,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                1,
+                3
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                4,
+                2,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 807
+      },
+      "render": {
+        "file": "proc_02.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 26,
+        "first_bar_onsets": 25,
+        "first_bar_rms": 5797.6,
+        "final_bar_rms": 5861.7,
+        "energy_ratio": 0.989,
+        "boundary_step": 101,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    },
+    {
+      "name": "victory_s801",
+      "style": "victory",
+      "seed": 801,
+      "bars": 32,
+      "duration_sec": 53.333,
+      "n_events": 784,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 801,
+        "style": {
+          "name": "victory",
+          "mode": "major",
+          "tempo_bpm": 144,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 64,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1,
+            0
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                4,
+                4,
+                8,
+                8,
+                8
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 784
+      },
+      "render": {
+        "file": "proc_01.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 27,
+        "first_bar_onsets": 25,
+        "first_bar_rms": 6049.5,
+        "final_bar_rms": 6697.5,
+        "energy_ratio": 0.903,
+        "boundary_step": 939,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    },
+    {
+      "name": "victory_s802",
+      "style": "victory",
+      "seed": 802,
+      "bars": 32,
+      "duration_sec": 53.333,
+      "n_events": 799,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 802,
+        "style": {
+          "name": "victory",
+          "mode": "major",
+          "tempo_bpm": 144,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 64,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            3,
+            2,
+            0
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                4,
+                6
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                2,
+                1,
+                3
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                3,
+                2,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 799
+      },
+      "render": {
+        "file": "proc_18.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 26,
+        "first_bar_onsets": 25,
+        "first_bar_rms": 5990.7,
+        "final_bar_rms": 6058.3,
+        "energy_ratio": 0.989,
+        "boundary_step": 12,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    },
+    {
+      "name": "victory_s803",
+      "style": "victory",
+      "seed": 803,
+      "bars": 32,
+      "duration_sec": 53.333,
+      "n_events": 797,
+      "hardware_violations": 0,
+      "plan": {
+        "seed": 803,
+        "style": {
+          "name": "victory",
+          "mode": "major",
+          "tempo_bpm": 144,
+          "harmony_style": "arpeggio",
+          "hat_every": 2,
+          "backbeat": true,
+          "tonic": 64,
+          "passing_chance": 0.2
+        },
+        "motif": {
+          "degrees": [
+            0,
+            1,
+            2,
+            1,
+            0
+          ],
+          "rhythm": [
+            2,
+            2,
+            4,
+            4,
+            4
+          ]
+        },
+        "sections": [
+          {
+            "label": "A",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          },
+          {
+            "label": "A'1",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "vary"
+          },
+          {
+            "label": "B",
+            "bars": 8,
+            "progression": [
+              0,
+              4,
+              0,
+              4
+            ],
+            "treatment": "contrast"
+          },
+          {
+            "label": "A''",
+            "bars": 8,
+            "progression": [
+              0,
+              3,
+              4,
+              0
+            ],
+            "treatment": "state"
+          }
+        ],
+        "variations": [
+          {
+            "label": "A",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A'1",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "B",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1
+              ],
+              "rhythm": [
+                4,
+                4,
+                4,
+                4
+              ]
+            }
+          },
+          {
+            "label": "A''",
+            "motif": {
+              "degrees": [
+                0,
+                1,
+                2,
+                1,
+                0
+              ],
+              "rhythm": [
+                2,
+                2,
+                4,
+                4,
+                4
+              ]
+            }
+          }
+        ],
+        "n_events": 797
+      },
+      "render": {
+        "file": "proc_24.wav"
+      },
+      "loop_diagnostic": {
+        "loop_start_tick": 0,
+        "loop_end_tick": 61440,
+        "timing_continuous": true,
+        "n_crossing_events": 0,
+        "crossing": [],
+        "n_past_end": 0,
+        "final_bar_onsets": 26,
+        "first_bar_onsets": 25,
+        "first_bar_rms": 6668.8,
+        "final_bar_rms": 6156.3,
+        "energy_ratio": 1.083,
+        "boundary_step": 839,
+        "peak": 23197,
+        "notes": [
+          "no timing or level discontinuity found at the boundary"
+        ]
+      }
+    }
+  ],
+  "listening_key": [
+    {
+      "file": "proc_01.wav",
+      "name": "victory_s801",
+      "style": "victory",
+      "seed": 801
+    },
+    {
+      "file": "proc_02.wav",
+      "name": "victory_s800",
+      "style": "victory",
+      "seed": 800
+    },
+    {
+      "file": "proc_03.wav",
+      "name": "town_s802",
+      "style": "town",
+      "seed": 802
+    },
+    {
+      "file": "proc_04.wav",
+      "name": "action_s800",
+      "style": "action",
+      "seed": 800
+    },
+    {
+      "file": "proc_05.wav",
+      "name": "tension_s803",
+      "style": "tension",
+      "seed": 803
+    },
+    {
+      "file": "proc_06.wav",
+      "name": "town_s800",
+      "style": "town",
+      "seed": 800
+    },
+    {
+      "file": "proc_07.wav",
+      "name": "boss_s800",
+      "style": "boss",
+      "seed": 800
+    },
+    {
+      "file": "proc_08.wav",
+      "name": "town_s803",
+      "style": "town",
+      "seed": 803
+    },
+    {
+      "file": "proc_09.wav",
+      "name": "boss_s801",
+      "style": "boss",
+      "seed": 801
+    },
+    {
+      "file": "proc_10.wav",
+      "name": "adventure_s801",
+      "style": "adventure",
+      "seed": 801
+    },
+    {
+      "file": "proc_11.wav",
+      "name": "tension_s802",
+      "style": "tension",
+      "seed": 802
+    },
+    {
+      "file": "proc_12.wav",
+      "name": "adventure_s802",
+      "style": "adventure",
+      "seed": 802
+    },
+    {
+      "file": "proc_13.wav",
+      "name": "adventure_s800",
+      "style": "adventure",
+      "seed": 800
+    },
+    {
+      "file": "proc_14.wav",
+      "name": "action_s801",
+      "style": "action",
+      "seed": 801
+    },
+    {
+      "file": "proc_15.wav",
+      "name": "town_s801",
+      "style": "town",
+      "seed": 801
+    },
+    {
+      "file": "proc_16.wav",
+      "name": "adventure_s803",
+      "style": "adventure",
+      "seed": 803
+    },
+    {
+      "file": "proc_17.wav",
+      "name": "action_s803",
+      "style": "action",
+      "seed": 803
+    },
+    {
+      "file": "proc_18.wav",
+      "name": "victory_s802",
+      "style": "victory",
+      "seed": 802
+    },
+    {
+      "file": "proc_19.wav",
+      "name": "boss_s802",
+      "style": "boss",
+      "seed": 802
+    },
+    {
+      "file": "proc_20.wav",
+      "name": "action_s802",
+      "style": "action",
+      "seed": 802
+    },
+    {
+      "file": "proc_21.wav",
+      "name": "boss_s803",
+      "style": "boss",
+      "seed": 803
+    },
+    {
+      "file": "proc_22.wav",
+      "name": "tension_s801",
+      "style": "tension",
+      "seed": 801
+    },
+    {
+      "file": "proc_23.wav",
+      "name": "tension_s800",
+      "style": "tension",
+      "seed": 800
+    },
+    {
+      "file": "proc_24.wav",
+      "name": "victory_s803",
+      "style": "victory",
+      "seed": 803
+    }
+  ]
+}

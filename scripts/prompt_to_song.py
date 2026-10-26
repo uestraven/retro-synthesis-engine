@@ -53,6 +53,7 @@ from rse.events.schema import Composition, TempoChange, TimeSignatureChange
 from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import load_profile
 from rse.prompt.interpret import Requirement, SongPlan, interpret
+from rse.song.build import music_end_bar
 from rse.song.loopcheck import check as loop_check
 from rse.song.loopcheck import pad_to_loop_length
 from rse.tokenizers.frozen import frozen_config
@@ -65,9 +66,23 @@ SECTION_BARS = 8
 THEME_BARS = 4
 PEAK_DBFS = -3.0
 
-#: Key offset for the contrasting section. A fifth away is the conventional
-#: move and is expressible in the composer's `<KEY_root:mode>` family.
-CONTRAST_KEY_OFFSET = 1
+#: How far the finished track may sit from the requested duration.
+#:
+#: Removing the dead air between sections also removes real time, so a form
+#: of whole sections rarely lands on the requested second. The operator's
+#: call: a valid loop and an intact section form matter more than the exact
+#: length, within ten seconds either way.
+DURATION_TOLERANCE_SEC = 10.0
+
+#: Key offset for the contrasting section, now zero.
+#:
+#: A fifth away is the conventional move, but B climbed to the loudest bar in
+#: the track and then A'' entered at less than half the level in a different
+#: key with no preparation -- the listener's verdict on that transition was
+#: "makes no sense", and structurally it was one. B already contrasts by
+#: texture: it starts sparse and builds. The key change added nothing audible
+#: except the unprepared return.
+CONTRAST_KEY_OFFSET = 0
 
 
 def build_header(vocab: Vocab, plan: SongPlan, *, key_root: int | None = None) -> list[str]:
@@ -121,18 +136,38 @@ def bar_prefix(ids: list[int], *, vocab: Vocab, n_bars: int) -> list[int] | None
 def concatenate(
     sections: list[Composition], *, bar_ticks: int, section_bars: int, bpm: float,
     beats_per_bar: int,
-) -> Composition:
-    """Lay sections end to end on bar lines and mark the loop.
+) -> tuple[Composition, list[dict[str, Any]]]:
+    """Lay sections end to end at the bar their music ends on, and mark the loop.
 
-    Each section is placed at its own bar offset, so a section that ended
-    early does not shorten the one after it -- the form stays metrically
-    correct even when the composer left its last bar sparse.
+    This previously placed every section at `index * section_bars`, which
+    assumed each one filled its nominal eight bars. Fermata's eight-bar
+    generations stop around bar 7.2, so that left 1.4 s of dead air at three
+    of four boundaries -- 4.3 s, 7% of a 60 s track, which the listener heard
+    as "there are silent sections".
+
+    Placing each section where the previous one's music actually stopped
+    removes the gaps. Sections therefore do not land on a nominal grid, which
+    is correct: a seven-bar phrase followed immediately by the next is music,
+    and a seven-bar phrase followed by a bar of silence is a bug.
     """
     events = []
-    for index, section in enumerate(sections):
-        offset = index * section_bars * bar_ticks
+    offset_bars = 0
+    placement: list[dict[str, Any]] = []
+    for section in sections:
+        # The bar the music stops in, not the bar its last onset starts in.
+        filled = music_end_bar(section, bar_ticks=bar_ticks, cap=section_bars)
+        offset = offset_bars * bar_ticks
         for event in section.sounding_events():
             events.append(dataclasses.replace(event, tick=event.tick + offset))
+        placement.append(
+            {
+                "start_bar": offset_bars,
+                "nominal_bars": section_bars,
+                "occupied_bars": filled,
+                "trimmed_bars": section_bars - filled,
+            }
+        )
+        offset_bars += filled
     track = Composition(
         hardware_profile="nes", ticks_per_beat=section.ticks_per_beat, events=events
     )
@@ -141,9 +176,9 @@ def concatenate(
     # A real boundary, not a fade: the loop runs from the first bar line to
     # the last, so the final bar leads straight back into the opening.
     track.loop_start_tick = 0
-    track.loop_end_tick = len(sections) * section_bars * bar_ticks
+    track.loop_end_tick = offset_bars * bar_ticks
     track.normalize()
-    return track
+    return track, placement
 
 
 def main() -> int:
@@ -215,6 +250,10 @@ def main() -> int:
 
     total_bars = plan.bars_for_target(section_bars=SECTION_BARS)
     n_sections = max(2, total_bars // SECTION_BARS)
+    # Sections fill ~7 of their 8 bars, so an 8-bar grid undershoots the
+    # requested duration once the gaps are removed. One extra section covers
+    # it; the assembler reports the true length either way.
+    n_sections += 1
     # A A' B A'' when there is room; the B slot is the second from last.
     roles = ["A"] + ["A'"] * max(0, n_sections - 3) + (["B", "A''"] if n_sections >= 3 else [])
     roles = roles[:n_sections]
@@ -365,8 +404,29 @@ def main() -> int:
             continue
         if role == "A" and theme_prefix is None:
             theme_prefix = bar_prefix(ids, vocab=vocab, n_bars=THEME_BARS)
+
+        # The 4-bar theme otherwise recurs identically in every return -- two
+        # bars bit-identical across all three A sections, about 37% of the
+        # track being one riff. Thinning the first return's accompaniment
+        # keeps the theme recognisable while changing its texture, which the
+        # brief permits explicitly for A' and A''.
+        thinned = None
+        if role.startswith("A'") and not role.endswith("''"):
+            from rse.song.build import drop_channel
+
+            section = drop_channel(section, "P2")
+            thinned = "P2"
+            origin += "; accompaniment channel P2 muted to vary the texture"
         sections.append(section)
-        records.append({"index": index + 1, "role": role, "origin": origin, **report})
+        records.append(
+            {
+                "index": index + 1,
+                "role": role,
+                "origin": origin,
+                "thinned_channel": thinned,
+                **report,
+            }
+        )
         print(
             f"  section {index + 1} ({role:<3}) {report['n_events']:>4} events, "
             f"{report['attempts']} attempt(s) -- {origin[:58]}"
@@ -376,7 +436,7 @@ def main() -> int:
         print("error: no sections generated", file=sys.stderr)
         return 2
 
-    track = concatenate(
+    track, placement = concatenate(
         sections,
         bar_ticks=bar_ticks,
         section_bars=SECTION_BARS,
@@ -433,9 +493,14 @@ def main() -> int:
         "form": [r["role"] for r in records],
         "section_bars": SECTION_BARS,
         "theme_bars": THEME_BARS,
-        "total_bars": len(sections) * SECTION_BARS,
+        "total_bars": (track.loop_end_tick or 0) // bar_ticks,
+        "placement": placement,
+        "bars_trimmed_total": sum(p["trimmed_bars"] for p in placement),
         "duration_sec": round(duration, 3),
         "requested_seconds": plan.target_seconds,
+        "duration_tolerance_sec": DURATION_TOLERANCE_SEC,
+        "duration_within_tolerance": abs(duration - plan.target_seconds)
+        <= DURATION_TOLERANCE_SEC,
         "loop": {"start_tick": track.loop_start_tick, "end_tick": track.loop_end_tick},
         "loop_diagnostic": diagnostic.to_dict(),
         "render_padding": padding,
@@ -464,6 +529,17 @@ def main() -> int:
     out_json.write_text(json.dumps(payload, indent=2) + "\n")
 
     print(f"\n{'-' * 68}")
+    within = abs(duration - plan.target_seconds) <= DURATION_TOLERANCE_SEC
+    plan.requirements.append(
+        Requirement(
+            f"duration {duration:.1f} s against {plan.target_seconds:g} s requested",
+            "satisfied" if within else "approximated",
+            f"within the +/-{DURATION_TOLERANCE_SEC:g} s tolerance"
+            if within
+            else f"outside the +/-{DURATION_TOLERANCE_SEC:g} s tolerance; the "
+            "form was kept whole rather than padded to length",
+        )
+    )
     print(f"duration {duration:.1f} s (requested {plan.target_seconds:g} s), "
           f"{len(sections) * SECTION_BARS} bars, {len(violations)} hardware violations "
           f"({n_seam_repairs} seam repairs applied)")

@@ -39,6 +39,64 @@ ROW_SEC = 0.1
 TICKS_PER_BEAT = 480
 
 
+def occupied_bars(composition: Composition, *, bar_ticks: int) -> int:
+    """Bars up to and including the last one holding an onset.
+
+    Fermata's eight-bar generations reliably stop around bar 7.2, so placing
+    every section on an eight-bar grid left 1.4 s of dead air at three of four
+    section boundaries -- 4.3 s, 7% of a 60 s track. Measuring what a section
+    actually occupies lets the next one start where the music stops.
+    """
+    events = composition.sounding_events()
+    if not events:
+        return 0
+    return int(max(e.tick for e in events) // bar_ticks) + 1
+
+
+def music_end_bar(composition: Composition, *, bar_ticks: int, cap: int) -> int:
+    """Bar in which the section's sound actually stops.
+
+    `occupied_bars` counts bars containing an ONSET, which was the wrong
+    measure: the final bar of a Fermata section is not empty, it is sparse --
+    one note near its start and then 1.4 s of nothing. Trimming empty bars
+    found nothing to trim and the dead air survived two attempted fixes.
+
+    This measures the last moment anything is still sounding and returns the
+    bar it falls in, so the next section begins there rather than after a
+    silent three-quarters of a bar. The overlap that creates is resolved by
+    the monophony repair the assembler already runs.
+
+    `cap` bounds the result at the section's nominal length, so a section that
+    genuinely fills its bars is never overlapped.
+    """
+    events = composition.sounding_events()
+    if not events:
+        return 0
+    last_end = max(e.tick + getattr(e, "duration", 0) for e in events)
+    return max(1, min(cap, int(last_end // bar_ticks)))
+
+
+def drop_channel(composition: Composition, channel: str) -> Composition:
+    """The same music with one channel muted.
+
+    Used to vary a returning section's texture without touching its pitch
+    material: the brief allows A' and A'' to "vary accompaniment,
+    instrumentation, and other musically safe details without destroying the
+    original idea". The 4-bar theme otherwise recurs three times with only two
+    bars differing, which is about 37% of the track being one riff.
+    """
+    kept = [e for e in composition.events if e.channel_id != channel]
+    out = Composition(
+        hardware_profile=composition.hardware_profile,
+        ticks_per_beat=composition.ticks_per_beat,
+        events=kept,
+    )
+    out.tempo_map = list(composition.tempo_map)
+    out.time_signatures = list(composition.time_signatures)
+    out.normalize()
+    return out
+
+
 @dataclass
 class SectionResult:
     """One generated section and how it came about."""
@@ -50,6 +108,10 @@ class SectionResult:
     token_ids: list[int] = field(default_factory=list)
     attempts: int = 0
     report: dict[str, Any] = field(default_factory=dict)
+    #: Bars the music actually fills, which is usually fewer than `bars`.
+    occupied: int = 0
+    #: Channel muted to vary a return's texture, if any.
+    thinned: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -258,11 +320,23 @@ class SongBuilder:
         for result in results:
             if not result.ok:
                 continue
+            # Place at the bar the previous section's music ENDED on, not at
+            # the next multiple of the nominal section length. That is what
+            # removes the dead air at every section boundary.
+            filled = occupied_bars(result.composition, bar_ticks=self.bar_ticks)
             offset = offset_bars * self.bar_ticks
             for event in result.composition.sounding_events():
                 events.append(dataclasses.replace(event, tick=event.tick + offset))
-            placement.append({"label": result.label, "start_bar": offset_bars})
-            offset_bars += result.bars
+            placement.append(
+                {
+                    "label": result.label,
+                    "start_bar": offset_bars,
+                    "nominal_bars": result.bars,
+                    "occupied_bars": filled,
+                    "trimmed_bars": result.bars - filled,
+                }
+            )
+            offset_bars += filled
 
         track = Composition(
             hardware_profile="nes", ticks_per_beat=TICKS_PER_BEAT, events=events
