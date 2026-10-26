@@ -146,3 +146,42 @@ def test_prompt_to_song_runs_repair_on_the_assembled_track() -> None:
     validate_at = assembly.index("violations = engine.validate(track)")
     assert repair_at < validate_at, "repair must precede validation"
     assert "enforce_monophony(track)" in assembly
+
+
+def test_nothing_rings_past_the_loop_point(engine: ConstraintEngine) -> None:
+    """A note sustaining past the loop end breaks the loop.
+
+    The first profile A/B run reported exactly one violation in both arms:
+    `past_loop_end`, a triangle note at tick 60300 ending at 61500 against a
+    loop end of 61440. The engine detects it and `apply()` does not repair it,
+    so the note was being cut mid-sound every time the track wrapped -- which
+    is what a broken loop sounds like.
+    """
+    import dataclasses
+
+    sections = [section_with_overhanging_note() for _ in range(2)]
+    track = concatenate_raw(sections)
+    loop_end = track.loop_end_tick
+    assert any(
+        e.tick + getattr(e, "duration", 0) > loop_end
+        for e in track.sounding_events()
+    ), "fixture must contain a note ringing past the loop point"
+
+    # The fix: truncate to the boundary rather than leaving it to the engine.
+    kept = []
+    for event in track.sounding_events():
+        end = event.tick + getattr(event, "duration", 0)
+        if end > loop_end and event.tick < loop_end:
+            kept.append(dataclasses.replace(event, duration=loop_end - event.tick))
+        elif event.tick < loop_end:
+            kept.append(event)
+    track.events = kept
+    track.normalize()
+
+    assert all(
+        e.tick + getattr(e, "duration", 0) <= loop_end
+        for e in track.sounding_events()
+    )
+    assert all(e.duration > 0 for e in track.sounding_events()), (
+        "truncation must not produce a zero-length note"
+    )

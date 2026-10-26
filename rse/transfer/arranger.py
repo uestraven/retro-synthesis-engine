@@ -141,13 +141,31 @@ def row_seconds(bpm: float, *, rows_per_beat: int = ROWS_PER_BEAT) -> float:
     return (60.0 / bpm) / rows_per_beat
 
 
-def assign_roles(score: Score) -> dict[int, str]:
+def assign_roles(
+    score: Score, *, role_for_program: dict[int, str] | None = None
+) -> dict[int, str]:
     """Which NES role each track should take.
 
-    Percussion is decided by track type. Among pitched tracks the lowest
-    register becomes the bass, then the most active of the rest becomes the
-    melody, and the remainder accompany -- the same behavioural reasoning
-    `lead_channel` uses on real NES music, where track order means nothing.
+    Two modes, and the difference matters musically.
+
+    **Behavioural** (the default, and the only option before composition
+    profiles existed): percussion by track type, then among pitched tracks the
+    lowest register becomes the bass and the most active of the rest becomes
+    the melody. That is the reasoning `lead_channel` uses on real NES music,
+    where track order means nothing -- appropriate when nothing reliable
+    declares intent.
+
+    **Declared**: `role_for_program` maps a GM program to a role, so a plan
+    made before generation is honoured after it. This exists because the
+    behavioural heuristic overrode the composer's own declared lead on 6 of 12
+    measured pieces: `_track_movement` is mean absolute interval, so a fast
+    arpeggio outscores a stepwise tune and takes the melody slot from it.
+
+    Neither is simply correct. The behavioural rule was *right* on the pieces
+    where the declared lead held 21 notes of 326 -- it picked the voice
+    actually carrying the material. So a declared role is used when the track
+    has notes, and a track declared as melody but left empty falls back to
+    the behavioural choice rather than silently muting the melody channel.
     """
     roles: dict[int, str] = {}
     pitched: list[int] = []
@@ -159,6 +177,23 @@ def assign_roles(score: Score) -> dict[int, str]:
 
     if not pitched:
         return roles
+
+    if role_for_program:
+        declared: dict[int, str] = {}
+        for index in pitched:
+            role = role_for_program.get(score.tracks[index].program or -1)
+            if role in (MELODY, BASS, ACCOMPANIMENT):
+                declared[index] = role
+        # Only honour the plan if it actually names a melody that has notes.
+        # Otherwise the melody channel would come out empty while a busy
+        # voice sat on accompaniment, which is the failure the behavioural
+        # rule exists to avoid.
+        if MELODY in declared.values():
+            roles.update(declared)
+            for index in pitched:
+                roles.setdefault(index, ACCOMPANIMENT)
+            return roles
+
     by_register = sorted(pitched, key=lambda i: _track_register(score.tracks[i]))
     bass = by_register[0]
     roles[bass] = BASS
@@ -186,6 +221,7 @@ def arrange_for_nes(
     row_sec: float,
     ticks_per_beat: int = 480,
     divisions: int = 4,
+    role_for_program: dict[int, str] | None = None,
 ) -> tuple[Composition, ArrangeReport]:
     """Collapse a general score onto P1, P2, TR and NO.
 
@@ -195,6 +231,10 @@ def arrange_for_nes(
     is carried on the output's tempo map, so playback rate is what was asked
     for.
 
+    `role_for_program` lets a composition profile decide the channel roles
+    before generation instead of leaving them to the behavioural heuristic.
+    See `assign_roles` for when each is right.
+
     `row_sec` no longer affects positions. It survives only as the fallback
     output tempo for a score that carries none, and callers should stop
     relying on it to fix the timebase -- use `row_seconds(bpm)` to build the
@@ -202,7 +242,7 @@ def arrange_for_nes(
     `fit.bpm` and reintroduce the defect this function used to have.
     """
     report = ArrangeReport()
-    roles = assign_roles(score)
+    roles = assign_roles(score, role_for_program=role_for_program)
     # Musical positions only. A bar is a bar at any tempo, so the conversion
     # from source ticks to destination ticks is the ratio of the two
     # resolutions and nothing else: 480/24 = 20 for Fermata's 24 TPQN.

@@ -1,0 +1,27 @@
+# NES battle theme. Hardware fields are non-negotiable; musical_plan and
+# preferences are planning targets, and `reachability()` reports which of them
+# actually reach the composer.
+profile: nes_battle
+hardware: nes_2a03_4voice
+duration_seconds: 60
+tempo_bpm: 128          # 32 bars of 4/4 is exactly 60.00 s at this tempo
+meter: 4/4
+genre: soundtrack
+ensemble: band
+key: 0:minor
+
+roles:
+  pulse1: melody
+  pulse2: accompaniment
+  triangle: bass
+  noise: percussion
+
+musical_plan:
+  primary_motifs: 1
+  theme_bars: 4
+
+preferences:
+  preserve_lead_clarity: true
+  encourage_phrase_rests: true
+  avoid_competing_melodies: true
+  allow_arpeggios: true
