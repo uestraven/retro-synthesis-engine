@@ -506,11 +506,22 @@ def render_melody(
             )
             tones = [style.tonic + t for t in chord_tones]
             ladder = [style.tonic + t for t in scale_tones]
+            # Keep the generator aligned with the mode-derived path. That
+            # path draws randrange(3) for its three stacked degrees; this one
+            # would draw randrange(9) over three octaves of chord tones, so
+            # every subsequent draw -- including the percussion, generated
+            # per section after the melody -- would diverge. The arms of a
+            # harmony experiment would then differ in drums too, confounding
+            # the variable under test. Draw in the same range and fold.
+            pick_from = tones
+            tones = tones[: len(chord_degrees(0))] or tones
         else:
             tones = chord_degrees(spec if isinstance(spec, int) else spec.degree)
             ladder = None
         start = tones[rng.randrange(len(tones))]
         row = 0
+        if altered:
+            tones = pick_from
         for step, length in zip(motif.degrees, motif.rhythm, strict=False):
             if row >= span:
                 break
