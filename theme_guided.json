@@ -1,0 +1,2539 @@
+{
+  "design": {
+    "theme_bars": 4,
+    "target_bars": 8,
+    "per_theme": 3,
+    "sampling": {
+      "temperature": 0.7,
+      "top_k": 24,
+      "repetition_penalty": 1.12,
+      "max_new_tokens": 2000
+    },
+    "primary_measure": "view 1, bars 5-8 only, both arms cut identically",
+    "secondary_measure": "view 2, whole piece, thematic connection",
+    "ranking_used": null,
+    "pipeline": "corrected timing + implicit first bar"
+  },
+  "n_pieces": 30,
+  "per_arm": {
+    "guided": 15,
+    "control": 15
+  },
+  "n_failed": 3,
+  "failures_by_reason": {
+    "incomplete_or_invalid": 3
+  },
+  "control_attempts": 16,
+  "pieces": [
+    {
+      "name": "guided_t1_s31100",
+      "arm": "guided",
+      "theme_id": 1,
+      "theme_source": "fast_rhythmic_s11032",
+      "theme_idea": null,
+      "scenario": "fast_rhythmic",
+      "seed": 31100,
+      "attempt": 1,
+      "n_prefix_tokens": 733,
+      "n_generated_tokens": 916,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1649,
+        "n_skipped": 4,
+        "n_events": 320,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 320,
+        "n_events_out": 320,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 132,
+        "n_stolen_truncated": 71,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 154,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 180.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 320,
+        "notes_per_bar": 40.0,
+        "pitch_class_entropy": 2.6305,
+        "stepwise_fraction": 0.0504,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.4496,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 10.729
+      },
+      "development": {
+        "lead_channel": "P2",
+        "n_lead_opening": 8,
+        "n_lead_later": 15,
+        "lead_ratio": 1.875,
+        "contour_recurrence": 0.14285714285714285,
+        "identical_bars": 0,
+        "melody_notes": 23
+      },
+      "render": {
+        "clip": "clip_06.wav",
+        "piece": "piece_06.wav"
+      }
+    },
+    {
+      "name": "guided_t1_s31101",
+      "arm": "guided",
+      "theme_id": 1,
+      "theme_source": "fast_rhythmic_s11032",
+      "theme_idea": null,
+      "scenario": "fast_rhythmic",
+      "seed": 31101,
+      "attempt": 2,
+      "n_prefix_tokens": 733,
+      "n_generated_tokens": 966,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1699,
+        "n_skipped": 4,
+        "n_events": 330,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 330,
+        "n_events_out": 330,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 132,
+        "n_stolen_truncated": 71,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 154,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 180.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 330,
+        "notes_per_bar": 41.25,
+        "pitch_class_entropy": 2.32,
+        "stepwise_fraction": 0.0504,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": 1.4496,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 12.333
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 40,
+        "n_lead_later": 80,
+        "lead_ratio": 2.0,
+        "contour_recurrence": 0.5,
+        "identical_bars": 0,
+        "melody_notes": 120
+      },
+      "render": {
+        "clip": "clip_09.wav",
+        "piece": "piece_09.wav"
+      }
+    },
+    {
+      "name": "guided_t1_s31102",
+      "arm": "guided",
+      "theme_id": 1,
+      "theme_source": "fast_rhythmic_s11032",
+      "theme_idea": null,
+      "scenario": "fast_rhythmic",
+      "seed": 31102,
+      "attempt": 3,
+      "n_prefix_tokens": 733,
+      "n_generated_tokens": 941,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1674,
+        "n_skipped": 4,
+        "n_events": 325,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 325,
+        "n_events_out": 325,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 132,
+        "n_stolen_truncated": 71,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 154,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 180.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 325,
+        "notes_per_bar": 40.625,
+        "pitch_class_entropy": 2.32,
+        "stepwise_fraction": 0.0504,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.4496,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 10.729
+      },
+      "development": {
+        "lead_channel": "P2",
+        "n_lead_opening": 8,
+        "n_lead_later": 14,
+        "lead_ratio": 1.75,
+        "contour_recurrence": 0.375,
+        "identical_bars": 0,
+        "melody_notes": 22
+      },
+      "render": {
+        "clip": "clip_23.wav",
+        "piece": "piece_23.wav"
+      }
+    },
+    {
+      "name": "guided_t2_s31200",
+      "arm": "guided",
+      "theme_id": 2,
+      "theme_source": "action_s13662",
+      "theme_idea": null,
+      "scenario": "action",
+      "seed": 31200,
+      "attempt": 1,
+      "n_prefix_tokens": 208,
+      "n_generated_tokens": 450,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 658,
+        "n_skipped": 4,
+        "n_events": 123,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 123,
+        "n_events_out": 123,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 6,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 38,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 168.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 123,
+        "notes_per_bar": 15.375,
+        "pitch_class_entropy": 2.3459,
+        "stepwise_fraction": 0.4167,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.3743,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.607
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 0,
+        "n_lead_later": 13,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 13
+      },
+      "render": {
+        "clip": "clip_15.wav",
+        "piece": "piece_15.wav"
+      }
+    },
+    {
+      "name": "guided_t2_s31201",
+      "arm": "guided",
+      "theme_id": 2,
+      "theme_source": "action_s13662",
+      "theme_idea": null,
+      "scenario": "action",
+      "seed": 31201,
+      "attempt": 2,
+      "n_prefix_tokens": 208,
+      "n_generated_tokens": 358,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 566,
+        "n_skipped": 4,
+        "n_events": 105,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 105,
+        "n_events_out": 105,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 7,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 35,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 168.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 105,
+        "notes_per_bar": 13.125,
+        "pitch_class_entropy": 2.444,
+        "stepwise_fraction": 0.5714,
+        "motif_note_participation": 0.4091,
+        "ioi_entropy": 0.7871,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.429
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 0,
+        "n_lead_later": 22,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 22
+      },
+      "render": {
+        "clip": "clip_08.wav",
+        "piece": "piece_08.wav"
+      }
+    },
+    {
+      "name": "guided_t2_s31202",
+      "arm": "guided",
+      "theme_id": 2,
+      "theme_source": "action_s13662",
+      "theme_idea": null,
+      "scenario": "action",
+      "seed": 31202,
+      "attempt": 3,
+      "n_prefix_tokens": 208,
+      "n_generated_tokens": 259,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 467,
+        "n_skipped": 4,
+        "n_events": 85,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 85,
+        "n_events_out": 85,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 7,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 35,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 168.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 85,
+        "notes_per_bar": 10.625,
+        "pitch_class_entropy": 1.585,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.6944,
+        "ioi_entropy": 0.9035,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.429
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 16,
+        "n_lead_later": 20,
+        "lead_ratio": 1.25,
+        "contour_recurrence": 0.5555555555555556,
+        "identical_bars": 0,
+        "melody_notes": 36
+      },
+      "render": {
+        "clip": "clip_20.wav",
+        "piece": "piece_20.wav"
+      }
+    },
+    {
+      "name": "guided_t3_s31300",
+      "arm": "guided",
+      "theme_id": 3,
+      "theme_source": "ominous_s7261",
+      "theme_idea": null,
+      "scenario": "ominous",
+      "seed": 31300,
+      "attempt": 1,
+      "n_prefix_tokens": 342,
+      "n_generated_tokens": 547,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 889,
+        "n_skipped": 4,
+        "n_events": 170,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 170,
+        "n_events_out": 170,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 48,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 24,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 92.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 170,
+        "notes_per_bar": 21.25,
+        "pitch_class_entropy": 2.5,
+        "stepwise_fraction": 0.2174,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": 1.7087,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 20.91
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 0,
+        "n_lead_later": 24,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 1,
+        "melody_notes": 24
+      },
+      "render": {
+        "clip": "clip_18.wav",
+        "piece": "piece_18.wav"
+      }
+    },
+    {
+      "name": "guided_t3_s31301",
+      "arm": "guided",
+      "theme_id": 3,
+      "theme_source": "ominous_s7261",
+      "theme_idea": null,
+      "scenario": "ominous",
+      "seed": 31301,
+      "attempt": 2,
+      "n_prefix_tokens": 342,
+      "n_generated_tokens": 741,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1083,
+        "n_skipped": 4,
+        "n_events": 208,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 208,
+        "n_events_out": 208,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 80,
+        "n_stolen_truncated": 77,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 24,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 92.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 208,
+        "notes_per_bar": 26.0,
+        "pitch_class_entropy": 2.0722,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.625,
+        "ioi_entropy": 1.9016,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 20.91
+      },
+      "development": {
+        "lead_channel": "P2",
+        "n_lead_opening": 0,
+        "n_lead_later": 32,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 32
+      },
+      "render": {
+        "clip": "clip_05.wav",
+        "piece": "piece_05.wav"
+      }
+    },
+    {
+      "name": "guided_t3_s31302",
+      "arm": "guided",
+      "theme_id": 3,
+      "theme_source": "ominous_s7261",
+      "theme_idea": null,
+      "scenario": "ominous",
+      "seed": 31302,
+      "attempt": 3,
+      "n_prefix_tokens": 342,
+      "n_generated_tokens": 521,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 863,
+        "n_skipped": 4,
+        "n_events": 164,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 164,
+        "n_events_out": 164,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 48,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 24,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 92.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 164,
+        "notes_per_bar": 20.5,
+        "pitch_class_entropy": 2.371,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.7087,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 20.91
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 0,
+        "n_lead_later": 10,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 10
+      },
+      "render": {
+        "clip": "clip_22.wav",
+        "piece": "piece_22.wav"
+      }
+    },
+    {
+      "name": "guided_t4_s31400",
+      "arm": "guided",
+      "theme_id": 4,
+      "theme_source": "town_s15040",
+      "theme_idea": null,
+      "scenario": "town",
+      "seed": 31400,
+      "attempt": 1,
+      "n_prefix_tokens": 432,
+      "n_generated_tokens": 471,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 903,
+        "n_skipped": 4,
+        "n_events": 170,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 170,
+        "n_events_out": 170,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 26,
+        "n_stolen_truncated": 25,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 74,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR",
+          "2": "accompaniment->P2",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 170,
+        "notes_per_bar": 21.25,
+        "pitch_class_entropy": 2.7381,
+        "stepwise_fraction": 0.68,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 2.4512,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.545
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 15,
+        "n_lead_later": 11,
+        "lead_ratio": 0.7333,
+        "contour_recurrence": 0.5,
+        "identical_bars": 0,
+        "melody_notes": 26
+      },
+      "render": {
+        "clip": "clip_03.wav",
+        "piece": "piece_03.wav"
+      }
+    },
+    {
+      "name": "guided_t4_s31402",
+      "arm": "guided",
+      "theme_id": 4,
+      "theme_source": "town_s15040",
+      "theme_idea": null,
+      "scenario": "town",
+      "seed": 31402,
+      "attempt": 3,
+      "n_prefix_tokens": 432,
+      "n_generated_tokens": 541,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 973,
+        "n_skipped": 4,
+        "n_events": 184,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 184,
+        "n_events_out": 184,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 30,
+        "n_stolen_truncated": 29,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 83,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR",
+          "2": "accompaniment->P2",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 184,
+        "notes_per_bar": 23.0,
+        "pitch_class_entropy": 2.758,
+        "stepwise_fraction": 0.8333,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 2.477,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.545
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 13,
+        "n_lead_later": 13,
+        "lead_ratio": 1.0,
+        "contour_recurrence": 0.2857142857142857,
+        "identical_bars": 0,
+        "melody_notes": 26
+      },
+      "render": {
+        "clip": "clip_27.wav",
+        "piece": "piece_27.wav"
+      }
+    },
+    {
+      "name": "guided_t4_s31403",
+      "arm": "guided",
+      "theme_id": 4,
+      "theme_source": "town_s15040",
+      "theme_idea": null,
+      "scenario": "town",
+      "seed": 31403,
+      "attempt": 4,
+      "n_prefix_tokens": 432,
+      "n_generated_tokens": 421,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 853,
+        "n_skipped": 4,
+        "n_events": 160,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 160,
+        "n_events_out": 160,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 26,
+        "n_stolen_truncated": 25,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 74,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR",
+          "2": "accompaniment->P2",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 160,
+        "notes_per_bar": 20.0,
+        "pitch_class_entropy": 2.6566,
+        "stepwise_fraction": 0.6897,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": 2.5752,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.574
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 13,
+        "n_lead_later": 13,
+        "lead_ratio": 1.0,
+        "contour_recurrence": 1.0,
+        "identical_bars": 3,
+        "melody_notes": 26
+      },
+      "render": {
+        "clip": "clip_24.wav",
+        "piece": "piece_24.wav"
+      }
+    },
+    {
+      "name": "guided_t5_s31500",
+      "arm": "guided",
+      "theme_id": 5,
+      "theme_source": "town_s15041",
+      "theme_idea": null,
+      "scenario": "town",
+      "seed": 31500,
+      "attempt": 1,
+      "n_prefix_tokens": 432,
+      "n_generated_tokens": 461,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 893,
+        "n_skipped": 5,
+        "n_events": 169,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 13,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 169,
+        "n_events_out": 169,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 28,
+        "n_stolen_truncated": 32,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 96,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 169,
+        "notes_per_bar": 21.125,
+        "pitch_class_entropy": 2.4339,
+        "stepwise_fraction": 0.5217,
+        "motif_note_participation": 0.625,
+        "ioi_entropy": 2.1632,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.602
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 11,
+        "n_lead_later": 13,
+        "lead_ratio": 1.1818,
+        "contour_recurrence": 0.14285714285714285,
+        "identical_bars": 0,
+        "melody_notes": 24
+      },
+      "render": {
+        "clip": "clip_17.wav",
+        "piece": "piece_17.wav"
+      }
+    },
+    {
+      "name": "guided_t5_s31502",
+      "arm": "guided",
+      "theme_id": 5,
+      "theme_source": "town_s15041",
+      "theme_idea": null,
+      "scenario": "town",
+      "seed": 31502,
+      "attempt": 3,
+      "n_prefix_tokens": 432,
+      "n_generated_tokens": 556,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 988,
+        "n_skipped": 5,
+        "n_events": 188,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 13,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 188,
+        "n_events_out": 188,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 24,
+        "n_stolen_truncated": 31,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 96,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 188,
+        "notes_per_bar": 23.5,
+        "pitch_class_entropy": 2.1742,
+        "stepwise_fraction": 0.6207,
+        "motif_note_participation": 0.6333,
+        "ioi_entropy": 2.1848,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.574
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 10,
+        "n_lead_later": 20,
+        "lead_ratio": 2.0,
+        "contour_recurrence": 0.25,
+        "identical_bars": 0,
+        "melody_notes": 30
+      },
+      "render": {
+        "clip": "clip_28.wav",
+        "piece": "piece_28.wav"
+      }
+    },
+    {
+      "name": "guided_t5_s31503",
+      "arm": "guided",
+      "theme_id": 5,
+      "theme_source": "town_s15041",
+      "theme_idea": null,
+      "scenario": "town",
+      "seed": 31503,
+      "attempt": 4,
+      "n_prefix_tokens": 432,
+      "n_generated_tokens": 450,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 882,
+        "n_skipped": 5,
+        "n_events": 167,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 13,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 167,
+        "n_events_out": 167,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 24,
+        "n_stolen_truncated": 31,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 96,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 167,
+        "notes_per_bar": 20.875,
+        "pitch_class_entropy": 2.4488,
+        "stepwise_fraction": 0.6296,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 2.097,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 15.227
+      },
+      "development": {
+        "lead_channel": "P2",
+        "n_lead_opening": 11,
+        "n_lead_later": 7,
+        "lead_ratio": 0.6364,
+        "contour_recurrence": 0.0,
+        "identical_bars": 0,
+        "melody_notes": 18
+      },
+      "render": {
+        "clip": "clip_26.wav",
+        "piece": "piece_26.wav"
+      }
+    },
+    {
+      "name": "control_fast_rhythmic_s81000",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "fast_rhythmic",
+      "seed": 81000,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 381,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 381,
+        "n_skipped": 4,
+        "n_events": 69,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 69,
+        "n_events_out": 69,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 18,
+        "n_stolen_truncated": 9,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 14,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 180.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 69,
+        "notes_per_bar": 8.625,
+        "pitch_class_entropy": 2.6566,
+        "stepwise_fraction": 0.2857,
+        "motif_note_participation": 0.32,
+        "ioi_entropy": 2.3533,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 10.708
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 13,
+        "n_lead_later": 12,
+        "lead_ratio": 0.9231,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 25
+      },
+      "render": {
+        "clip": "clip_30.wav",
+        "piece": "piece_30.wav"
+      }
+    },
+    {
+      "name": "control_fast_rhythmic_s81021",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "fast_rhythmic",
+      "seed": 81021,
+      "attempt": 2,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 395,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 395,
+        "n_skipped": 4,
+        "n_events": 70,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 70,
+        "n_events_out": 70,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 180.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 70,
+        "notes_per_bar": 8.75,
+        "pitch_class_entropy": 2.8978,
+        "stepwise_fraction": 0.8333,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.3784,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.0
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 4,
+        "n_lead_later": 4,
+        "lead_ratio": 1.0,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 8
+      },
+      "render": {
+        "clip": "clip_29.wav",
+        "piece": "piece_29.wav"
+      }
+    },
+    {
+      "name": "control_fast_rhythmic_s81030",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "fast_rhythmic",
+      "seed": 81030,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1034,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1034,
+        "n_skipped": 4,
+        "n_events": 197,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 197,
+        "n_events_out": 197,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 14,
+        "n_stolen_truncated": 10,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 64,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 180.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 197,
+        "notes_per_bar": 24.625,
+        "pitch_class_entropy": 2.7158,
+        "stepwise_fraction": 0.0645,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.7762,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 10.667
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 0,
+        "n_lead_later": 32,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 32
+      },
+      "render": {
+        "clip": "clip_10.wav",
+        "piece": "piece_10.wav"
+      }
+    },
+    {
+      "name": "control_action_s81040",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "action",
+      "seed": 81040,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 594,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 594,
+        "n_skipped": 4,
+        "n_events": 110,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 110,
+        "n_events_out": 110,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 12,
+        "n_stolen_truncated": 10,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 63,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 168.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 110,
+        "notes_per_bar": 13.75,
+        "pitch_class_entropy": 2.3113,
+        "stepwise_fraction": 0.3333,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.8243,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.429
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 2,
+        "n_lead_later": 14,
+        "lead_ratio": 7.0,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 16
+      },
+      "render": {
+        "clip": "clip_12.wav",
+        "piece": "piece_12.wav"
+      }
+    },
+    {
+      "name": "control_action_s81050",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "action",
+      "seed": 81050,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1829,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1829,
+        "n_skipped": 4,
+        "n_events": 356,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 356,
+        "n_events_out": 356,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 32,
+        "n_stolen_truncated": 30,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 112,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 168.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 356,
+        "notes_per_bar": 44.5,
+        "pitch_class_entropy": 3.0425,
+        "stepwise_fraction": 0.5217,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.2199,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.451
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 0,
+        "n_lead_later": 24,
+        "lead_ratio": null,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 24
+      },
+      "render": {
+        "clip": "clip_13.wav",
+        "piece": "piece_13.wav"
+      }
+    },
+    {
+      "name": "control_action_s81060",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "action",
+      "seed": 81060,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 286,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 286,
+        "n_skipped": 4,
+        "n_events": 51,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 51,
+        "n_events_out": 51,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 2,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "bass->TR",
+          "2": "melody->P1"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 168.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 51,
+        "notes_per_bar": 6.375,
+        "pitch_class_entropy": 0.9183,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.3261,
+        "ioi_entropy": 1.4518,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 11.473
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 23,
+        "n_lead_later": 23,
+        "lead_ratio": 1.0,
+        "contour_recurrence": 0.625,
+        "identical_bars": 0,
+        "melody_notes": 46
+      },
+      "render": {
+        "clip": "clip_21.wav",
+        "piece": "piece_21.wav"
+      }
+    },
+    {
+      "name": "control_ominous_s81070",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "ominous",
+      "seed": 81070,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1133,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1133,
+        "n_skipped": 4,
+        "n_events": 216,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 216,
+        "n_events_out": 216,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 21,
+        "n_stolen_truncated": 16,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 92.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 216,
+        "notes_per_bar": 27.0,
+        "pitch_class_entropy": 2.7156,
+        "stepwise_fraction": 0.7451,
+        "motif_note_participation": 0.942,
+        "ioi_entropy": 2.5506,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 20.87
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 36,
+        "n_lead_later": 33,
+        "lead_ratio": 0.9167,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 69
+      },
+      "render": {
+        "clip": "clip_07.wav",
+        "piece": "piece_07.wav"
+      }
+    },
+    {
+      "name": "control_ominous_s81080",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "ominous",
+      "seed": 81080,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 760,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 760,
+        "n_skipped": 4,
+        "n_events": 143,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 143,
+        "n_events_out": 143,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 19,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 92.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 143,
+        "notes_per_bar": 17.875,
+        "pitch_class_entropy": 2.8074,
+        "stepwise_fraction": 1.0,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.3877,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 20.87
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 7,
+        "n_lead_later": 7,
+        "lead_ratio": 1.0,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 14
+      },
+      "render": {
+        "clip": "clip_19.wav",
+        "piece": "piece_19.wav"
+      }
+    },
+    {
+      "name": "control_ominous_s81090",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "ominous",
+      "seed": 81090,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1603,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1603,
+        "n_skipped": 4,
+        "n_events": 310,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 310,
+        "n_events_out": 310,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 48,
+        "n_stolen_truncated": 63,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 112,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 92.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 310,
+        "notes_per_bar": 38.75,
+        "pitch_class_entropy": 3.2409,
+        "stepwise_fraction": 0.7538,
+        "motif_note_participation": 0.9091,
+        "ioi_entropy": 1.8174,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 20.91
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 16,
+        "n_lead_later": 28,
+        "lead_ratio": 1.75,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 44
+      },
+      "render": {
+        "clip": "clip_02.wav",
+        "piece": "piece_02.wav"
+      }
+    },
+    {
+      "name": "control_town_s81100",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81100,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 785,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 690,
+        "n_skipped": 6,
+        "n_events": 128,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 2,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 128,
+        "n_events_out": 128,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 30,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 44,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 1,
+        "role_assignment": {
+          "0": "percussion->NO",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": [
+          "track 3 merged onto NO"
+        ]
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 86,
+        "notes_per_bar": 10.75,
+        "pitch_class_entropy": 2.9651,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 2.0483,
+        "channels": [
+          "NO",
+          "P1",
+          "TR"
+        ],
+        "duration_sec": 13.21
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 8,
+        "n_lead_later": 6,
+        "lead_ratio": 0.75,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 14
+      },
+      "render": {
+        "clip": "clip_14.wav",
+        "piece": "piece_14.wav"
+      }
+    },
+    {
+      "name": "control_town_s81110",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81110,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 973,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 928,
+        "n_skipped": 4,
+        "n_events": 176,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 20,
+        "implicit_first_bar": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 176,
+        "n_events_out": 176,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 53,
+        "n_stolen_truncated": 50,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 79,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 176,
+        "notes_per_bar": 22.0,
+        "pitch_class_entropy": 2.3416,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.7778,
+        "ioi_entropy": 1.803,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.574
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 15,
+        "n_lead_later": 12,
+        "lead_ratio": 0.8,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 27
+      },
+      "render": {
+        "clip": "clip_01.wav",
+        "piece": "piece_01.wav"
+      }
+    },
+    {
+      "name": "control_town_s81120",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81120,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1018,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1018,
+        "n_skipped": 4,
+        "n_events": 193,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 193,
+        "n_events_out": 193,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 64,
+        "n_stolen_truncated": 44,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 128,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 193,
+        "notes_per_bar": 24.125,
+        "pitch_class_entropy": 2.5338,
+        "stepwise_fraction": 0.6667,
+        "motif_note_participation": 0.3636,
+        "ioi_entropy": 1.7916,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.545
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 11,
+        "n_lead_later": 11,
+        "lead_ratio": 1.0,
+        "contour_recurrence": 0.2857142857142857,
+        "identical_bars": 0,
+        "melody_notes": 22
+      },
+      "render": {
+        "clip": "clip_04.wav",
+        "piece": "piece_04.wav"
+      }
+    },
+    {
+      "name": "control_town_s81130",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81130,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1333,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1333,
+        "n_skipped": 4,
+        "n_events": 256,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 256,
+        "n_events_out": 256,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 91,
+        "n_stolen_truncated": 56,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 108,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 256,
+        "notes_per_bar": 32.0,
+        "pitch_class_entropy": 2.7561,
+        "stepwise_fraction": 0.0299,
+        "motif_note_participation": 0.8824,
+        "ioi_entropy": 2.0208,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 14.631
+      },
+      "development": {
+        "lead_channel": "P1",
+        "n_lead_opening": 38,
+        "n_lead_later": 30,
+        "lead_ratio": 0.7895,
+        "contour_recurrence": 0.5,
+        "identical_bars": 0,
+        "melody_notes": 68
+      },
+      "render": {
+        "clip": "clip_11.wav",
+        "piece": "piece_11.wav"
+      }
+    },
+    {
+      "name": "control_town_s81140",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81140,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 1071,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1071,
+        "n_skipped": 4,
+        "n_events": 206,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 206,
+        "n_events_out": 206,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 64,
+        "n_stolen_truncated": 63,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 16,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR",
+          "2": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 206,
+        "notes_per_bar": 25.75,
+        "pitch_class_entropy": 2.0204,
+        "stepwise_fraction": 0.2553,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": 2.1206,
+        "channels": [
+          "NO",
+          "P1",
+          "TR"
+        ],
+        "duration_sec": 14.574
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 64,
+        "n_lead_later": 64,
+        "lead_ratio": 1.0,
+        "contour_recurrence": 1.0,
+        "identical_bars": 0,
+        "melody_notes": 128
+      },
+      "render": {
+        "clip": "clip_25.wav",
+        "piece": "piece_25.wav"
+      }
+    },
+    {
+      "name": "control_town_s81150",
+      "arm": "control",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81150,
+      "attempt": 1,
+      "n_prefix_tokens": 0,
+      "n_generated_tokens": 610,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 610,
+        "n_skipped": 4,
+        "n_events": 114,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "n_events_before_first_bar": 0,
+        "implicit_first_bar": false,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 114,
+        "n_events_out": 114,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 29,
+        "n_stolen_truncated": 29,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 78,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "bass->TR",
+          "2": "melody->P1",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "tempo_bpm": 132.0,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 114,
+        "notes_per_bar": 16.286,
+        "pitch_class_entropy": 1.5219,
+        "stepwise_fraction": 0.0,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 2.0209,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "duration_sec": 12.841
+      },
+      "development": {
+        "lead_channel": "TR",
+        "n_lead_opening": 4,
+        "n_lead_later": 7,
+        "lead_ratio": 1.75,
+        "contour_recurrence": null,
+        "identical_bars": 0,
+        "melody_notes": 11
+      },
+      "render": {
+        "clip": "clip_16.wav",
+        "piece": "piece_16.wav"
+      }
+    }
+  ],
+  "failures": [
+    {
+      "name": "guided_t4_s31401",
+      "arm": "guided",
+      "theme_id": 4,
+      "seed": 31401,
+      "reason": "incomplete_or_invalid"
+    },
+    {
+      "name": "guided_t5_s31501",
+      "arm": "guided",
+      "theme_id": 5,
+      "seed": 31501,
+      "reason": "incomplete_or_invalid"
+    },
+    {
+      "name": "control_fast_rhythmic_s81010",
+      "arm": "control",
+      "scenario": "fast_rhythmic",
+      "seed": 81010,
+      "reason": "incomplete_or_invalid"
+    }
+  ],
+  "listening_key": [
+    {
+      "clip": "clip_01.wav",
+      "piece": "piece_01.wav",
+      "arm": "control",
+      "name": "control_town_s81110",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81110
+    },
+    {
+      "clip": "clip_02.wav",
+      "piece": "piece_02.wav",
+      "arm": "control",
+      "name": "control_ominous_s81090",
+      "theme_id": null,
+      "scenario": "ominous",
+      "seed": 81090
+    },
+    {
+      "clip": "clip_03.wav",
+      "piece": "piece_03.wav",
+      "arm": "guided",
+      "name": "guided_t4_s31400",
+      "theme_id": 4,
+      "scenario": "town",
+      "seed": 31400
+    },
+    {
+      "clip": "clip_04.wav",
+      "piece": "piece_04.wav",
+      "arm": "control",
+      "name": "control_town_s81120",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81120
+    },
+    {
+      "clip": "clip_05.wav",
+      "piece": "piece_05.wav",
+      "arm": "guided",
+      "name": "guided_t3_s31301",
+      "theme_id": 3,
+      "scenario": "ominous",
+      "seed": 31301
+    },
+    {
+      "clip": "clip_06.wav",
+      "piece": "piece_06.wav",
+      "arm": "guided",
+      "name": "guided_t1_s31100",
+      "theme_id": 1,
+      "scenario": "fast_rhythmic",
+      "seed": 31100
+    },
+    {
+      "clip": "clip_07.wav",
+      "piece": "piece_07.wav",
+      "arm": "control",
+      "name": "control_ominous_s81070",
+      "theme_id": null,
+      "scenario": "ominous",
+      "seed": 81070
+    },
+    {
+      "clip": "clip_08.wav",
+      "piece": "piece_08.wav",
+      "arm": "guided",
+      "name": "guided_t2_s31201",
+      "theme_id": 2,
+      "scenario": "action",
+      "seed": 31201
+    },
+    {
+      "clip": "clip_09.wav",
+      "piece": "piece_09.wav",
+      "arm": "guided",
+      "name": "guided_t1_s31101",
+      "theme_id": 1,
+      "scenario": "fast_rhythmic",
+      "seed": 31101
+    },
+    {
+      "clip": "clip_10.wav",
+      "piece": "piece_10.wav",
+      "arm": "control",
+      "name": "control_fast_rhythmic_s81030",
+      "theme_id": null,
+      "scenario": "fast_rhythmic",
+      "seed": 81030
+    },
+    {
+      "clip": "clip_11.wav",
+      "piece": "piece_11.wav",
+      "arm": "control",
+      "name": "control_town_s81130",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81130
+    },
+    {
+      "clip": "clip_12.wav",
+      "piece": "piece_12.wav",
+      "arm": "control",
+      "name": "control_action_s81040",
+      "theme_id": null,
+      "scenario": "action",
+      "seed": 81040
+    },
+    {
+      "clip": "clip_13.wav",
+      "piece": "piece_13.wav",
+      "arm": "control",
+      "name": "control_action_s81050",
+      "theme_id": null,
+      "scenario": "action",
+      "seed": 81050
+    },
+    {
+      "clip": "clip_14.wav",
+      "piece": "piece_14.wav",
+      "arm": "control",
+      "name": "control_town_s81100",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81100
+    },
+    {
+      "clip": "clip_15.wav",
+      "piece": "piece_15.wav",
+      "arm": "guided",
+      "name": "guided_t2_s31200",
+      "theme_id": 2,
+      "scenario": "action",
+      "seed": 31200
+    },
+    {
+      "clip": "clip_16.wav",
+      "piece": "piece_16.wav",
+      "arm": "control",
+      "name": "control_town_s81150",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81150
+    },
+    {
+      "clip": "clip_17.wav",
+      "piece": "piece_17.wav",
+      "arm": "guided",
+      "name": "guided_t5_s31500",
+      "theme_id": 5,
+      "scenario": "town",
+      "seed": 31500
+    },
+    {
+      "clip": "clip_18.wav",
+      "piece": "piece_18.wav",
+      "arm": "guided",
+      "name": "guided_t3_s31300",
+      "theme_id": 3,
+      "scenario": "ominous",
+      "seed": 31300
+    },
+    {
+      "clip": "clip_19.wav",
+      "piece": "piece_19.wav",
+      "arm": "control",
+      "name": "control_ominous_s81080",
+      "theme_id": null,
+      "scenario": "ominous",
+      "seed": 81080
+    },
+    {
+      "clip": "clip_20.wav",
+      "piece": "piece_20.wav",
+      "arm": "guided",
+      "name": "guided_t2_s31202",
+      "theme_id": 2,
+      "scenario": "action",
+      "seed": 31202
+    },
+    {
+      "clip": "clip_21.wav",
+      "piece": "piece_21.wav",
+      "arm": "control",
+      "name": "control_action_s81060",
+      "theme_id": null,
+      "scenario": "action",
+      "seed": 81060
+    },
+    {
+      "clip": "clip_22.wav",
+      "piece": "piece_22.wav",
+      "arm": "guided",
+      "name": "guided_t3_s31302",
+      "theme_id": 3,
+      "scenario": "ominous",
+      "seed": 31302
+    },
+    {
+      "clip": "clip_23.wav",
+      "piece": "piece_23.wav",
+      "arm": "guided",
+      "name": "guided_t1_s31102",
+      "theme_id": 1,
+      "scenario": "fast_rhythmic",
+      "seed": 31102
+    },
+    {
+      "clip": "clip_24.wav",
+      "piece": "piece_24.wav",
+      "arm": "guided",
+      "name": "guided_t4_s31403",
+      "theme_id": 4,
+      "scenario": "town",
+      "seed": 31403
+    },
+    {
+      "clip": "clip_25.wav",
+      "piece": "piece_25.wav",
+      "arm": "control",
+      "name": "control_town_s81140",
+      "theme_id": null,
+      "scenario": "town",
+      "seed": 81140
+    },
+    {
+      "clip": "clip_26.wav",
+      "piece": "piece_26.wav",
+      "arm": "guided",
+      "name": "guided_t5_s31503",
+      "theme_id": 5,
+      "scenario": "town",
+      "seed": 31503
+    },
+    {
+      "clip": "clip_27.wav",
+      "piece": "piece_27.wav",
+      "arm": "guided",
+      "name": "guided_t4_s31402",
+      "theme_id": 4,
+      "scenario": "town",
+      "seed": 31402
+    },
+    {
+      "clip": "clip_28.wav",
+      "piece": "piece_28.wav",
+      "arm": "guided",
+      "name": "guided_t5_s31502",
+      "theme_id": 5,
+      "scenario": "town",
+      "seed": 31502
+    },
+    {
+      "clip": "clip_29.wav",
+      "piece": "piece_29.wav",
+      "arm": "control",
+      "name": "control_fast_rhythmic_s81021",
+      "theme_id": null,
+      "scenario": "fast_rhythmic",
+      "seed": 81021
+    },
+    {
+      "clip": "clip_30.wav",
+      "piece": "piece_30.wav",
+      "arm": "control",
+      "name": "control_fast_rhythmic_s81000",
+      "theme_id": null,
+      "scenario": "fast_rhythmic",
+      "seed": 81000
+    }
+  ]
+}
