@@ -71,81 +71,25 @@ ROW_SEC = 0.1
 CHECKPOINT_REVISION = "18b647098f579ee41db67c0ad4c7f7f39ce0eac1"
 CHECKPOINT_SHA256 = "4ca6a5db3a2d1510bad7acde4d313a9ad732fc91dcda4776f044c5b5bd8ea9b7"
 
-#: Rows per bar in the frozen representation.
-ROWS_PER_BAR = 16
+def half_development(composition) -> dict:
+    """Delegates to `rse.analysis.restatement`, which is also what the corpus
+    control uses.
 
-
-def bar_fingerprints(composition: Composition, *, n_bars: int) -> list[frozenset[Any]]:
-    """Per-bar content, as the set of (channel, slot-in-bar, voice) triples.
-
-    Used only to ask whether the second half restates the first. Slots are
-    taken from the composition's own grid, so two bars match when they hold
-    the same notes at the same places, not when they merely have the same
-    density.
-
-    `voice` is a pitch on the pitched channels and the noise `value` on the
-    noise channel, which is a hardware period rather than a pitch. They are
-    never compared across channels, so keeping them in one field is safe and
-    lets a drum pattern count as restated material like any other.
+    This function previously derived bar boundaries as `end_tick / n_bars`.
+    That is wrong whenever the last bar ends early: every boundary shifts and
+    bar *i* gets compared against the wrong bar. It reported a median exact
+    restatement of 0.115 where the grid-aligned measure gives 0.000. Keeping
+    one implementation, shared with the corpus reference, is the only way the
+    two sides stay comparable.
     """
-    events = composition.sounding_events()
-    if not events:
-        return [frozenset() for _ in range(n_bars)]
-    end = composition.end_tick or 1
-    ticks_per_bar = end / n_bars if n_bars else end
-    bars: list[set[Any]] = [set() for _ in range(n_bars)]
-    for event in events:
-        bar = int(event.tick // ticks_per_bar) if ticks_per_bar else 0
-        if not 0 <= bar < n_bars:
-            continue
-        offset = event.tick - bar * ticks_per_bar
-        slot = round(offset / ticks_per_bar * ROWS_PER_BAR) % ROWS_PER_BAR
-        voice = getattr(event, "pitch", None)
-        if voice is None:
-            voice = getattr(event, "value", None)
-        bars[bar].add((event.channel_id, slot, voice))
-    return [frozenset(bar) for bar in bars]
+    from rse.analysis.restatement import analyse_halves, ticks_per_bar
 
-
-def jaccard(left: frozenset[Any], right: frozenset[Any]) -> float:
-    if not left and not right:
-        return 1.0
-    union = len(left | right)
-    return len(left & right) / union if union else 0.0
-
-
-def half_development(composition: Composition) -> dict[str, Any]:
-    """Does the second half of a 16-bar piece develop, restate, or wander?
-
-    Three separate numbers, because they fail differently: `restatement` is
-    how closely bar i+8 repeats bar i, `internal_novelty` is how many of the
-    second half's own bars are distinct from each other, and `new_pitches` is
-    material that was absent from the first half entirely. A piece that
-    repeats the first half exactly scores restatement 1.0; one that ignores
-    it scores 0.0; neither is automatically better, which is why the listening
-    test still decides.
-    """
-    bars = bar_fingerprints(composition, n_bars=16)
-    first, second = bars[:8], bars[8:]
-    restatement = [jaccard(a, b) for a, b in zip(first, second, strict=True)]
-    # Pitched channels only: the noise channel's `value` is a hardware period,
-    # so counting it as a "new pitch" would be meaningless.
-    pitches_first = {v for bar in first for (c, _s, v) in bar if c != "NO"}
-    pitches_second = {v for bar in second for (c, _s, v) in bar if c != "NO"}
-    nonempty_second = [bar for bar in second if bar]
-    return {
-        "restatement_mean": round(sum(restatement) / len(restatement), 4),
-        "restatement_exact_bars": sum(1 for value in restatement if value >= 0.999),
-        "internal_novelty": round(
-            len(set(nonempty_second)) / len(nonempty_second), 4
-        )
-        if nonempty_second
-        else 0.0,
-        "new_pitches": len(pitches_second - pitches_first),
-        "lost_pitches": len(pitches_first - pitches_second),
-        "empty_bars_second_half": sum(1 for bar in second if not bar),
-        "empty_bars_first_half": sum(1 for bar in first if not bar),
-    }
+    report = analyse_halves(composition, n_bars=16, bar_ticks=ticks_per_bar())
+    payload = report.to_dict()
+    # Field names the original run wrote, kept so stored records stay readable.
+    payload["restatement_mean"] = payload["exact_restatement_mean"]
+    payload["restatement_exact_bars"] = payload["exact_restatement_bars"]
+    return payload
 
 
 def build_arm(
