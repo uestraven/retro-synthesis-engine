@@ -610,6 +610,7 @@ def render_melody(
     bar_offset: int,
     harmony_plan: list[tuple[int, int, int]],
     phrases: list[BarRole] | None = None,
+    shape_velocity: Any = None,
 ) -> tuple[list[Note], dict[str, int]]:
     """Melody on P1, re-harmonised bar by bar against the progression.
 
@@ -756,13 +757,21 @@ def render_melody(
             if kept < length:
                 truncated += 1
                 rows_removed += length - kept
+            velocity = 100
+            if shape_velocity is not None:
+                velocity = shape_velocity(
+                    row_in_bar=absolute % ROWS_PER_BAR,
+                    phrase_start=bool(role and role.position == 0 and row == 0),
+                    cadence=bool(role and role.is_cadence and step is degrees[-1]),
+                    section_start=absolute == 0,
+                )
             notes.append(
                 Note(
                     channel_id="P1",
                     tick=base + absolute * TICKS_PER_ROW,
                     pitch=pitch,
                     duration=kept * TICKS_PER_ROW,
-                    velocity=100,
+                    velocity=velocity,
                 )
             )
             row += length
@@ -776,6 +785,7 @@ def render_harmony(
     bar_offset: int,
     harmony_plan: list[tuple[int, int, int]],
     figure: str | None = None,
+    shape_velocity: Any = None,
 ) -> list[Note]:
     """Accompaniment on P2, built only from the bar's chord tones.
 
@@ -834,7 +844,11 @@ def render_harmony(
                     tick=base + (start_row + row) * TICKS_PER_ROW,
                     pitch=pitch,
                     duration=min(hit, span - row) * TICKS_PER_ROW,
-                    velocity=72,
+                    velocity=(
+                        shape_velocity(row_in_bar=(start_row + row) % ROWS_PER_BAR)
+                        if shape_velocity is not None
+                        else 72
+                    ),
                 )
             )
     return notes
@@ -989,11 +1003,14 @@ class ProceduralResult:
     #: Which progression pool was used: None for v1.
     vocabulary: str | None = None
     variations: list[dict[str, Any]] = field(default_factory=list)
+    #: Instrumentation, when sound design is on. None for the dry render.
+    sound: Any = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "seed": self.seed,
             "style": self.style.to_dict(),
+            "sound": self.sound.to_dict() if self.sound else None,
             "harmonic_rhythm": self.rhythm.to_dict(),
             "vocabulary": self.vocabulary,
             "truncation": dict(self.truncation),
@@ -1017,6 +1034,7 @@ def compose(
     phrasing: str | None = None,
     isolate_melody_rng: bool = False,
     variety: str | None = None,
+    sound_design: str | None = None,
 ) -> ProceduralResult:
     """One complete NES piece from a style preset and a seed.
 
@@ -1037,6 +1055,12 @@ def compose(
     each cadence, and a rest after it. Opt-in for the same reason the other
     expansions were -- v1 is what the listener approved, and v1 had one
     distinct rhythm across eight bars and no rest at all.
+
+    `sound_design` is `None` for the dry v1 render and `"expressive"` for
+    per-song pulse timbres and position-shaped velocity. It changes NO note:
+    pitches, onsets, durations, channels and structure are identical, which is
+    what makes it testable against the same score. Drawn from its own seeded
+    stream so it cannot perturb a composition decision.
 
     `variety` is `None` for v1 and `"full"` to open the four axes measured as
     the causes of sameness: across 20 seeds of a style, the harmony and bass
@@ -1105,6 +1129,19 @@ def compose(
 
     if variety not in (None, "full"):
         raise KeyError(f"unknown variety {variety!r}; use None or 'full'")
+    if sound_design not in (None, "expressive"):
+        raise KeyError(
+            f"unknown sound_design {sound_design!r}; use None or 'expressive'"
+        )
+
+    voices = None
+    lead_shaper = comp_shaper = None
+    if sound_design == "expressive":
+        from rse.procedural import sound as S
+
+        voices = S.choose_voices(style_name, seed=seed)
+        lead_shaper = S.lead_velocity
+        comp_shaper = S.comp_velocity
 
     arrangement = None
     if variety == "full":
@@ -1221,6 +1258,7 @@ def compose(
             bar_offset=bar_offset,
             harmony_plan=harmony_plan,
             phrases=phrases,
+            shape_velocity=lead_shaper,
         )
         events += melody
         truncation["notes_truncated"] += melody_stats["notes_truncated"]
@@ -1245,6 +1283,7 @@ def compose(
                 bar_offset=bar_offset,
                 harmony_plan=harmony_plan,
                 figure=figure,
+                shape_velocity=comp_shaper,
             )
         bass_rows = arrangement.bass_rows if arrangement else None
         if reorch is not None and reorch.bass_pattern:
@@ -1281,6 +1320,7 @@ def compose(
     return ProceduralResult(
         composition=composition,
         style=style,
+        sound=voices,
         motif=motif,
         sections=plans,
         seed=seed,

@@ -303,6 +303,10 @@ def compose_song(
         "duration_sec": round(composition.time.seconds(end), 3),
         "tempo_bpm": result.style.tempo_bpm,
         "frames_per_row": result.style.frames_per_row,
+        "sound": result.sound.to_dict() if result.sound else None,
+        "duty_by_channel": (
+            result.sound.duty_by_channel if result.sound else None
+        ),
         "row_ms": round(result.style.row_sec * 1000, 3),
         "mode": result.style.mode,
         "tonic": result.style.tonic,
@@ -455,7 +459,9 @@ def write_artifacts(
     duration = result.duration_sec
 
     wav = out_dir / f"{name}.wav"
-    render_window(result.composition, wav)
+    render_window(
+        result.composition, wav, duty_by_channel=result.meta.get("duty_by_channel")
+    )
     padding = pad_to_loop_length(wav, loop_seconds=duration)
     normalise_peak(wav, dbfs=peak_dbfs)
     diagnostic = loop_check(

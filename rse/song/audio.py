@@ -59,12 +59,18 @@ def render_window(
     destination: Path,
     *,
     profile_id: str = "nes",
+    duty_by_channel: dict[str, int] | None = None,
 ) -> Path | None:
     """Render one composition through the same renderer every test uses.
 
     The same renderer for original and reconstruction on purpose: a codec
     difference must not be confused with a synthesis difference, which is the
     error that kept the synthesizer under suspicion for so long.
+
+    `duty_by_channel` selects the pulse timbres. Omitted, the renderer uses its
+    own defaults, which is what every procedural song used until now -- the
+    composer never supplied a duty, so P1 was 50% and P2 25% in every song of
+    every style ever generated.
     """
     from rse.events.convert import composition_to_intake
     from rse.exporters.wav import write_wav
@@ -81,6 +87,7 @@ def render_window(
     notes = notes_from_record(record)
     if not notes:
         return None
-    result = NesApuRenderer(profile).render(notes, RenderSettings(tail_sec=0.0))
+    renderer = NesApuRenderer(profile, duty_by_channel=duty_by_channel)
+    result = renderer.render(notes, RenderSettings(tail_sec=0.0))
     destination.parent.mkdir(parents=True, exist_ok=True)
     return write_wav(destination, result.samples, result.sample_rate)

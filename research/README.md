@@ -27,11 +27,27 @@ Batches, roughly in order:
 | `listen_paired-RATINGS.md` | paired 8-vs-16-bar material |
 | `listen_prompt_to_song-README.md` | the first complete Prompt-to-Song track |
 | `listen_tempo-RATINGS.md` | tempo snapped to the NES frame grid — accepted |
+| `listen_phrase-RATINGS.md` | phrase-level melody — dropped, undecided at n=2 |
+| `listen_variety-RATINGS.md` | key/tempo/form/arrangement variety — **null** |
 
 A third: tempo on this hardware is a **frame count**, not a BPM. The console
 advances a tracker row every whole video frame, so only a ladder of tempos
 exists (180.30, 150.25, 128.78, 112.69, 100.16, 90.15 …). Four of the six
 presets had asked for tempos no NES could play.
+
+**Byte-uniqueness is not perceptual distinctness.** The variety experiment
+moved every number it set out to move — harmony and bass from 5-6 unique
+across 20 seeds to 17-20, forms from 1 to 2-5, keys from 1 to 5 — and the
+listener heard no difference. The melody had always measured 20 unique out of
+20 while sounding the same, because all 20 are the same five motif shapes
+re-anchored. Counting distinct note sequences counts the anchoring, not the
+idea. Do not use it as a diversity metric again.
+
+**Four arrangement-level experiments have now returned null**: harmonic rhythm
+(24 pairs), harmonic vocabulary (24 pairs), key/tempo/form/arrangement
+(6 per arm), and phrase structure (undecided, dropped at 2 pairs). Changing how
+the material is arranged has not once moved a listener. The untested axis is
+the material itself.
 
 Two more results worth not re-deriving: the quality measure is **"would this pass as
 NES game music"** (60%), not "is this good" (25%) — the wrong question

@@ -1,0 +1,195 @@
+{
+  "01_boss_A_v1": {
+    "style": "boss",
+    "seed": 5201,
+    "arm": "A_v1",
+    "tempo_bpm": 150.25,
+    "frames_per_row": 6,
+    "tonic": 57,
+    "form": [
+      "A",
+      "A'1",
+      "A'2",
+      "B",
+      "A''"
+    ],
+    "section_bars": 8,
+    "seconds": 63.89
+  },
+  "01_boss_B_variety": {
+    "style": "boss",
+    "seed": 5201,
+    "arm": "B_variety",
+    "tempo_bpm": 150.25,
+    "frames_per_row": 6,
+    "tonic": 53,
+    "form": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "section_bars": 8,
+    "seconds": 51.12
+  },
+  "02_action_A_v1": {
+    "style": "action",
+    "seed": 5202,
+    "arm": "A_v1",
+    "tempo_bpm": 180.3,
+    "frames_per_row": 5,
+    "tonic": 60,
+    "form": [
+      "A",
+      "A'1",
+      "A'2",
+      "A'3",
+      "B",
+      "A''"
+    ],
+    "section_bars": 8,
+    "seconds": 63.89
+  },
+  "02_action_B_variety": {
+    "style": "action",
+    "seed": 5202,
+    "arm": "B_variety",
+    "tempo_bpm": 150.25,
+    "frames_per_row": 6,
+    "tonic": 60,
+    "form": [
+      "A",
+      "A'",
+      "A''",
+      "B",
+      "A"
+    ],
+    "section_bars": 8,
+    "seconds": 63.89
+  },
+  "03_adventure_A_v1": {
+    "style": "adventure",
+    "seed": 5203,
+    "arm": "A_v1",
+    "tempo_bpm": 128.78,
+    "frames_per_row": 7,
+    "tonic": 60,
+    "form": [
+      "A",
+      "A'1",
+      "B",
+      "A''"
+    ],
+    "section_bars": 8,
+    "seconds": 59.64
+  },
+  "03_adventure_B_variety": {
+    "style": "adventure",
+    "seed": 5203,
+    "arm": "B_variety",
+    "tempo_bpm": 128.78,
+    "frames_per_row": 7,
+    "tonic": 62,
+    "form": [
+      "A",
+      "B",
+      "A"
+    ],
+    "section_bars": 12,
+    "seconds": 67.09
+  },
+  "04_town_A_v1": {
+    "style": "town",
+    "seed": 5204,
+    "arm": "A_v1",
+    "tempo_bpm": 128.78,
+    "frames_per_row": 7,
+    "tonic": 62,
+    "form": [
+      "A",
+      "A'1",
+      "B",
+      "A''"
+    ],
+    "section_bars": 8,
+    "seconds": 59.64
+  },
+  "04_town_B_variety": {
+    "style": "town",
+    "seed": 5204,
+    "arm": "B_variety",
+    "tempo_bpm": 112.69,
+    "frames_per_row": 8,
+    "tonic": 67,
+    "form": [
+      "A",
+      "A",
+      "B",
+      "A"
+    ],
+    "section_bars": 8,
+    "seconds": 68.15
+  },
+  "05_tension_A_v1": {
+    "style": "tension",
+    "seed": 5205,
+    "arm": "A_v1",
+    "tempo_bpm": 100.16,
+    "frames_per_row": 9,
+    "tonic": 55,
+    "form": [
+      "A",
+      "B",
+      "A''"
+    ],
+    "section_bars": 8,
+    "seconds": 57.51
+  },
+  "05_tension_B_variety": {
+    "style": "tension",
+    "seed": 5205,
+    "arm": "B_variety",
+    "tempo_bpm": 90.15,
+    "frames_per_row": 10,
+    "tonic": 57,
+    "form": [
+      "A",
+      "B",
+      "A'"
+    ],
+    "section_bars": 8,
+    "seconds": 63.89
+  },
+  "06_victory_A_v1": {
+    "style": "victory",
+    "seed": 5206,
+    "arm": "A_v1",
+    "tempo_bpm": 150.25,
+    "frames_per_row": 6,
+    "tonic": 64,
+    "form": [
+      "A",
+      "A'1",
+      "A'2",
+      "B",
+      "A''"
+    ],
+    "section_bars": 8,
+    "seconds": 63.89
+  },
+  "06_victory_B_variety": {
+    "style": "victory",
+    "seed": 5206,
+    "arm": "B_variety",
+    "tempo_bpm": 150.25,
+    "frames_per_row": 6,
+    "tonic": 57,
+    "form": [
+      "A",
+      "B",
+      "A"
+    ],
+    "section_bars": 12,
+    "seconds": 57.51
+  }
+}

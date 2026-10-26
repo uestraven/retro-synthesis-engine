@@ -1,0 +1,170 @@
+{
+  "pair_01": {
+    "style": "boss",
+    "seed": 4101,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 40,
+      "phrased": 40
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_02": {
+    "style": "boss",
+    "seed": 4102,
+    "A": "phrased",
+    "B": "v1",
+    "bars": {
+      "v1": 40,
+      "phrased": 40
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_03": {
+    "style": "boss",
+    "seed": 4103,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 40,
+      "phrased": 40
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_04": {
+    "style": "boss",
+    "seed": 4104,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 40,
+      "phrased": 40
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_05": {
+    "style": "action",
+    "seed": 4105,
+    "A": "phrased",
+    "B": "v1",
+    "bars": {
+      "v1": 48,
+      "phrased": 48
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_06": {
+    "style": "action",
+    "seed": 4106,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 48,
+      "phrased": 48
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_07": {
+    "style": "action",
+    "seed": 4107,
+    "A": "phrased",
+    "B": "v1",
+    "bars": {
+      "v1": 48,
+      "phrased": 48
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_08": {
+    "style": "action",
+    "seed": 4108,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 48,
+      "phrased": 48
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  },
+  "pair_09": {
+    "style": "adventure",
+    "seed": 4109,
+    "A": "phrased",
+    "B": "v1",
+    "bars": {
+      "v1": 32,
+      "phrased": 32
+    },
+    "seconds": {
+      "v1": 59.64,
+      "phrased": 59.64
+    }
+  },
+  "pair_10": {
+    "style": "adventure",
+    "seed": 4110,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 32,
+      "phrased": 32
+    },
+    "seconds": {
+      "v1": 59.64,
+      "phrased": 59.64
+    }
+  },
+  "pair_11": {
+    "style": "town",
+    "seed": 4111,
+    "A": "v1",
+    "B": "phrased",
+    "bars": {
+      "v1": 32,
+      "phrased": 32
+    },
+    "seconds": {
+      "v1": 59.64,
+      "phrased": 59.64
+    }
+  },
+  "pair_12": {
+    "style": "victory",
+    "seed": 4112,
+    "A": "phrased",
+    "B": "v1",
+    "bars": {
+      "v1": 40,
+      "phrased": 40
+    },
+    "seconds": {
+      "v1": 63.89,
+      "phrased": 63.89
+    }
+  }
+}
