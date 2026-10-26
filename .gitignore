@@ -82,3 +82,54 @@ frontend/dist/
 
 # Build and run logs.
 *.log
+
+# Experiment scratch. Every script writes its report to the repository root or
+# to a listen_*/ directory, and for most of this project's life those were
+# left where they landed: 90 top-level entries of logs, token dumps, blinding
+# keys and one-off JSON. All of it is regenerable by the script that wrote it.
+#
+# The ratings are NOT scratch and are kept in research/: those are the
+# listener's own judgements and cannot be regenerated at all.
+/listen_*/
+/*_audit/
+/audit_source_vs_nes/
+/fermata_generations/
+/fermata_nes_audio*/
+/gridtest/
+/transfer_audio/
+/refrender/
+/reference_pieces/
+/codec_audio/
+/out/
+/*_KEY.json
+/*_manifest.json
+/sweep.csv
+
+# One-off experiment reports written to the root by scripts/.
+/architecture_comparison.json
+/codec_comparison_*.json
+/conditioning_gate2.json
+/context_policy_*.json
+/corrected_baseline.json
+/fermata_nes_results*.json
+/fermata_selection.json
+/fermata_representation_audit.json
+/gate2_*.json
+/lead_continuity_*.json
+/listening_batch2.json
+/motif_thresholds_frozen.json
+/paired_*.json
+/procedural_batch.json
+/profile_ab.json
+/rhythm_ab.json
+/rhythm_reference.json
+/source_vs_arrangement.json
+/structural_audit.json
+/tempo_coverage.json
+/tempo_precision_train.json
+/theme_bank*.json
+/theme_guided.json
+/timing_fix_report.json
+/transfer_audit_train*.json
+/vocabulary_ab.json
+/window_motif_report.json
