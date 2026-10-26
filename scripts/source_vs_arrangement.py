@@ -161,6 +161,7 @@ def main() -> int:
     parser.add_argument("--nes-dir", type=Path, default=Path("listen_corrected"))
     parser.add_argument("--out-dir", type=Path, default=Path("audit_source_vs_nes"))
     parser.add_argument("--bars", type=int, default=8)
+    parser.add_argument("--label-seed", type=int, default=606)
     parser.add_argument("--out", type=Path, default=Path("source_vs_arrangement.json"))
     args = parser.parse_args()
 
@@ -202,6 +203,18 @@ def main() -> int:
             pick["selected_because"] = f"{'/'.join(band)}, {why} in its band"
             chosen.append(pick)
 
+    # Neutral labels in a shuffled order. The first version of this put the
+    # existing rating in the filename, which hands the listener an
+    # expectation before they hear anything -- especially unhelpful here,
+    # since a prediction about the two Bad pieces was already on record. The
+    # mapping lives in a key outside the audit directory.
+    import random
+
+    labels = [f"piece_{chr(ord('A') + i)}" for i in range(len(chosen))]
+    random.Random(args.label_seed).shuffle(labels)
+    for pick, label in zip(chosen, labels, strict=True):
+        pick["stem"] = label
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     for pick in chosen:
@@ -220,7 +233,7 @@ def main() -> int:
             None,
         )
 
-        stem = f"{pick['rating'].lower()}_{name}"
+        stem = pick["stem"]
         source_path = args.out_dir / f"{stem}.source.mid"
         lead_path = args.out_dir / f"{stem}.lead.mid"
         score_to_midi(score).save(str(source_path))
@@ -269,7 +282,7 @@ def main() -> int:
         )
         agrees = "plan" if rows[-1]["arranger_agrees_with_plan"] else "OVERRIDDEN"
         print(
-            f"  {stem:<40}{pick['rating']:<6}arp {pick['arp_pct']:>5.1f}%  "
+            f"  {stem:<10}arp {pick['arp_pct']:>5.1f}%  "
             f"lead trk {lead_index} -> {agrees}",
             flush=True,
         )
@@ -295,9 +308,19 @@ def main() -> int:
         "| piece | MIDI: mel / harm / dir | NES: mel / harm / dir | notes |\n"
         "|---|---|---|---|\n"
         + "".join(f"| {row['stem']} |  |  |  |\n" for row in rows)
-        + "\nThe filename carries the rating you already gave the NES version,\n"
-        "since you have heard those already and the comparison is the point.\n"
+        + "\nLabels are neutral and shuffled. They carry no information about\n"
+        "which piece this is, what it scored before, or how much the arranger\n"
+        "changed it -- the mapping is held outside this directory until your\n"
+        "answers are recorded.\n"
     )
+    key_path = args.out.parent / f"{args.out_dir.name}_KEY.json"
+    key_path.write_text(json.dumps({"pieces": rows}, indent=2) + "\n")
+    # The public record withholds the prior rating and the arrangement
+    # figures, so reading it cannot set an expectation either.
+    public = [
+        {k: v for k, v in row.items() if k not in ("rating", "comment", "selected_because", "listening_file", "name")}
+        for row in rows
+    ]
     args.out.write_text(
         json.dumps(
             {
@@ -305,12 +328,14 @@ def main() -> int:
                 "n_pieces": len(rows),
                 "export_tpq": EXPORT_TPQ,
                 "note": "scores rebuilt from stored token streams; nothing regenerated",
-                "pieces": rows,
+                "key": str(key_path),
+                "pieces": public,
             },
             indent=2,
         )
         + "\n"
     )
+    print(f"private key: {key_path} -- do not open it until the answers are in")
     print(f"\nwrote {len(rows)} pieces x 3 files to {args.out_dir}")
     print(f"audit sheet: {sheet}")
     return 0

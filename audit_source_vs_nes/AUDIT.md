@@ -22,12 +22,14 @@ and the NES version** -- that contrast is the whole point:
 
 | piece | MIDI: mel / harm / dir | NES: mel / harm / dir | notes |
 |---|---|---|---|
-| good_action_s13662 |  |  |  |
-| best_fast_rhythmic_s11032 |  |  |  |
-| ok_fast_rhythmic_s11033 |  |  |  |
-| ok_exploration_s16310 |  |  |  |
-| bad_exploration_s16314 |  |  |  |
-| bad_action_s13663 |  |  |  |
+| piece_E |  |  |  |
+| piece_B |  |  |  |
+| piece_D |  |  |  |
+| piece_C |  |  |  |
+| piece_A |  |  |  |
+| piece_F |  |  |  |
 
-The filename carries the rating you already gave the NES version,
-since you have heard those already and the comparison is the point.
+Labels are neutral and shuffled. They carry no information about
+which piece this is, what it scored before, or how much the arranger
+changed it -- the mapping is held outside this directory until your
+answers are recorded.
