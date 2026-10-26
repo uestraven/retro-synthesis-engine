@@ -21,28 +21,28 @@ and abrupt phrase endings.
 
 | pair | A passes? | B passes? | better | comment |
 |---|---|---|---|---|
-| pair_01 |  |  |  |  |
-| pair_02 |  |  |  |  |
-| pair_03 |  |  |  |  |
-| pair_04 |  |  |  |  |
-| pair_05 |  |  |  |  |
-| pair_06 |  |  |  |  |
-| pair_07 |  |  |  |  |
-| pair_08 |  |  |  |  |
-| pair_09 |  |  |  |  |
-| pair_10 |  |  |  |  |
-| pair_11 |  |  |  |  |
-| pair_12 |  |  |  |  |
-| pair_13 |  |  |  |  |
-| pair_14 |  |  |  |  |
-| pair_15 |  |  |  |  |
-| pair_16 |  |  |  |  |
-| pair_17 |  |  |  |  |
-| pair_18 |  |  |  |  |
-| pair_19 |  |  |  |  |
-| pair_20 |  |  |  |  |
-| pair_21 |  |  |  |  |
-| pair_22 |  |  |  |  |
-| pair_23 |  |  |  |  |
-| pair_24 |  |  |  |  |
+| pair_01 | yes | yes | = |  |
+| pair_02 | yes | yes | = |  |
+| pair_03 | yes | yes | = |  |
+| pair_04 | yes | yes | = |  |
+| pair_05 | yes | yes | = |  |
+| pair_06 | yes | yes | = |  |
+| pair_07 | yes | yes | = |  |
+| pair_08 | yes | yes | A |  |
+| pair_09 | yes | yes | = |  |
+| pair_10 | yes | yes | A |  |
+| pair_11 | yes | yes | = |  |
+| pair_12 | yes | yes | A |  |
+| pair_13 | yes | yes | = |  |
+| pair_14 | yes | yes | = |  |
+| pair_15 | yes | yes | A |  |
+| pair_16 | yes | yes | A |  |
+| pair_17 | yes | yes | = |  |
+| pair_18 | yes | yes | = |  |
+| pair_19 | yes | yes | = |  |
+| pair_20 | yes | yes | = |  |
+| pair_21 | yes | yes | A |  |
+| pair_22 | yes | yes | B |  |
+| pair_23 | yes | yes | = |  |
+| pair_24 | yes | yes | = |  |
 
