@@ -283,6 +283,12 @@ class DecodeReport:
     #: A stream that never declared a plan cannot have its tracks typed, so
     #: percussion and pitched tracks become indistinguishable.
     had_plan: bool = False
+    #: Events the model emitted before its first `<BAR>`. The grammar is
+    #: `<BAR> <TRK_n> (events)*`, so the opening `<BAR>` was dropped and the
+    #: bar it would have opened is implicit. Counted because it changes how
+    #: many bars the stream holds, which `trim_to_bars` has to know.
+    n_events_before_first_bar: int = 0
+    implicit_first_bar: bool = False
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -294,6 +300,8 @@ class DecodeReport:
             "n_bars": self.n_bars,
             "hit_eos": self.hit_eos,
             "had_plan": self.had_plan,
+            "n_events_before_first_bar": self.n_events_before_first_bar,
+            "implicit_first_bar": self.implicit_first_bar,
             "warnings": self.warnings[:20],
         }
 
@@ -312,6 +320,9 @@ def decode(ids: list[int], *, vocab: Vocab) -> tuple[Score, DecodeReport]:
     plan: list[str] = []
     in_plan = False
     bar = -1
+    #: True once an explicit `<BAR>` has been seen, so events that precede
+    #: the first one can be attributed to the implicit opening bar.
+    seen_bar = False
     slot = 0
     beat = subpos = 0
     pending: list[str] = []
@@ -323,11 +334,31 @@ def decode(ids: list[int], *, vocab: Vocab) -> tuple[Score, DecodeReport]:
         if len(pending) < 3:
             pending = []
             return
+        nonlocal bar
         kind = pending[0]
         is_drum = kind.startswith("<DRUM_NOTE_")
         value = int(re.findall(r"-?\d+", kind)[0])
         duration = int(re.findall(r"-?\d+", pending[1])[0]) if len(pending) > 1 else 6
         velocity = int(re.findall(r"-?\d+", pending[2])[0]) if len(pending) > 2 else 8
+        if not seen_bar:
+            report.n_events_before_first_bar += 1
+        if bar < 0:
+            # The grammar is `<BAR> <TRK_n> (events)*`, so an event arriving
+            # before any `<BAR>` means the model dropped the opening one. The
+            # bar it would have opened is implicit, and these events belong to
+            # it -- bar 0, not bar -1.
+            #
+            # Leaving `bar` at -1 produced negative ticks, and the D4 round
+            # trip shifts the minimum tick to zero, which moved the whole
+            # piece one bar later: the requested eight bars came out spanning
+            # nine, with the final bar's events past the window. 4 of 30
+            # pieces in listen_batch2 were affected, 1.28% of events, across
+            # four of six scenarios. Nothing downstream caught it, because
+            # hardware validation checks channels, pitches and polyphony --
+            # never bar structure.
+            bar = 0
+            report.implicit_first_bar = True
+            report.n_bars = max(report.n_bars, 1)
         tick = bar * SUBPOS * beats_per_bar + beat * SUBPOS + subpos
         events.setdefault(slot, []).append((tick, value, duration, velocity, is_drum))
         report.n_events += 1
@@ -356,6 +387,7 @@ def decode(ids: list[int], *, vocab: Vocab) -> tuple[Score, DecodeReport]:
                 beats_per_bar = int(found[0][0])
         elif token == "<BAR>":
             flush()
+            seen_bar = True
             bar += 1
             report.n_bars = bar + 1
         elif token.startswith("<TRK_"):
@@ -468,6 +500,24 @@ class BarTrimResult:
         }
 
 
+def _has_events_before_first_bar(ids: list[int], *, vocab: Vocab) -> bool:
+    """Did the stream emit a note before opening a bar?
+
+    `decode` treats that as an implicit opening bar, because the grammar is
+    `<BAR> <TRK_n> (events)*` and the only consistent reading of a leading
+    note is that the `<BAR>` was dropped. The trim has to agree with it, or
+    the two disagree about how many bars the stream holds.
+    """
+    bar_id = vocab.id_of("<BAR>")
+    for token_id in ids:
+        if token_id == bar_id:
+            return False
+        token = vocab.id_to_token.get(token_id, "")
+        if token.startswith(("<PITCH_", "<DRUM_NOTE_")):
+            return True
+    return False
+
+
 def trim_to_bars(ids: list[int], *, vocab: Vocab, n_bars: int) -> BarTrimResult:
     """Cut a stream so it holds exactly `n_bars` bars, then close it.
 
@@ -485,7 +535,16 @@ def trim_to_bars(ids: list[int], *, vocab: Vocab, n_bars: int) -> BarTrimResult:
     eos_id = vocab.id_of("<EOS>")
     raw = list(ids)
 
-    seen = 0
+    # A stream that emits notes before its first `<BAR>` has an implicit
+    # opening bar (see `decode`), so its Nth bar of music is delimited by the
+    # (N-1)th explicit `<BAR>`. Without this the trim returns one bar more
+    # than was asked for, which is how eight-bar requests came back spanning
+    # nine.
+    # `seen` counts bars *of music*, so the implicit one is simply the first.
+    # The cut condition is then the same either way: stop when the bar after
+    # the last requested one opens.
+    implicit = _has_events_before_first_bar(ids, vocab=vocab)
+    seen = 1 if implicit else 0
     for index, token_id in enumerate(ids):
         if token_id == bar_id:
             seen += 1

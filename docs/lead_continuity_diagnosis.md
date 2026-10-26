@@ -286,3 +286,78 @@ historical on compressed pieces. It does not establish that the corrected
 audio is enjoyable: the same listener called the batch these came from "99%
 not good". Four ties and the whole fast-tempo half say the correction is a
 real repair with a bounded effect, not a transformation.
+
+---
+
+# Phase 1 audit: the dropped opening `<BAR>`
+
+The two `fast_rhythmic` pieces carrying 29 and 19 events past their eight-bar
+window were not writing extended measures. Both earlier guesses were wrong.
+
+## `<BEAT_b>` is interpreted correctly
+
+Across 4,769 events in the 30 stored `listen_batch2` streams, **zero** events
+sit at `BEAT >= beats_per_bar`. Max beat is 3, meter is `4/4` throughout. The
+vocabulary does carry 215 `<BEAT_>` values up to 223, and ~260 `<METER_>`
+tokens including compound ones like `<METER_2+3/4>`, but the model uses none
+of that here. Units: `<BEAT_b>` is the beat within the bar, `<SUBPOS_s>` is
+one of 24 ticks per quarter. Both confirmed against the decoder.
+
+## The actual mechanism
+
+Fermata sometimes emits notes **before its first `<BAR>`**. The grammar is
+`<BAR> <TRK_n> (events)*`, so the opening `<BAR>` was dropped. `decode`
+tracked bars from `-1`, so those notes took negative ticks:
+
+    tick = bar * SUBPOS * beats_per_bar + beat * SUBPOS + subpos
+         = -96 + beat * 24 + subpos
+
+The D4 round trip then shifts the minimum tick to zero. Confirmed in
+isolation: `[-1920, 0, 1920]` comes back as `[0, 1920, 3840]`. The whole piece
+moves one bar later, so eight requested bars span nine and the final bar's
+onsets land past the window — 29 and 19 events, matching those pieces' bar-7
+counts exactly.
+
+## Frequency
+
+4 of 30 pieces, 61 of 4,769 events (1.28%), in four of six scenarios:
+
+| scenario | pre-`<BAR>` events | pieces hit |
+|---|---|---|
+| exploration | 24 | 1 / 5 |
+| sparse | 22 | 1 / 5 |
+| fast_rhythmic | 12 | 1 / 5 |
+| town | 3 | 1 / 5 |
+| action | 0 | 0 / 5 |
+| ominous | 0 | 0 / 5 |
+
+The same 61 events across 4 pieces appear in the paired 16-bar streams.
+
+## Nothing downstream caught it
+
+Hardware validation reported **zero violations** on both affected pieces, and
+arrangement retention was 1.000. Validation checks channels, pitches and
+polyphony; no layer in the pipeline ever validated bar structure. The defect
+was invisible to every existing check, which is why it survived three
+listening tests.
+
+## Correction
+
+A leading note is read as an **implicit opening bar** — the only reading
+consistent with the grammar — rather than as bar `-1`. `trim_to_bars` counts
+that implicit bar, so a request for eight bars returns eight bars of music
+instead of nine.
+
+Nothing is clamped, truncated or rewritten: all 61 events survive, cross-bar
+sustains keep their full duration, and `DecodeReport` now carries
+`implicit_first_bar` and `n_events_before_first_bar` so the condition is
+reported rather than silent. The frozen D4 representation is untouched, and
+the meter still comes from the `<METER_>` token rather than an assumption.
+
+On the two affected pieces, after the fix: minimum tick 0, span 7.88 bars,
+**0 onsets beyond bar 8**, with 14 and 22 pre-`<BAR>` events correctly
+attributed.
+
+Regression coverage is `tests/test_fermata_implicit_bar.py` (11 tests),
+including a guard that a bare `<TRK_>` before the first `<BAR>` does *not*
+imply a bar, so well-formed streams do not gain a phantom one.
