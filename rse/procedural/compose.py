@@ -72,6 +72,68 @@ PITCH_MIN, PITCH_MAX = 33, 108
 KICK, SNARE, HAT = 1, 6, 12
 
 
+@dataclass(frozen=True)
+class HarmonicRhythm:
+    """How long each chord lasts, and whether the bass follows it.
+
+    Durations are in rows, so a bar is 16 and a half-bar is 8 -- integers
+    rather than fractional bars, because the D4 grid is rows and a float bar
+    count would have to be rounded somewhere.
+
+    The list cycles over the progression's chords, so a 4-chord progression
+    with durations (8, 8) gives two chords per bar and completes in two bars
+    instead of four. That changes the harmonic pacing without touching the
+    progression itself, which is the point: the same chords at a different
+    rate are a different musical experience.
+
+    `pedal` holds the bass on the cycle's first root while the chords above it
+    move. A pedal is not a chord duration, which is why it is a separate flag
+    rather than another entry in the durations list.
+    """
+
+    name: str
+    durations: tuple[int, ...]
+    pedal: bool = False
+
+    def plan(self, n_chords: int, n_bars: int) -> list[tuple[int, int, int]]:
+        """(chord index, start row, length in rows) covering `n_bars` bars."""
+        total = n_bars * ROWS_PER_BAR
+        out: list[tuple[int, int, int]] = []
+        row = 0
+        step = 0
+        while row < total:
+            length = self.durations[step % len(self.durations)]
+            length = min(length, total - row)
+            out.append((step % n_chords, row, length))
+            row += length
+            step += 1
+        return out
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "durations": list(self.durations),
+            "pedal": self.pedal,
+        }
+
+
+#: One chord per bar: the only rhythm v1 used, and the default, so a caller
+#: that does not ask for harmonic-rhythm variety gets byte-identical output.
+ONE_PER_BAR = HarmonicRhythm("one_per_bar", (ROWS_PER_BAR,))
+
+#: The stage-1 vocabulary. Each changes pacing only; no new chords.
+RHYTHMS: dict[str, HarmonicRhythm] = {
+    "one_per_bar": ONE_PER_BAR,
+    "two_per_bar": HarmonicRhythm("two_per_bar", (8,)),
+    "two_bar_hold": HarmonicRhythm("two_bar_hold", (ROWS_PER_BAR * 2,)),
+    # Long-short: a chord held a bar then two at half a bar, which is the
+    # commonest way NES writing accelerates into a cadence.
+    "accelerating": HarmonicRhythm("accelerating", (ROWS_PER_BAR, 8, 8)),
+    # A bar of tonic under moving harmony above it.
+    "tonic_pedal": HarmonicRhythm("tonic_pedal", (8,), pedal=True),
+}
+
+
 @dataclass
 class Style:
     """A preset: what the rules are allowed to choose from."""
@@ -94,6 +156,9 @@ class Style:
     tonic: int = 60
     #: Probability a melody note is a passing tone rather than a chord tone.
     passing_chance: float = 0.3
+    #: Harmonic rhythms this style may use when variety is requested. The
+    #: default stays one-per-bar so v1 output is unchanged.
+    rhythms: tuple[str, ...] = ("one_per_bar",)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -127,6 +192,7 @@ STYLES: dict[str, Style] = {
         backbeat=True,
         tonic=57,
         passing_chance=0.35,
+        rhythms=("one_per_bar", "two_per_bar", "accelerating", "tonic_pedal"),
     ),
     "action": Style(
         name="action",
@@ -140,6 +206,7 @@ STYLES: dict[str, Style] = {
         backbeat=True,
         tonic=60,
         passing_chance=0.3,
+        rhythms=("one_per_bar", "two_per_bar", "accelerating"),
     ),
     "adventure": Style(
         name="adventure",
@@ -153,6 +220,7 @@ STYLES: dict[str, Style] = {
         backbeat=True,
         tonic=60,
         passing_chance=0.25,
+        rhythms=("one_per_bar", "two_bar_hold", "accelerating"),
     ),
     "town": Style(
         name="town",
@@ -166,6 +234,7 @@ STYLES: dict[str, Style] = {
         backbeat=False,
         tonic=62,
         passing_chance=0.2,
+        rhythms=("one_per_bar", "two_bar_hold"),
     ),
     "tension": Style(
         name="tension",
@@ -179,6 +248,7 @@ STYLES: dict[str, Style] = {
         backbeat=False,
         tonic=55,
         passing_chance=0.15,
+        rhythms=("two_bar_hold", "tonic_pedal", "one_per_bar"),
     ),
     "victory": Style(
         name="victory",
@@ -192,6 +262,7 @@ STYLES: dict[str, Style] = {
         backbeat=True,
         tonic=64,
         passing_chance=0.2,
+        rhythms=("one_per_bar", "two_per_bar", "accelerating"),
     ),
 }
 
@@ -337,6 +408,7 @@ def render_melody(
     plan: SectionPlan,
     *,
     bar_offset: int,
+    harmony_plan: list[tuple[int, int, int]],
 ) -> list[Note]:
     """Melody on P1, re-harmonised bar by bar against the progression.
 
@@ -345,25 +417,30 @@ def render_melody(
     in the scale, so a passing tone is a passing tone and never an accident.
     """
     notes: list[Note] = []
-    for bar in range(plan.bars):
-        chord_root = plan.progression[bar % len(plan.progression)]
+    base = bar_offset * TICKS_PER_BAR
+    for chord_index, start_row, span in harmony_plan:
+        chord_root = plan.progression[chord_index % len(plan.progression)]
         tones = chord_degrees(chord_root)
         start = tones[rng.randrange(len(tones))]
         row = 0
         for step, length in zip(motif.degrees, motif.rhythm, strict=False):
-            if row >= ROWS_PER_BAR:
+            if row >= span:
                 break
             degree = start + step
             # On strong rows prefer a chord tone; elsewhere allow the scale.
-            if row % ROWS_PER_BEAT == 0 and rng.random() > style.passing_chance:
+            absolute = start_row + row
+            if absolute % ROWS_PER_BEAT == 0 and rng.random() > style.passing_chance:
                 degree = min(tones, key=lambda t: abs(t - degree))
             pitch = clamp(scale_pitch(style.tonic, style.mode, degree))
             notes.append(
                 Note(
                     channel_id="P1",
-                    tick=(bar_offset + bar) * TICKS_PER_BAR + row * TICKS_PER_ROW,
+                    tick=base + absolute * TICKS_PER_ROW,
                     pitch=pitch,
-                    duration=length * TICKS_PER_ROW,
+                    # Never ring past the chord it belongs to: a melody note
+                    # held across a chord change is the clash the shared
+                    # harmonic plan exists to prevent.
+                    duration=min(length, span - row) * TICKS_PER_ROW,
                     velocity=100,
                 )
             )
@@ -372,7 +449,11 @@ def render_melody(
 
 
 def render_harmony(
-    style: Style, plan: SectionPlan, *, bar_offset: int
+    style: Style,
+    plan: SectionPlan,
+    *,
+    bar_offset: int,
+    harmony_plan: list[tuple[int, int, int]],
 ) -> list[Note]:
     """Accompaniment on P2, built only from the bar's chord tones.
 
@@ -384,25 +465,25 @@ def render_harmony(
     per seed would weaken the one voice whose predictability is the point.
     """
     notes: list[Note] = []
-    for bar in range(plan.bars):
-        chord_root = plan.progression[bar % len(plan.progression)]
+    base = bar_offset * TICKS_PER_BAR
+    for chord_index, start_row, span in harmony_plan:
+        chord_root = plan.progression[chord_index % len(plan.progression)]
         tones = chord_degrees(chord_root)
         if style.harmony_style == "pad":
             pitch = clamp(scale_pitch(style.tonic, style.mode, tones[0]) - 12)
             notes.append(
                 Note(
                     channel_id="P2",
-                    tick=(bar_offset + bar) * TICKS_PER_BAR,
+                    tick=base + start_row * TICKS_PER_ROW,
                     pitch=pitch,
-                    duration=TICKS_PER_BAR,
+                    duration=span * TICKS_PER_ROW,
                     velocity=70,
                 )
             )
             continue
-        rows = range(0, ROWS_PER_BAR, 2) if style.harmony_style == "arpeggio" else range(
-            2, ROWS_PER_BAR, 4
-        )
-        for index, row in enumerate(rows):
+        step = 2 if style.harmony_style == "arpeggio" else 4
+        offset = 0 if style.harmony_style == "arpeggio" else 2
+        for index, row in enumerate(range(offset, span, step)):
             degree = tones[index % len(tones)]
             if style.harmony_style == "arpeggio" and index % len(tones) == 0:
                 degree += 7 * (index // len(tones) % 2)
@@ -410,27 +491,51 @@ def render_harmony(
             notes.append(
                 Note(
                     channel_id="P2",
-                    tick=(bar_offset + bar) * TICKS_PER_BAR + row * TICKS_PER_ROW,
+                    tick=base + (start_row + row) * TICKS_PER_ROW,
                     pitch=pitch,
-                    duration=2 * TICKS_PER_ROW,
+                    duration=min(2, span - row) * TICKS_PER_ROW,
                     velocity=72,
                 )
             )
     return notes
 
 
-def render_bass(style: Style, plan: SectionPlan, *, bar_offset: int) -> list[Note]:
+def render_bass(
+    style: Style,
+    plan: SectionPlan,
+    *,
+    bar_offset: int,
+    harmony_plan: list[tuple[int, int, int]],
+    pedal: bool = False,
+) -> list[Note]:
     """Bass on the triangle: chord roots and fifths, no passing tones.
 
     Deterministic given the progression. The bass is what makes the harmony
     audible, so it is the one voice with no randomness in it at all.
     """
     notes: list[Note] = []
+    base = bar_offset * TICKS_PER_BAR
+    # A pedal holds the cycle's first root under everything above it, so the
+    # bass is read from the plan's first chord rather than the current one.
+    pedal_root = chord_degrees(plan.progression[0])[0] if pedal else None
     for bar in range(plan.bars):
-        chord_root = plan.progression[bar % len(plan.progression)]
+        # Which chord is sounding at this bar's downbeat.
+        bar_start = bar * ROWS_PER_BAR
+        chord_index = next(
+            (
+                ci
+                for ci, start, span in harmony_plan
+                if start <= bar_start < start + span
+            ),
+            0,
+        )
+        chord_root = plan.progression[chord_index % len(plan.progression)]
         tones = chord_degrees(chord_root)
         for index, row in enumerate(style.bass_rows):
-            degree = tones[0] if index % 2 == 0 else tones[2]
+            if pedal_root is not None:
+                degree = pedal_root
+            else:
+                degree = tones[0] if index % 2 == 0 else tones[2]
             pitch = clamp(scale_pitch(style.tonic, style.mode, degree) - 24)
             length = (
                 style.bass_rows[index + 1] - row
@@ -440,7 +545,7 @@ def render_bass(style: Style, plan: SectionPlan, *, bar_offset: int) -> list[Not
             notes.append(
                 Note(
                     channel_id="TR",
-                    tick=(bar_offset + bar) * TICKS_PER_BAR + row * TICKS_PER_ROW,
+                    tick=base + (bar_start + row) * TICKS_PER_ROW,
                     pitch=pitch,
                     duration=max(1, length) * TICKS_PER_ROW,
                     velocity=90,
@@ -501,12 +606,14 @@ class ProceduralResult:
     motif: Motif
     sections: list[SectionPlan]
     seed: int
+    rhythm: HarmonicRhythm = ONE_PER_BAR
     variations: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "seed": self.seed,
             "style": self.style.to_dict(),
+            "harmonic_rhythm": self.rhythm.to_dict(),
             "motif": self.motif.to_dict(),
             "sections": [s.to_dict() for s in self.sections],
             "variations": self.variations,
@@ -520,12 +627,34 @@ def compose(
     seed: int,
     target_seconds: float = 60.0,
     section_bars: int = 8,
+    harmonic_rhythm: str | None = None,
 ) -> ProceduralResult:
-    """One complete NES piece from a style preset and a seed."""
+    """One complete NES piece from a style preset and a seed.
+
+    `harmonic_rhythm` is `None` for the frozen v1 behaviour -- one chord per
+    bar, and **no RNG draw**, so output is byte-identical to the 24 pieces in
+    the listening baseline. Pass a name from `RHYTHMS` to force one, or
+    `"auto"` to let the seed choose from the style's declared vocabulary.
+    Opt-in rather than default, because the baseline is the thing that worked
+    and a silent extra draw would have changed every piece.
+    """
     if style_name not in STYLES:
         raise KeyError(f"unknown style {style_name!r}; have {sorted(STYLES)}")
     style = STYLES[style_name]
     rng = random.Random(seed)
+    if harmonic_rhythm is None:
+        rhythm = ONE_PER_BAR
+    elif harmonic_rhythm == "auto":
+        # Drawn from a generator seeded separately, so choosing a rhythm does
+        # not shift the main stream and shift every melody with it.
+        rhythm = RHYTHMS[random.Random(seed ^ 0x5F5F).choice(style.rhythms)]
+    else:
+        if harmonic_rhythm not in RHYTHMS:
+            raise KeyError(
+                f"unknown harmonic rhythm {harmonic_rhythm!r}; "
+                f"have {sorted(RHYTHMS)}"
+            )
+        rhythm = RHYTHMS[harmonic_rhythm]
     motif = make_motif(rng, style)
     plans = plan_form(rng, style, target_seconds=target_seconds, section_bars=section_bars)
 
@@ -541,10 +670,27 @@ def compose(
             used = contrast_motif
         else:
             used = motif
-        variations.append({"label": plan.label, "motif": used.to_dict()})
-        events += render_melody(rng, style, used, plan, bar_offset=bar_offset)
-        events += render_harmony(style, plan, bar_offset=bar_offset)
-        events += render_bass(style, plan, bar_offset=bar_offset)
+        harmony_plan = rhythm.plan(len(plan.progression), plan.bars)
+        variations.append(
+            {
+                "label": plan.label,
+                "motif": used.to_dict(),
+                "n_chord_changes": len(harmony_plan),
+            }
+        )
+        events += render_melody(
+            rng, style, used, plan, bar_offset=bar_offset, harmony_plan=harmony_plan
+        )
+        events += render_harmony(
+            style, plan, bar_offset=bar_offset, harmony_plan=harmony_plan
+        )
+        events += render_bass(
+            style,
+            plan,
+            bar_offset=bar_offset,
+            harmony_plan=harmony_plan,
+            pedal=rhythm.pedal,
+        )
         events += render_drums(rng, style, plan, bar_offset=bar_offset)
         bar_offset += plan.bars
 
@@ -564,5 +710,6 @@ def compose(
         motif=motif,
         sections=plans,
         seed=seed,
+        rhythm=rhythm,
         variations=variations,
     )
