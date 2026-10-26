@@ -56,9 +56,10 @@ from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.transfer.arranger import (
     arrange_for_nes,
     assign_roles,
+    row_seconds,
 )
 from rse.transfer.fermata import Vocab, decode, trim_to_bars
-from rse.transfer.score import MELODY, PERCUSSION, Score
+from rse.transfer.score import MELODY, Score
 
 ROW_SEC = 0.1
 
@@ -299,12 +300,20 @@ def main() -> int:
     tokenizer = RseTokenizer(frozen_config())
     profile = load_profile("nes")
     engine = ConstraintEngine(profile)
-    fit = GridFit(
-        step_ticks=float(tokenizer.ticks_per_step(480)),
-        phase_ticks=0.0,
-        aligned=True,
-        period_sec=ROW_SEC,
-    )
+    def fit_for(score) -> GridFit:
+        """Row length from the score's own tempo.
+
+        `rse.tokenizers.tokenizer` overrides the Tempo token with `fit.bpm`
+        whenever the fit is aligned, so pinning `period_sec` to 0.1 forces
+        every piece to 150 BPM and reintroduces the arranger timing defect
+        however correctly the notes were placed.
+        """
+        return GridFit(
+            step_ticks=float(tokenizer.ticks_per_step(480)),
+            phase_ticks=0.0,
+            aligned=True,
+            period_sec=row_seconds(score.tempo_bpm),
+        )
     nes_bar_ticks = int(tokenizer.ticks_per_step(480)) * tokenizer.config.steps_per_bar
 
     rows: list[dict[str, Any]] = []
@@ -341,7 +350,7 @@ def main() -> int:
         )
         arranged, _trunc = enforce_monophony(arranged)
         rounded = enforce_monophony(
-            tokenizer.decode(tokenizer.encode(arranged, fit=fit).ids).composition
+            tokenizer.decode(tokenizer.encode(arranged, fit=fit_for(score)).ids).composition
         )[0]
         final, _repair = engine.apply(rounded)
         after = analyse_nes_side(

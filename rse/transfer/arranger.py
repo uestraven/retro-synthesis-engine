@@ -127,6 +127,20 @@ def _track_movement(track: Track) -> float:
     return fmean(steps) if steps else 0.0
 
 
+def row_seconds(bpm: float, *, rows_per_beat: int = ROWS_PER_BEAT) -> float:
+    """Real-time length of one tracker row at `bpm`.
+
+    The bridge between musical positions and real time, and the value a
+    caller must put in `GridFit.period_sec`. `rse.tokenizers.tokenizer`
+    overrides the Tempo token with `fit.bpm` whenever the fit is aligned, so
+    a caller that leaves `period_sec` at a fixed 0.1 forces every piece back
+    to 150 BPM however correctly the arranger placed the notes.
+    """
+    if bpm <= 0:
+        raise ValueError(f"bpm must be positive, got {bpm}")
+    return (60.0 / bpm) / rows_per_beat
+
+
 def assign_roles(score: Score) -> dict[int, str]:
     """Which NES role each track should take.
 
@@ -175,15 +189,37 @@ def arrange_for_nes(
 ) -> tuple[Composition, ArrangeReport]:
     """Collapse a general score onto P1, P2, TR and NO.
 
-    `row_sec` fixes the output tempo, so the arrangement lands on the same
-    timebase RSE's own pipeline uses and the result can be encoded with the
-    frozen D4 codec unchanged.
+    Musical positions are preserved exactly: eight composed bars are eight
+    arranged bars at any tempo, because bar positions are a property of the
+    music and only their real-time length depends on tempo. The score's tempo
+    is carried on the output's tempo map, so playback rate is what was asked
+    for.
+
+    `row_sec` no longer affects positions. It survives only as the fallback
+    output tempo for a score that carries none, and callers should stop
+    relying on it to fix the timebase -- use `row_seconds(bpm)` to build the
+    matching `GridFit`, or the D4 encode will override the tempo with
+    `fit.bpm` and reintroduce the defect this function used to have.
     """
     report = ArrangeReport()
     roles = assign_roles(score)
-    tick_sec = (row_sec * ROWS_PER_BEAT) / score.ticks_per_quarter
-    out_spt = (60.0 / (score.tempo_bpm or 120.0)) / ticks_per_beat
-    scale = tick_sec / out_spt
+    # Musical positions only. A bar is a bar at any tempo, so the conversion
+    # from source ticks to destination ticks is the ratio of the two
+    # resolutions and nothing else: 480/24 = 20 for Fermata's 24 TPQN.
+    #
+    # This replaces `tick_sec / out_spt`, which mixed a hard-coded output
+    # tempo into a musical conversion. `tick_sec` was
+    # `row_sec * ROWS_PER_BEAT / ticks_per_quarter`, i.e. 0.4 s per beat =
+    # 150 BPM, while `out_spt` used the score's tempo, so every onset and
+    # duration came out scaled by `score.tempo_bpm / 150`. Eight composed
+    # bars became `8 * tempo_bpm / 150` bars -- four at 76 BPM, ten at 180 --
+    # and the lead appeared to decay only because a fixed eight-bar window
+    # was being read over a piece that had already ended. See
+    # docs/lead_continuity_diagnosis.md.
+    scale = ticks_per_beat / score.ticks_per_quarter
+    # Tempo is playback rate, applied once to the finished arrangement rather
+    # than smeared through the positions.
+    out_bpm = float(score.tempo_bpm or 60.0 / (row_sec * ROWS_PER_BEAT))
 
     # Group by destination channel, so merging two accompaniment tracks onto
     # P2 is visible as a merge rather than appearing as lost notes.
@@ -241,7 +277,10 @@ def arrange_for_nes(
 
     events: list[Note | Noise] = []
     # One row in destination ticks, and the sub-row slot an arpeggio steps by.
-    row_out = int(round(row_sec / out_spt)) if out_spt > 0 else 1
+    # Both are musical: a row is a quarter of a beat, so this no longer
+    # depends on real time and an arpeggio steps by the same musical interval
+    # at every tempo.
+    row_out = max(1, ticks_per_beat // ROWS_PER_BEAT)
     slot_out = max(1, row_out // max(1, divisions))
 
     for channel, group in per_channel.items():
@@ -307,8 +346,11 @@ def arrange_for_nes(
     composition = Composition(hardware_profile="nes", ticks_per_beat=ticks_per_beat, events=events)
     from rse.events.schema import TempoChange, TimeSignatureChange
 
-    bpm = 60.0 / (row_sec * ROWS_PER_BEAT)
-    composition.tempo_map = [TempoChange(0, int(round(60_000_000 / bpm)))]
+    # The score's own tempo, so the arrangement plays at the tempo that was
+    # requested. Previously this wrote the `row_sec`-implied 150 BPM, which
+    # combined with the tempo-scaled positions to make real duration rise
+    # with tempo instead of falling.
+    composition.tempo_map = [TempoChange(0, int(round(60_000_000 / out_bpm)))]
     composition.time_signatures = [TimeSignatureChange(0, score.beats_per_bar, 4)]
     composition.normalize()
     report.n_events_out = len(events)

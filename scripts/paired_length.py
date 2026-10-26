@@ -60,7 +60,7 @@ from rse.hardware.profile import load_profile
 from rse.tokenizers.frozen import frozen_config
 from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.training.evaluate import evaluate_composition
-from rse.transfer.arranger import arrange_for_nes
+from rse.transfer.arranger import arrange_for_nes, row_seconds
 from rse.transfer.ensemble import check_ensemble
 from rse.transfer.fermata import RECONSTRUCTION_ID, Vocab, decode, trim_to_bars
 
@@ -98,7 +98,6 @@ def build_arm(
     n_bars: int,
     vocab: Vocab,
     tokenizer: RseTokenizer,
-    fit: GridFit,
     engine: ConstraintEngine,
     profile: Any,
     scenario: dict[str, Any],
@@ -126,6 +125,15 @@ def build_arm(
         score, row_sec=ROW_SEC, divisions=tokenizer.config.onset_divisions
     )
     arranged, _trunc = enforce_monophony(arranged)
+    # Row length comes from the score's tempo. `encode` overrides the Tempo
+    # token with `fit.bpm` on an aligned fit, so a fixed 0.1 would force every
+    # piece to 150 BPM and undo the arranger's timing correction.
+    fit = GridFit(
+        step_ticks=float(tokenizer.ticks_per_step(480)),
+        phase_ticks=0.0,
+        aligned=True,
+        period_sec=row_seconds(score.tempo_bpm),
+    )
     rounded = enforce_monophony(
         tokenizer.decode(tokenizer.encode(arranged, fit=fit).ids).composition
     )[0]
@@ -261,12 +269,6 @@ def main() -> int:
     tokenizer = RseTokenizer(frozen_config())
     profile = load_profile("nes")
     engine = ConstraintEngine(profile)
-    fit = GridFit(
-        step_ticks=float(tokenizer.ticks_per_step(480)),
-        phase_ticks=0.0,
-        aligned=True,
-        period_sec=ROW_SEC,
-    )
     audit = args.listen_dir.parent / f"{args.listen_dir.name}_audit"
     audit.mkdir(parents=True, exist_ok=True)
 
@@ -303,7 +305,6 @@ def main() -> int:
             n_bars=args.short_bars,
             vocab=vocab,
             tokenizer=tokenizer,
-            fit=fit,
             engine=engine,
             profile=profile,
             scenario=scenario,
@@ -313,7 +314,6 @@ def main() -> int:
             n_bars=args.long_bars,
             vocab=vocab,
             tokenizer=tokenizer,
-            fit=fit,
             engine=engine,
             profile=profile,
             scenario=scenario,

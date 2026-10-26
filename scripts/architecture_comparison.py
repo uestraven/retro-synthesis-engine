@@ -72,7 +72,7 @@ from rse.hardware.profile import load_profile
 from rse.tokenizers.frozen import frozen_config
 from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.training.evaluate import evaluate_composition
-from rse.transfer.arranger import arrange_for_nes
+from rse.transfer.arranger import arrange_for_nes, row_seconds
 from rse.transfer.ensemble import check_ensemble
 from rse.transfer.fermata import RECONSTRUCTION_ID, Vocab, decode, trim_to_bars
 
@@ -333,12 +333,20 @@ def main() -> int:
             return bool((generated == self.bar_id).sum() >= self.limit)
 
     processors = [SuppressBpe(vocab.bpe_ids)]
-    fit = GridFit(
-        step_ticks=float(tokenizer.ticks_per_step(480)),
-        phase_ticks=0.0,
-        aligned=True,
-        period_sec=ROW_SEC,
-    )
+    def fit_for(score) -> GridFit:
+        """Row length from the score's own tempo.
+
+        `rse.tokenizers.tokenizer` overrides the Tempo token with `fit.bpm`
+        whenever the fit is aligned, so pinning `period_sec` to 0.1 forces
+        every piece to 150 BPM and reintroduces the arranger timing defect
+        however correctly the notes were placed.
+        """
+        return GridFit(
+            step_ticks=float(tokenizer.ticks_per_step(480)),
+            phase_ticks=0.0,
+            aligned=True,
+            period_sec=row_seconds(score.tempo_bpm),
+        )
     print(f"fermata: {args.fermata}", flush=True)
 
     produced = 0
@@ -386,7 +394,7 @@ def main() -> int:
         )
         arranged, _trunc = enforce_monophony(arranged)
         rounded = enforce_monophony(
-            tokenizer.decode(tokenizer.encode(arranged, fit=fit).ids).composition
+            tokenizer.decode(tokenizer.encode(arranged, fit=fit_for(score)).ids).composition
         )[0]
         final, repair = engine.apply(rounded)
         if not final.sounding_events():
