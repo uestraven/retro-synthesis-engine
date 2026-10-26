@@ -16,11 +16,11 @@ For each: **is there a musical idea here?** Write `YES`, `WEAK`, or
 
 | theme | idea? YES / WEAK / NO | notes |
 |---|---|---|
-| theme_01 |  |  |
-| theme_02 |  |  |
-| theme_03 |  |  |
-| theme_04 |  |  |
-| theme_05 |  |  |
+| theme_01 | YES |  |
+| theme_02 | WEAK |  |
+| theme_03 | NO | just drums |
+| theme_04 | WEAK | potential but not long enough |
+| theme_05 | NO |  |
 
 Weak or absent openings stay in the experiment as diagnostic
 cases. They are not replaced -- if most openings are weak, that is
