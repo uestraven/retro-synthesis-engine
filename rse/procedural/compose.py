@@ -267,6 +267,40 @@ STYLES: dict[str, Style] = {
 }
 
 
+#: Opt-in progression families, one list per style.
+#:
+#: Each is here for a stated musical reason, not to raise a diversity count.
+#: Entries are plain degree integers where the mode already gives the wanted
+#: chord, and (degree, quality) pairs only where it does not -- the new
+#: mechanism is used exactly where the old one cannot reach.
+EXTRA_PROGRESSIONS: dict[str, tuple[tuple[Any, ...], ...]] = {
+    # harmonic minor already supplies V major, so these need no override.
+    "boss": (
+        (0, 5, 3, 4),            # i-bVI-iv-V: dramatic, strong resolution
+        (0, 3, 1, 4),            # i-iv-ii°-V: stronger dominant preparation
+    ),
+    # natural minor does NOT supply V major -- degree 4 is minor there -- so
+    # the cadence progressions borrow it explicitly. This is the single most
+    # useful chord the old system could not express.
+    "action": (
+        (0, 5, 2, 6),            # i-bVI-bIII-bVII: driving, all diatonic
+        (0, 3, (4, "major"), 0),  # i-iv-V-i: borrowed dominant, clear cadence
+    ),
+    "adventure": (
+        (0, 3, 1, 4),            # I-IV-ii-V: forward motion, strong cadence
+    ),
+    "town": (
+        (0, 2, 5, 3),            # I-iii-vi-IV: gentler movement
+    ),
+    "tension": (
+        (0, 1, 0, 3),            # i-bII-i-iv: modal tension, all diatonic
+    ),
+    "victory": (
+        (3, 4, 0, 0),            # IV-V-I-I: triumphant resolution
+    ),
+}
+
+
 @dataclass
 class Motif:
     """A short melodic idea, stored as scale-degree steps rather than pitches.
@@ -373,8 +407,37 @@ def vary_motif(rng: random.Random, motif: Motif) -> Motif:
     return Motif(degrees=tuple(degrees), rhythm=tuple(rhythm))
 
 
+def resolve_chord(spec: Any, style: Style) -> Any:
+    """Resolve a progression entry, importing lazily to avoid a cycle."""
+    from rse.procedural.chords import resolve
+
+    return resolve(spec, tonic=style.tonic, mode=style.mode)
+
+
+def chord_pitches(voicing: Any, style: Style, *, octave: int = 0) -> list[int]:
+    """Absolute pitches for a resolved chord.
+
+    Mode-derived chords go through the v1 degree arithmetic unchanged, which
+    is what keeps the frozen baseline byte-identical: the degree path can
+    place a tone above the octave and the pitch path cannot reproduce that
+    voicing. Altered chords use their semitones directly, because a borrowed
+    pitch has no scale degree.
+    """
+    if voicing.degrees is not None:
+        return [
+            scale_pitch(style.tonic, style.mode, d) + 12 * octave
+            for d in voicing.degrees
+        ]
+    return [style.tonic + s + 12 * octave for s in voicing.semitones]
+
+
 def plan_form(
-    rng: random.Random, style: Style, *, target_seconds: float, section_bars: int = 8
+    rng: random.Random,
+    style: Style,
+    *,
+    target_seconds: float,
+    section_bars: int = 8,
+    progressions: tuple[Any, ...] | None = None,
 ) -> list[SectionPlan]:
     """A-A'-B-A'' sized to the duration, with B on its own progression.
 
@@ -386,8 +449,9 @@ def plan_form(
     """
     seconds_per_bar = 4 * 60.0 / style.tempo_bpm
     count = max(2, round(target_seconds / (section_bars * seconds_per_bar)))
-    main = rng.choice(style.progressions)
-    others = [p for p in style.progressions if p != main] or [main]
+    pool = progressions or style.progressions
+    main = rng.choice(pool)
+    others = [p for p in pool if p != main] or [main]
     contrast = rng.choice(others)
 
     plans = [SectionPlan("A", section_bars, main, "state")]
@@ -427,19 +491,51 @@ def render_melody(
     rows_removed = 0
     base = bar_offset * TICKS_PER_BAR
     for chord_index, start_row, span in harmony_plan:
-        chord_root = plan.progression[chord_index % len(plan.progression)]
-        tones = chord_degrees(chord_root)
+        spec = plan.progression[chord_index % len(plan.progression)]
+        voicing = resolve_chord(spec, style)
+        altered = voicing.degrees is None
+        if altered:
+            # Pitch space. The motif's degree contour walks the scale tones
+            # this chord allows, which preserves the shape while honouring
+            # `avoid` -- so a raised leading tone is available and the natural
+            # it replaced is not, without changing the mode globally.
+            from rse.procedural.chords import melody_candidates
+
+            chord_tones, scale_tones = melody_candidates(
+                voicing, mode=style.mode, octave_span=3
+            )
+            tones = [style.tonic + t for t in chord_tones]
+            ladder = [style.tonic + t for t in scale_tones]
+        else:
+            tones = chord_degrees(spec if isinstance(spec, int) else spec.degree)
+            ladder = None
         start = tones[rng.randrange(len(tones))]
         row = 0
         for step, length in zip(motif.degrees, motif.rhythm, strict=False):
             if row >= span:
                 break
-            degree = start + step
-            # On strong rows prefer a chord tone; elsewhere allow the scale.
             absolute = start_row + row
-            if absolute % ROWS_PER_BEAT == 0 and rng.random() > style.passing_chance:
-                degree = min(tones, key=lambda t: abs(t - degree))
-            pitch = clamp(scale_pitch(style.tonic, style.mode, degree))
+            if altered:
+                # Walk the ladder by index so a degree step stays a step.
+                base_index = min(
+                    range(len(ladder)), key=lambda i: abs(ladder[i] - start)
+                )
+                pick = ladder[max(0, min(len(ladder) - 1, base_index + step))]
+                if (
+                    absolute % ROWS_PER_BEAT == 0
+                    and rng.random() > style.passing_chance
+                ):
+                    pick = min(tones, key=lambda t: abs(t - pick))
+                pitch = clamp(pick)
+            else:
+                degree = start + step
+                # On strong rows prefer a chord tone; elsewhere the scale.
+                if (
+                    absolute % ROWS_PER_BEAT == 0
+                    and rng.random() > style.passing_chance
+                ):
+                    degree = min(tones, key=lambda t: abs(t - degree))
+                pitch = clamp(scale_pitch(style.tonic, style.mode, degree))
             kept = min(length, span - row)
             if kept < length:
                 truncated += 1
@@ -476,10 +572,11 @@ def render_harmony(
     notes: list[Note] = []
     base = bar_offset * TICKS_PER_BAR
     for chord_index, start_row, span in harmony_plan:
-        chord_root = plan.progression[chord_index % len(plan.progression)]
-        tones = chord_degrees(chord_root)
+        spec = plan.progression[chord_index % len(plan.progression)]
+        voicing = resolve_chord(spec, style)
+        pitches = chord_pitches(voicing, style, octave=-1)
         if style.harmony_style == "pad":
-            pitch = clamp(scale_pitch(style.tonic, style.mode, tones[0]) - 12)
+            pitch = clamp(pitches[0])
             notes.append(
                 Note(
                     channel_id="P2",
@@ -493,10 +590,11 @@ def render_harmony(
         step = 2 if style.harmony_style == "arpeggio" else 4
         offset = 0 if style.harmony_style == "arpeggio" else 2
         for index, row in enumerate(range(offset, span, step)):
-            degree = tones[index % len(tones)]
-            if style.harmony_style == "arpeggio" and index % len(tones) == 0:
-                degree += 7 * (index // len(tones) % 2)
-            pitch = clamp(scale_pitch(style.tonic, style.mode, degree) - 12)
+            pitch = pitches[index % len(pitches)]
+            if style.harmony_style == "arpeggio" and index % len(pitches) == 0:
+                # Alternate octave on each pass through the chord.
+                pitch += 12 * (index // len(pitches) % 2)
+            pitch = clamp(pitch)
             notes.append(
                 Note(
                     channel_id="P2",
@@ -526,7 +624,11 @@ def render_bass(
     base = bar_offset * TICKS_PER_BAR
     # A pedal holds the cycle's first root under everything above it, so the
     # bass is read from the plan's first chord rather than the current one.
-    pedal_root = chord_degrees(plan.progression[0])[0] if pedal else None
+    pedal_pitch = (
+        chord_pitches(resolve_chord(plan.progression[0], style), style, octave=-2)[0]
+        if pedal
+        else None
+    )
     for bar in range(plan.bars):
         # Which chord is sounding at this bar's downbeat.
         bar_start = bar * ROWS_PER_BAR
@@ -538,14 +640,13 @@ def render_bass(
             ),
             0,
         )
-        chord_root = plan.progression[chord_index % len(plan.progression)]
-        tones = chord_degrees(chord_root)
+        spec = plan.progression[chord_index % len(plan.progression)]
+        low = chord_pitches(resolve_chord(spec, style), style, octave=-2)
         for index, row in enumerate(style.bass_rows):
-            if pedal_root is not None:
-                degree = pedal_root
+            if pedal_pitch is not None:
+                pitch = clamp(pedal_pitch)
             else:
-                degree = tones[0] if index % 2 == 0 else tones[2]
-            pitch = clamp(scale_pitch(style.tonic, style.mode, degree) - 24)
+                pitch = clamp(low[0] if index % 2 == 0 else low[2 % len(low)])
             length = (
                 style.bass_rows[index + 1] - row
                 if index + 1 < len(style.bass_rows)
@@ -618,6 +719,8 @@ class ProceduralResult:
     rhythm: HarmonicRhythm = ONE_PER_BAR
     #: How much melody the chord-boundary constraint removed.
     truncation: dict[str, int] = field(default_factory=dict)
+    #: Which progression pool was used: None for v1.
+    vocabulary: str | None = None
     variations: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -625,6 +728,7 @@ class ProceduralResult:
             "seed": self.seed,
             "style": self.style.to_dict(),
             "harmonic_rhythm": self.rhythm.to_dict(),
+            "vocabulary": self.vocabulary,
             "truncation": dict(self.truncation),
             "motif": self.motif.to_dict(),
             "sections": [s.to_dict() for s in self.sections],
@@ -640,6 +744,7 @@ def compose(
     target_seconds: float = 60.0,
     section_bars: int = 8,
     harmonic_rhythm: str | None = None,
+    vocabulary: str | None = None,
 ) -> ProceduralResult:
     """One complete NES piece from a style preset and a seed.
 
@@ -649,6 +754,10 @@ def compose(
     `"auto"` to let the seed choose from the style's declared vocabulary.
     Opt-in rather than default, because the baseline is the thing that worked
     and a silent extra draw would have changed every piece.
+
+    `vocabulary` is `None` for v1's progressions, `"extra"` for the Stage 2
+    families only, or `"all"` for both. Also opt-in, and the v1 path draws
+    from the same pool in the same order so the baseline is untouched.
     """
     if style_name not in STYLES:
         raise KeyError(f"unknown style {style_name!r}; have {sorted(STYLES)}")
@@ -667,8 +776,26 @@ def compose(
                 f"have {sorted(RHYTHMS)}"
             )
         rhythm = RHYTHMS[harmonic_rhythm]
+    extra = EXTRA_PROGRESSIONS.get(style_name, ())
+    if vocabulary is None:
+        pool = None
+    elif vocabulary == "extra":
+        pool = extra or style.progressions
+    elif vocabulary == "all":
+        pool = tuple(style.progressions) + tuple(extra)
+    else:
+        raise KeyError(
+            f"unknown vocabulary {vocabulary!r}; use None, 'extra' or 'all'"
+        )
+
     motif = make_motif(rng, style)
-    plans = plan_form(rng, style, target_seconds=target_seconds, section_bars=section_bars)
+    plans = plan_form(
+        rng,
+        style,
+        target_seconds=target_seconds,
+        section_bars=section_bars,
+        progressions=pool,
+    )
 
     events: list[Note | Noise] = []
     variations: list[dict[str, Any]] = []
@@ -728,5 +855,6 @@ def compose(
         seed=seed,
         rhythm=rhythm,
         truncation=truncation,
+        vocabulary=vocabulary,
         variations=variations,
     )
