@@ -101,14 +101,37 @@ def inspect(path: Path, *, test_load: bool) -> dict[str, Any]:
         model, tokenizer, payload = load_checkpoint(path, device="cpu")
         config = payload.get("model_config", {})
         vocab = payload.get("vocabulary", {})
+        # Training provenance lives under `report`/`train_config`/`history`
+        # rather than at the top level, so read it from where it actually is.
+        report = payload.get("report") or {}
+        train_config = payload.get("train_config") or {}
+        history = payload.get("history") or {}
+        steps = history.get("steps") or []
+        # `history` carries both the per-eval curve (`valid_loss`) and the
+        # run's own scalar summary (`best_valid_loss`, `best_step`). Prefer
+        # the scalars: they are what the trainer actually selected on.
+        valid = history.get("valid_loss") or []
         tokens = vocab.get("tokens") if isinstance(vocab, dict) else None
         record.update(
             {
                 "loaded": True,
                 "checkpoint_version": payload.get("checkpoint_version"),
-                "step": payload.get("step"),
-                "best_valid_loss": payload.get("best_valid_loss")
-                or payload.get("best_loss"),
+                "rse_version": payload.get("rse_version"),
+                "max_steps": train_config.get("max_steps"),
+                "last_recorded_step": steps[-1] if steps else None,
+                "n_history_points": len(steps),
+                "best_valid_loss": history.get("best_valid_loss")
+                or (min(valid) if valid else None),
+                "best_step": history.get("best_step"),
+                "final_valid_loss": valid[-1] if valid else None,
+                "final_train_loss": (history.get("train_loss") or [None])[-1],
+                "stopped_early": history.get("stopped_early"),
+                "wall_clock_sec": history.get("wall_clock_sec"),
+                "n_train_windows": report.get("n_train_windows"),
+                "init_from_checkpoint": report.get("init_from_checkpoint"),
+                "seed": train_config.get("seed"),
+                "device_trained_on": report.get("device"),
+                "mask_prefix": report.get("mask_prefix"),
                 "model_config": config,
                 "n_parameters": sum(p.numel() for p in model.parameters()),
                 "vocab_size": len(tokens) if tokens is not None else None,

@@ -1,0 +1,2135 @@
+{
+  "reconstruction": "rse-fermata-reconstruction/1.0.0",
+  "native_checkpoint": {
+    "path": "ckpt_foundation_d4_100k.pt",
+    "n_parameters": 5667840,
+    "best_valid_loss": 0.56848,
+    "best_step": 98800,
+    "max_steps": 100000
+  },
+  "fermata_checkpoint": {
+    "model": "haster/Fermata-0.2B-v1",
+    "revision": "18b647098f579ee41db67c0ad4c7f7f39ce0eac1",
+    "weights_sha256": "4ca6a5db3a2d1510bad7acde4d313a9ad732fc91dcda4776f044c5b5bd8ea9b7"
+  },
+  "design": {
+    "bars": 8,
+    "per_arm": 12,
+    "peak_dbfs": -3.0,
+    "shared_controls": [
+      "tempo",
+      "length"
+    ],
+    "native_conditioning": "mood/energy/motif neutral; Gate 3 was a null",
+    "native_sampling": {
+      "temperature": 0.7,
+      "max_tokens": 3072
+    },
+    "fermata_sampling": {
+      "temperature": 0.7,
+      "top_k": 24,
+      "repetition_penalty": 1.12,
+      "max_new_tokens": 2000
+    },
+    "ranking_used": null,
+    "representation": "rse-repr/1.0.0-d4k4-tempo1.01"
+  },
+  "n_pieces": 24,
+  "per_arm_produced": {
+    "native": 12,
+    "fermata": 12
+  },
+  "failures_by_arm": {},
+  "failures_by_reason": {},
+  "native_attempts": 12,
+  "fermata_attempts": 12,
+  "pieces": [
+    {
+      "arm": "native",
+      "name": "native_s5000",
+      "seed": 5000,
+      "tempo_bpm": 168.0,
+      "n_tokens": 831,
+      "sampling": {
+        "seed": 5000,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 171,
+        "notes_per_bar": 21.375,
+        "pitch_class_entropy": 1.4402,
+        "stepwise_fraction": 0.0,
+        "ngram_repetition_rate": 0.8683,
+        "motif_note_participation": 0.9609,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 11.362
+      },
+      "render": {
+        "file": "cmp_24.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5001",
+      "seed": 5001,
+      "tempo_bpm": 120.0,
+      "n_tokens": 724,
+      "sampling": {
+        "seed": 5001,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 160,
+        "notes_per_bar": 20.0,
+        "pitch_class_entropy": 1.0,
+        "stepwise_fraction": 0.9841,
+        "ngram_repetition_rate": 0.9333,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 16.0
+      },
+      "render": {
+        "file": "cmp_04.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5002",
+      "seed": 5002,
+      "tempo_bpm": 92.0,
+      "n_tokens": 948,
+      "sampling": {
+        "seed": 5002,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 203,
+        "notes_per_bar": 25.375,
+        "pitch_class_entropy": 2.0579,
+        "stepwise_fraction": 0.7381,
+        "ngram_repetition_rate": 0.5897,
+        "motif_note_participation": 0.9302,
+        "ioi_entropy": 0.4524,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 20.747
+      },
+      "render": {
+        "file": "cmp_21.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5003",
+      "seed": 5003,
+      "tempo_bpm": 132.0,
+      "n_tokens": 407,
+      "sampling": {
+        "seed": 5003,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": true,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 86,
+        "notes_per_bar": 10.75,
+        "pitch_class_entropy": 2.3606,
+        "stepwise_fraction": 0.3333,
+        "ngram_repetition_rate": 0.3333,
+        "motif_note_participation": 0.5581,
+        "ioi_entropy": 0.1623,
+        "channels": [
+          "P1",
+          "P2"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 14.773
+      },
+      "render": {
+        "file": "cmp_03.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5004",
+      "seed": 5004,
+      "tempo_bpm": 180.0,
+      "n_tokens": 1678,
+      "sampling": {
+        "seed": 5004,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 383,
+        "notes_per_bar": 47.875,
+        "pitch_class_entropy": 1.9581,
+        "stepwise_fraction": 0.5039,
+        "ngram_repetition_rate": 0.9032,
+        "motif_note_participation": 0.9134,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 10.667
+      },
+      "render": {
+        "file": "cmp_14.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5005",
+      "seed": 5005,
+      "tempo_bpm": 76.0,
+      "n_tokens": 449,
+      "sampling": {
+        "seed": 5005,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 96,
+        "notes_per_bar": 32.0,
+        "pitch_class_entropy": 1.0093,
+        "stepwise_fraction": 0.0851,
+        "ngram_repetition_rate": 0.8182,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P1",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 3,
+        "empty_trailing_bars": 5,
+        "duration_sec": 9.474
+      },
+      "render": {
+        "file": "cmp_06.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5006",
+      "seed": 5006,
+      "tempo_bpm": 168.0,
+      "n_tokens": 1683,
+      "sampling": {
+        "seed": 5006,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 384,
+        "notes_per_bar": 48.0,
+        "pitch_class_entropy": 1.9201,
+        "stepwise_fraction": 0.8898,
+        "ngram_repetition_rate": 0.9435,
+        "motif_note_participation": 0.9766,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 11.429
+      },
+      "render": {
+        "file": "cmp_01.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5007",
+      "seed": 5007,
+      "tempo_bpm": 120.0,
+      "n_tokens": 988,
+      "sampling": {
+        "seed": 5007,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 220,
+        "notes_per_bar": 27.5,
+        "pitch_class_entropy": 1.4765,
+        "stepwise_fraction": 0.8421,
+        "ngram_repetition_rate": 0.5429,
+        "motif_note_participation": 0.7436,
+        "ioi_entropy": 2.0848,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 87,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 16.125
+      },
+      "render": {
+        "file": "cmp_17.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5008",
+      "seed": 5008,
+      "tempo_bpm": 92.0,
+      "n_tokens": 1828,
+      "sampling": {
+        "seed": 5008,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 377,
+        "notes_per_bar": 47.125,
+        "pitch_class_entropy": 1.9748,
+        "stepwise_fraction": 0.0656,
+        "ngram_repetition_rate": 0.5517,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.4839,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 185,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 20.951
+      },
+      "render": {
+        "file": "cmp_05.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5009",
+      "seed": 5009,
+      "tempo_bpm": 132.0,
+      "n_tokens": 434,
+      "sampling": {
+        "seed": 5009,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": true,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 96,
+        "notes_per_bar": 12.0,
+        "pitch_class_entropy": 1.5,
+        "stepwise_fraction": 0.4839,
+        "ngram_repetition_rate": 1.0,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 14.545
+      },
+      "render": {
+        "file": "cmp_13.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5010",
+      "seed": 5010,
+      "tempo_bpm": 180.0,
+      "n_tokens": 1127,
+      "sampling": {
+        "seed": 5010,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 247,
+        "notes_per_bar": 30.875,
+        "pitch_class_entropy": 2.1282,
+        "stepwise_fraction": 0.9516,
+        "ngram_repetition_rate": 0.6441,
+        "motif_note_participation": 0.8125,
+        "ioi_entropy": 0.3555,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 8,
+        "empty_trailing_bars": 0,
+        "duration_sec": 10.667
+      },
+      "render": {
+        "file": "cmp_07.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "native",
+      "name": "native_s5011",
+      "seed": 5011,
+      "tempo_bpm": 76.0,
+      "n_tokens": 1057,
+      "sampling": {
+        "seed": 5011,
+        "temperature": 0.7,
+        "structural_temperature": null,
+        "structural_isolate_eos": false,
+        "channel_temperature": {},
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 3072,
+        "constrain_to_grammar": true
+      },
+      "hit_token_limit": false,
+      "overran_length": true,
+      "underran_length": true,
+      "n_grammar_rejections": 0,
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 240,
+        "notes_per_bar": 48.0,
+        "pitch_class_entropy": 1.1437,
+        "stepwise_fraction": 0.0,
+        "ngram_repetition_rate": 0.9474,
+        "motif_note_participation": 0.95,
+        "ioi_entropy": -0.0,
+        "channels": [
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 5,
+        "empty_trailing_bars": 3,
+        "duration_sec": 15.789
+      },
+      "render": {
+        "file": "cmp_20.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_action_s111660",
+      "seed": 111660,
+      "scenario": "action",
+      "tempo_bpm": 168.0,
+      "n_tokens": 1191,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1191,
+        "n_skipped": 4,
+        "n_events": 229,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 229,
+        "n_events_out": 229,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 15,
+        "n_stolen_truncated": 30,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 44,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "action",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 229,
+        "notes_per_bar": 25.444,
+        "pitch_class_entropy": 0.9183,
+        "stepwise_fraction": 0.0,
+        "ngram_repetition_rate": 0.0,
+        "motif_note_participation": 0.725,
+        "ioi_entropy": 1.8872,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 75,
+        "n_bars_occupied": 9,
+        "empty_trailing_bars": 0,
+        "duration_sec": 14.497
+      },
+      "render": {
+        "file": "cmp_10.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_exploration_s114311",
+      "seed": 114311,
+      "scenario": "exploration",
+      "tempo_bpm": 120.0,
+      "n_tokens": 918,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 918,
+        "n_skipped": 4,
+        "n_events": 173,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 173,
+        "n_events_out": 173,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 16,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "exploration",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 173,
+        "notes_per_bar": 24.714,
+        "pitch_class_entropy": 2.4997,
+        "stepwise_fraction": 0.4167,
+        "ngram_repetition_rate": 0.0,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 0.8631,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 32,
+        "n_bars_occupied": 7,
+        "empty_trailing_bars": 1,
+        "duration_sec": 10.319
+      },
+      "render": {
+        "file": "cmp_18.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_ominous_s105262",
+      "seed": 105262,
+      "scenario": "ominous",
+      "tempo_bpm": 92.0,
+      "n_tokens": 1523,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1523,
+        "n_skipped": 4,
+        "n_events": 294,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 294,
+        "n_events_out": 294,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 43,
+        "n_stolen_truncated": 46,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 113,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "ominous",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 277,
+        "notes_per_bar": 55.4,
+        "pitch_class_entropy": 2.2374,
+        "stepwise_fraction": 0.2881,
+        "ngram_repetition_rate": 0.8393,
+        "motif_note_participation": 0.9833,
+        "ioi_entropy": 1.9738,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 97,
+        "n_bars_occupied": 5,
+        "empty_trailing_bars": 3,
+        "duration_sec": 7.903
+      },
+      "render": {
+        "file": "cmp_16.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_town_s113043",
+      "seed": 113043,
+      "scenario": "town",
+      "tempo_bpm": 132.0,
+      "n_tokens": 1120,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1120,
+        "n_skipped": 4,
+        "n_events": 214,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 214,
+        "n_events_out": 214,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 14,
+        "n_stolen_truncated": 15,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 42,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "town",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 212,
+        "notes_per_bar": 30.286,
+        "pitch_class_entropy": 2.2593,
+        "stepwise_fraction": 0.0909,
+        "ngram_repetition_rate": 1.0,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": 1.63,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 40,
+        "n_bars_occupied": 7,
+        "empty_trailing_bars": 1,
+        "duration_sec": 11.376
+      },
+      "render": {
+        "file": "cmp_22.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_fast_rhythmic_s109034",
+      "seed": 109034,
+      "scenario": "fast_rhythmic",
+      "tempo_bpm": 180.0,
+      "n_tokens": 1244,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1244,
+        "n_skipped": 4,
+        "n_events": 238,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 238,
+        "n_events_out": 238,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 48,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 36,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "fast_rhythmic",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 238,
+        "notes_per_bar": 21.636,
+        "pitch_class_entropy": 2.5978,
+        "stepwise_fraction": 0.0211,
+        "ngram_repetition_rate": 0.7826,
+        "motif_note_participation": 0.7604,
+        "ioi_entropy": 1.9927,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 36,
+        "n_bars_occupied": 11,
+        "empty_trailing_bars": 0,
+        "duration_sec": 17.441
+      },
+      "render": {
+        "file": "cmp_02.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_sparse_s108295",
+      "seed": 108295,
+      "scenario": "sparse",
+      "tempo_bpm": 76.0,
+      "n_tokens": 465,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 465,
+        "n_skipped": 4,
+        "n_events": 86,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 86,
+        "n_events_out": 86,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 4,
+        "n_stolen_truncated": 7,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "sparse",
+        "n_requested_tracks": 2,
+        "requested_percussion": false,
+        "n_generated_tracks": 2,
+        "generated_percussion": false,
+        "n_mapped_tracks": 2,
+        "channels_sounding": [
+          "P1",
+          "TR"
+        ],
+        "percussion_sounding": false,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 84,
+        "notes_per_bar": 21.0,
+        "pitch_class_entropy": 3.0415,
+        "stepwise_fraction": 0.1429,
+        "ngram_repetition_rate": 0.0,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.2683,
+        "channels": [
+          "P1",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 4,
+        "empty_trailing_bars": 4,
+        "duration_sec": 6.544
+      },
+      "render": {
+        "file": "cmp_11.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_action_s111666",
+      "seed": 111666,
+      "scenario": "action",
+      "tempo_bpm": 168.0,
+      "n_tokens": 1309,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1309,
+        "n_skipped": 4,
+        "n_events": 252,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 252,
+        "n_events_out": 252,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 33,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 128,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "action",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 252,
+        "notes_per_bar": 28.0,
+        "pitch_class_entropy": 2.9632,
+        "stepwise_fraction": 0.4318,
+        "ngram_repetition_rate": 0.8293,
+        "motif_note_participation": 0.8611,
+        "ioi_entropy": 0.9989,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 128,
+        "n_bars_occupied": 9,
+        "empty_trailing_bars": 0,
+        "duration_sec": 14.421
+      },
+      "render": {
+        "file": "cmp_09.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_exploration_s114317",
+      "seed": 114317,
+      "scenario": "exploration",
+      "tempo_bpm": 120.0,
+      "n_tokens": 1153,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1153,
+        "n_skipped": 4,
+        "n_events": 220,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 220,
+        "n_events_out": 220,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 32,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "exploration",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 214,
+        "notes_per_bar": 30.571,
+        "pitch_class_entropy": 3.0489,
+        "stepwise_fraction": 0.0351,
+        "ngram_repetition_rate": 0.3519,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 1.9931,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 32,
+        "n_bars_occupied": 7,
+        "empty_trailing_bars": 1,
+        "duration_sec": 10.319
+      },
+      "render": {
+        "file": "cmp_19.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_ominous_s105268",
+      "seed": 105268,
+      "scenario": "ominous",
+      "tempo_bpm": 92.0,
+      "n_tokens": 833,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 833,
+        "n_skipped": 4,
+        "n_events": 156,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 156,
+        "n_events_out": 156,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 16,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 72,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "ominous",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 151,
+        "notes_per_bar": 30.2,
+        "pitch_class_entropy": 2.6551,
+        "stepwise_fraction": 0.7097,
+        "ngram_repetition_rate": 0.2143,
+        "motif_note_participation": 0.0,
+        "ioi_entropy": 2.4849,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 67,
+        "n_bars_occupied": 5,
+        "empty_trailing_bars": 3,
+        "duration_sec": 7.903
+      },
+      "render": {
+        "file": "cmp_12.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_town_s113049",
+      "seed": 113049,
+      "scenario": "town",
+      "tempo_bpm": 132.0,
+      "n_tokens": 792,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 792,
+        "n_skipped": 4,
+        "n_events": 150,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 150,
+        "n_events_out": 150,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 37,
+        "n_stolen_truncated": 36,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 60,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "town",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 147,
+        "notes_per_bar": 21.0,
+        "pitch_class_entropy": -0.0,
+        "stepwise_fraction": 0.0,
+        "ngram_repetition_rate": 1.0,
+        "motif_note_participation": 1.0,
+        "ioi_entropy": 1.398,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 57,
+        "n_bars_occupied": 7,
+        "empty_trailing_bars": 1,
+        "duration_sec": 11.351
+      },
+      "render": {
+        "file": "cmp_23.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_fast_rhythmic_s109040",
+      "seed": 109040,
+      "scenario": "fast_rhythmic",
+      "tempo_bpm": 180.0,
+      "n_tokens": 1139,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1139,
+        "n_skipped": 4,
+        "n_events": 217,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 217,
+        "n_events_out": 217,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 36,
+        "n_stolen_truncated": 35,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 54,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "fast_rhythmic",
+        "n_requested_tracks": 4,
+        "requested_percussion": true,
+        "n_generated_tracks": 4,
+        "generated_percussion": true,
+        "n_mapped_tracks": 4,
+        "channels_sounding": [
+          "P1",
+          "P2",
+          "TR",
+          "NO"
+        ],
+        "percussion_sounding": true,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 217,
+        "notes_per_bar": 19.727,
+        "pitch_class_entropy": 2.4203,
+        "stepwise_fraction": 0.3333,
+        "ngram_repetition_rate": 0.3333,
+        "motif_note_participation": 0.4118,
+        "ioi_entropy": 2.2568,
+        "channels": [
+          "NO",
+          "P1",
+          "P2",
+          "TR"
+        ],
+        "n_percussion": 81,
+        "n_bars_occupied": 11,
+        "empty_trailing_bars": 0,
+        "duration_sec": 17.416
+      },
+      "render": {
+        "file": "cmp_15.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    },
+    {
+      "arm": "fermata",
+      "name": "fermata_sparse_s108301",
+      "seed": 108301,
+      "scenario": "sparse",
+      "tempo_bpm": 76.0,
+      "n_tokens": 1064,
+      "termination": "bar_limit",
+      "decode": {
+        "reconstruction": "rse-fermata-reconstruction/1.0.0",
+        "n_tokens": 1064,
+        "n_skipped": 4,
+        "n_events": 206,
+        "n_bars": 8,
+        "hit_eos": true,
+        "had_plan": true,
+        "warnings": []
+      },
+      "arrangement": {
+        "n_events_in": 206,
+        "n_events_out": 206,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 34,
+        "n_stolen_truncated": 64,
+        "n_transposed": 2,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR"
+        },
+        "warnings": []
+      },
+      "ensemble": {
+        "scenario": "sparse",
+        "n_requested_tracks": 2,
+        "requested_percussion": false,
+        "n_generated_tracks": 2,
+        "generated_percussion": false,
+        "n_mapped_tracks": 2,
+        "channels_sounding": [
+          "P1",
+          "TR"
+        ],
+        "percussion_sounding": false,
+        "n_tracks_merged": 0,
+        "missing_tracks": 0,
+        "percussion_as_requested": true,
+        "honours_request": true
+      },
+      "hardware_modifications": null,
+      "hardware_violations": 0,
+      "metrics": {
+        "n_events": 185,
+        "notes_per_bar": 46.25,
+        "pitch_class_entropy": 2.8877,
+        "stepwise_fraction": 0.55,
+        "ngram_repetition_rate": 0.3402,
+        "motif_note_participation": 0.5743,
+        "ioi_entropy": 0.8887,
+        "channels": [
+          "P1",
+          "TR"
+        ],
+        "n_percussion": 0,
+        "n_bars_occupied": 4,
+        "empty_trailing_bars": 4,
+        "duration_sec": 5.109
+      },
+      "render": {
+        "file": "cmp_08.wav",
+        "peak_before": 0.88998,
+        "gain": 0.79546,
+        "silent": false
+      }
+    }
+  ],
+  "failures": [],
+  "listening_key": [
+    {
+      "file": "cmp_01.wav",
+      "arm": "native",
+      "name": "native_s5006",
+      "seed": 5006,
+      "scenario": null
+    },
+    {
+      "file": "cmp_02.wav",
+      "arm": "fermata",
+      "name": "fermata_fast_rhythmic_s109034",
+      "seed": 109034,
+      "scenario": "fast_rhythmic"
+    },
+    {
+      "file": "cmp_03.wav",
+      "arm": "native",
+      "name": "native_s5003",
+      "seed": 5003,
+      "scenario": null
+    },
+    {
+      "file": "cmp_04.wav",
+      "arm": "native",
+      "name": "native_s5001",
+      "seed": 5001,
+      "scenario": null
+    },
+    {
+      "file": "cmp_05.wav",
+      "arm": "native",
+      "name": "native_s5008",
+      "seed": 5008,
+      "scenario": null
+    },
+    {
+      "file": "cmp_06.wav",
+      "arm": "native",
+      "name": "native_s5005",
+      "seed": 5005,
+      "scenario": null
+    },
+    {
+      "file": "cmp_07.wav",
+      "arm": "native",
+      "name": "native_s5010",
+      "seed": 5010,
+      "scenario": null
+    },
+    {
+      "file": "cmp_08.wav",
+      "arm": "fermata",
+      "name": "fermata_sparse_s108301",
+      "seed": 108301,
+      "scenario": "sparse"
+    },
+    {
+      "file": "cmp_09.wav",
+      "arm": "fermata",
+      "name": "fermata_action_s111666",
+      "seed": 111666,
+      "scenario": "action"
+    },
+    {
+      "file": "cmp_10.wav",
+      "arm": "fermata",
+      "name": "fermata_action_s111660",
+      "seed": 111660,
+      "scenario": "action"
+    },
+    {
+      "file": "cmp_11.wav",
+      "arm": "fermata",
+      "name": "fermata_sparse_s108295",
+      "seed": 108295,
+      "scenario": "sparse"
+    },
+    {
+      "file": "cmp_12.wav",
+      "arm": "fermata",
+      "name": "fermata_ominous_s105268",
+      "seed": 105268,
+      "scenario": "ominous"
+    },
+    {
+      "file": "cmp_13.wav",
+      "arm": "native",
+      "name": "native_s5009",
+      "seed": 5009,
+      "scenario": null
+    },
+    {
+      "file": "cmp_14.wav",
+      "arm": "native",
+      "name": "native_s5004",
+      "seed": 5004,
+      "scenario": null
+    },
+    {
+      "file": "cmp_15.wav",
+      "arm": "fermata",
+      "name": "fermata_fast_rhythmic_s109040",
+      "seed": 109040,
+      "scenario": "fast_rhythmic"
+    },
+    {
+      "file": "cmp_16.wav",
+      "arm": "fermata",
+      "name": "fermata_ominous_s105262",
+      "seed": 105262,
+      "scenario": "ominous"
+    },
+    {
+      "file": "cmp_17.wav",
+      "arm": "native",
+      "name": "native_s5007",
+      "seed": 5007,
+      "scenario": null
+    },
+    {
+      "file": "cmp_18.wav",
+      "arm": "fermata",
+      "name": "fermata_exploration_s114311",
+      "seed": 114311,
+      "scenario": "exploration"
+    },
+    {
+      "file": "cmp_19.wav",
+      "arm": "fermata",
+      "name": "fermata_exploration_s114317",
+      "seed": 114317,
+      "scenario": "exploration"
+    },
+    {
+      "file": "cmp_20.wav",
+      "arm": "native",
+      "name": "native_s5011",
+      "seed": 5011,
+      "scenario": null
+    },
+    {
+      "file": "cmp_21.wav",
+      "arm": "native",
+      "name": "native_s5002",
+      "seed": 5002,
+      "scenario": null
+    },
+    {
+      "file": "cmp_22.wav",
+      "arm": "fermata",
+      "name": "fermata_town_s113043",
+      "seed": 113043,
+      "scenario": "town"
+    },
+    {
+      "file": "cmp_23.wav",
+      "arm": "fermata",
+      "name": "fermata_town_s113049",
+      "seed": 113049,
+      "scenario": "town"
+    },
+    {
+      "file": "cmp_24.wav",
+      "arm": "native",
+      "name": "native_s5000",
+      "seed": 5000,
+      "scenario": null
+    }
+  ],
+  "native_secondary": {
+    "path": "ckpt_foundation_d4_150k.pt",
+    "rendered_for_listening": false,
+    "note": "same seeds and tempos as the primary native arm, so the 100k vs 150k comparison is paired",
+    "pieces": [
+      {
+        "name": "native150k_s5000",
+        "seed": 5000,
+        "tempo_bpm": 168.0,
+        "n_tokens": 831,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 171,
+          "notes_per_bar": 21.375,
+          "pitch_class_entropy": 1.5757,
+          "stepwise_fraction": 0.0,
+          "ngram_repetition_rate": 0.9281,
+          "motif_note_participation": 0.9688,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 11.362
+        }
+      },
+      {
+        "name": "native150k_s5001",
+        "seed": 5001,
+        "tempo_bpm": 120.0,
+        "n_tokens": 2181,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 509,
+          "notes_per_bar": 63.625,
+          "pitch_class_entropy": 1.638,
+          "stepwise_fraction": 0.6905,
+          "ngram_repetition_rate": 0.9675,
+          "motif_note_participation": 0.9921,
+          "ioi_entropy": 0.2776,
+          "channels": [
+            "NO",
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 128,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 16.0
+        }
+      },
+      {
+        "name": "native150k_s5002",
+        "seed": 5002,
+        "tempo_bpm": 92.0,
+        "n_tokens": 1410,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 316,
+          "notes_per_bar": 39.5,
+          "pitch_class_entropy": 1.5737,
+          "stepwise_fraction": 0.4086,
+          "ngram_repetition_rate": 0.8556,
+          "motif_note_participation": 0.9894,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 20.829
+        }
+      },
+      {
+        "name": "native150k_s5003",
+        "seed": 5003,
+        "tempo_bpm": 132.0,
+        "n_tokens": 844,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 190,
+          "notes_per_bar": 23.75,
+          "pitch_class_entropy": 1.9187,
+          "stepwise_fraction": 0.2742,
+          "ngram_repetition_rate": 0.9831,
+          "motif_note_participation": 0.9841,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 14.545
+        }
+      },
+      {
+        "name": "native150k_s5004",
+        "seed": 5004,
+        "tempo_bpm": 180.0,
+        "n_tokens": 1681,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 384,
+          "notes_per_bar": 48.0,
+          "pitch_class_entropy": 1.0581,
+          "stepwise_fraction": 0.9921,
+          "ngram_repetition_rate": 0.9919,
+          "motif_note_participation": 0.9922,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 10.667
+        }
+      },
+      {
+        "name": "native150k_s5005",
+        "seed": 5005,
+        "tempo_bpm": 76.0,
+        "n_tokens": 1170,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 256,
+          "notes_per_bar": 32.0,
+          "pitch_class_entropy": 1.1003,
+          "stepwise_fraction": 0.9764,
+          "ngram_repetition_rate": 0.9758,
+          "motif_note_participation": 0.9766,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P1",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 25.263
+        }
+      },
+      {
+        "name": "native150k_s5006",
+        "seed": 5006,
+        "tempo_bpm": 168.0,
+        "n_tokens": 1682,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 384,
+          "notes_per_bar": 48.0,
+          "pitch_class_entropy": 1.8276,
+          "stepwise_fraction": 0.8583,
+          "ngram_repetition_rate": 0.9516,
+          "motif_note_participation": 0.9844,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 11.429
+        }
+      },
+      {
+        "name": "native150k_s5007",
+        "seed": 5007,
+        "tempo_bpm": 120.0,
+        "n_tokens": 3072,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 686,
+          "notes_per_bar": 85.75,
+          "pitch_class_entropy": 1.5808,
+          "stepwise_fraction": 0.96,
+          "ngram_repetition_rate": 0.8525,
+          "motif_note_participation": 0.8968,
+          "ioi_entropy": 0.97,
+          "channels": [
+            "NO",
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 306,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 15.625
+        }
+      },
+      {
+        "name": "native150k_s5008",
+        "seed": 5008,
+        "tempo_bpm": 92.0,
+        "n_tokens": 128,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 24,
+          "notes_per_bar": 12.0,
+          "pitch_class_entropy": 2.2566,
+          "stepwise_fraction": 0.5,
+          "ngram_repetition_rate": 0.1818,
+          "motif_note_participation": 0.6667,
+          "ioi_entropy": 1.5744,
+          "channels": [
+            "NO",
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 3,
+          "n_bars_occupied": 2,
+          "empty_trailing_bars": 6,
+          "duration_sec": 3.832
+        }
+      },
+      {
+        "name": "native150k_s5009",
+        "seed": 5009,
+        "tempo_bpm": 132.0,
+        "n_tokens": 434,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 96,
+          "notes_per_bar": 12.0,
+          "pitch_class_entropy": 1.1686,
+          "stepwise_fraction": 0.9677,
+          "ngram_repetition_rate": 0.9643,
+          "motif_note_participation": 0.9688,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 14.545
+        }
+      },
+      {
+        "name": "native150k_s5010",
+        "seed": 5010,
+        "tempo_bpm": 180.0,
+        "n_tokens": 634,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 142,
+          "notes_per_bar": 17.75,
+          "pitch_class_entropy": 1.3798,
+          "stepwise_fraction": 0.9565,
+          "ngram_repetition_rate": 0.8372,
+          "motif_note_participation": 0.8936,
+          "ioi_entropy": 0.8709,
+          "channels": [
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 0,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 10.667
+        }
+      },
+      {
+        "name": "native150k_s5011",
+        "seed": 5011,
+        "tempo_bpm": 76.0,
+        "n_tokens": 2194,
+        "overran_length": true,
+        "underran_length": true,
+        "hardware_violations": 0,
+        "metrics": {
+          "n_events": 512,
+          "notes_per_bar": 64.0,
+          "pitch_class_entropy": 1.2583,
+          "stepwise_fraction": 0.9764,
+          "ngram_repetition_rate": 0.9516,
+          "motif_note_participation": 0.9453,
+          "ioi_entropy": -0.0,
+          "channels": [
+            "NO",
+            "P1",
+            "P2",
+            "TR"
+          ],
+          "n_percussion": 128,
+          "n_bars_occupied": 8,
+          "empty_trailing_bars": 0,
+          "duration_sec": 25.263
+        }
+      }
+    ]
+  }
+}
