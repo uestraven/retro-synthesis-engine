@@ -22,17 +22,17 @@ loudness carries no information.
 
 | pair | preference (A / B / =) | comment |
 |---|---|---|
-| pair_01 |  |  |
-| pair_02 |  |  |
-| pair_03 |  |  |
-| pair_04 |  |  |
-| pair_05 |  |  |
-| pair_06 |  |  |
-| pair_07 |  |  |
-| pair_08 |  |  |
-| pair_09 |  |  |
-| pair_10 |  |  |
-| pair_11 |  |  |
-| pair_12 |  |  |
+| pair_01 | B |  |
+| pair_02 | A |  |
+| pair_03 | A |  |
+| pair_04 | A |  |
+| pair_05 | = |  |
+| pair_06 | = |  |
+| pair_07 | A |  |
+| pair_08 | A |  |
+| pair_09 | = |  |
+| pair_10 | B |  |
+| pair_11 | A |  |
+| pair_12 | = |  |
 
 Filenames carry no information about scenario, seed or treatment.

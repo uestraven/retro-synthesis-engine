@@ -220,3 +220,69 @@ support is a claim about Fermata's composition:
 Whether correcting the timeline makes the music better is a listening
 question, and `scripts/timing_ab_listen.py` builds the twelve blind A/B pairs
 to answer it. No claim of subjective improvement is made here.
+
+## Blind A/B result: the correction is preferred exactly where the bug bit
+
+Twelve pairs, one composition each, judged A / B / = with the treatment
+hidden and A/B assigned by an independent coin per pair.
+
+**Corrected 6, historical 2, no preference 4.**
+
+The raw tally is not the strong evidence. This is:
+
+| the bug's effect on the piece | n | corrected | historical | tie |
+|---|---|---|---|---|
+| **compressed** (historical < 8 bars, 76–132 BPM) | 8 | **6** | 1 | 1 |
+| **expanded** (historical > 8 bars, 168–180 BPM) | 4 | **0** | 1 | 3 |
+
+Preference for the correction appears where the conversion shortened the
+music and disappears where it lengthened it. A dose-response that tracks the
+defect's own magnitude is much harder to explain away than a 6–2 margin,
+because it is a prediction the bug makes and a bare preference does not.
+
+Ordered by compression, the pattern is nearly monotone:
+
+| BPM | historical bars | outcome |
+|---|---|---|
+| 76 | 4.06 | historical |
+| 76 | 3.17 | corrected |
+| 92 | 4.91 | corrected |
+| 92 | 4.91 | corrected |
+| 120 | 6.41 | corrected |
+| 120 | 6.41 | corrected |
+| 132 | 7.06 | corrected |
+| 132 | 7.05 | tie |
+| 168 | 8.95 | tie |
+| 168 | 9.00 | historical |
+| 180 | 10.83 | tie |
+| 180 | 10.81 | tie |
+
+### Caveats, including one against the result
+
+**There is an order effect.** Six of the eight decisive judgements chose A,
+and the corrected version sat in A in 7 of 12 pairs, so some of the margin is
+position rather than treatment. Broken out: with corrected in A it won 4 and
+lost 0 (3 ties); with corrected in B it won 2 and lost 2 (1 tie).
+
+The dose-response survives this, because position is not confounded with
+compression — corrected sat in A in 5 of 8 compressed pairs and 2 of 4
+expanded ones. Two compressed pairs were won by the corrected version from
+the **B** slot, against the order effect (`pair_01` at 132 BPM, `pair_10` at
+92 BPM), and both expanded pairs where corrected held the favourable A slot
+came back ties.
+
+**`sparse` at 76 BPM split 1–1**, the only compressed scenario that did not
+favour the correction. `pair_02` preferred historical despite the corrected
+version restoring a dead lead (half-ratio 0.0 → 1.25) and reaching 8.02 bars.
+At 76 BPM the corrected piece runs about 25 seconds where the historical one
+ran 6.5, and the honest reading is that correctly-timed slow music can be
+merely slow. `sparse` remains suspended.
+
+**No comments were recorded**, so there is no evidence here about pacing,
+melody or endings specifically — only about overall preference.
+
+**Preference is not quality.** This establishes that corrected beats
+historical on compressed pieces. It does not establish that the corrected
+audio is enjoyable: the same listener called the batch these came from "99%
+not good". Four ties and the whole fast-tempo half say the correction is a
+real repair with a bounded effect, not a transformation.
