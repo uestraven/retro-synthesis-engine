@@ -16,24 +16,24 @@ information about scenario or seed.
 
 | file | rating | comment |
 |---|---|---|
-| take_01.wav |  |  |
-| take_02.wav |  |  |
-| take_03.wav |  |  |
-| take_04.wav |  |  |
-| take_05.wav |  |  |
-| take_06.wav |  |  |
-| take_07.wav |  |  |
-| take_08.wav |  |  |
-| take_09.wav |  |  |
-| take_10.wav |  |  |
-| take_11.wav |  |  |
-| take_12.wav |  |  |
-| take_13.wav |  |  |
-| take_14.wav |  |  |
-| take_15.wav |  |  |
-| take_16.wav |  |  |
-| take_17.wav |  |  |
-| take_18.wav |  |  |
-| take_19.wav |  |  |
-| take_20.wav |  |  |
+| take_01.wav | OK |  |
+| take_02.wav | GOOD | i kinda like this one |
+| take_03.wav | BAD | harmonies make no sense |
+| take_04.wav | OK | not bad but a bit weird |
+| take_05.wav | OK | not bad |
+| take_06.wav | GOOD | pretty cool |
+| take_07.wav | BAD | too random |
+| take_08.wav | BEST | cool |
+| take_09.wav | OK | has potential |
+| take_10.wav | OK | not bad, not good |
+| take_11.wav | BAD | random notes |
+| take_12.wav | OK | has potential |
+| take_13.wav | GOOD |  |
+| take_14.wav | OK | has potential |
+| take_15.wav | BAD | too random |
+| take_16.wav | BAD | no melody |
+| take_17.wav | OK | has potential, too repetetive |
+| take_18.wav | GOOD | |
+| take_19.wav | BAD |  |
+| take_20.wav | BAD | random notes |
 
