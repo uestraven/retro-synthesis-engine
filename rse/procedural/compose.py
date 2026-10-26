@@ -540,6 +540,67 @@ def cadence_pitch(
     return min(other, key=lambda p: abs(p - fallback))
 
 
+def plan_archetype(
+    rng: random.Random,
+    style: Style,
+    *,
+    form: str,
+    section_bars: int,
+    progressions: tuple[Any, ...] | None = None,
+) -> list[SectionPlan]:
+    """Sections from a form archetype, at the archetype's own length.
+
+    The counterpart to `plan_form`, which derives the section COUNT from the
+    duration and so had to stretch a three-section ternary into five -- at
+    which point it was no longer a ternary. Here the archetype keeps its
+    length and the section length absorbs the clock instead.
+
+    Contrasting sections get their own progression; a `vary` section keeps the
+    opening's, because A' is the opening re-voiced and changing its harmony
+    would make it a new section rather than a variation.
+    """
+    from rse.procedural.variety import fit_template, natural_length
+
+    treatments = fit_template(form, natural_length(form))
+    pool = progressions or style.progressions
+    main = rng.choice(pool)
+    others = [p for p in pool if p != main] or [main]
+    # Distinct progressions for distinct contrasts, so a linear form's B, C
+    # and D are genuinely different places and not the same chords relabelled.
+    contrast_progressions: dict[str, Any] = {}
+    plans: list[SectionPlan] = []
+    seen_state = 0
+    for treatment in treatments:
+        if treatment.startswith("contrast"):
+            if treatment not in contrast_progressions:
+                contrast_progressions[treatment] = rng.choice(others)
+            progression = contrast_progressions[treatment]
+        else:
+            progression = main
+        if treatment == "state":
+            # A literal restatement IS the opening, so it carries the same
+            # label. That is what distinguishes A-B-A (ternary) from A-B-A'
+            # (rounded binary, where the return is re-voiced) -- labelling
+            # both as A' hid the one difference between the two archetypes.
+            label = "A"
+        elif treatment == "vary":
+            seen_state += 1
+            label = "A" + "'" * seen_state
+        else:
+            label = {"contrast": "B", "contrast2": "C", "contrast3": "D"}.get(
+                treatment, "B"
+            )
+        plans.append(
+            SectionPlan(
+                label=label,
+                bars=section_bars,
+                progression=progression,
+                treatment=treatment,
+            )
+        )
+    return plans
+
+
 def render_melody(
     rng: random.Random,
     style: Style,
@@ -714,23 +775,30 @@ def render_harmony(
     *,
     bar_offset: int,
     harmony_plan: list[tuple[int, int, int]],
+    figure: str | None = None,
 ) -> list[Note]:
     """Accompaniment on P2, built only from the bar's chord tones.
 
     One note at a time, because P2 is monophonic. An arpeggio is therefore
     the honest way to state a chord on this hardware, not a workaround.
 
-    Fully determined by the progression and the style, with no randomness:
-    the accompaniment's job is to make the harmony audible, so varying it
-    per seed would weaken the one voice whose predictability is the point.
+    Fully determined by the progression and the figure, with no randomness
+    inside a section: the accompaniment's job is to make the harmony audible,
+    so varying it bar to bar would weaken the one voice whose predictability
+    is the point. `figure` lets a SONG pick a different comp from the style's
+    pool, and a `vary` section re-orchestrate -- predictable within a piece,
+    different between pieces, which is how a soundtrack works.
     """
     notes: list[Note] = []
     base = bar_offset * TICKS_PER_BAR
+    figure = figure or style.harmony_style
     for chord_index, start_row, span in harmony_plan:
         spec = plan.progression[chord_index % len(plan.progression)]
         voicing = resolve_chord(spec, style)
         pitches = chord_pitches(voicing, style, octave=-1)
-        if style.harmony_style == "pad":
+        if figure == "arpeggio_down":
+            pitches = list(reversed(pitches))
+        if figure == "pad":
             pitch = clamp(pitches[0])
             notes.append(
                 Note(
@@ -742,11 +810,21 @@ def render_harmony(
                 )
             )
             continue
-        step = 2 if style.harmony_style == "arpeggio" else 4
-        offset = 0 if style.harmony_style == "arpeggio" else 2
+        if figure == "stab":
+            # One short hit per half bar, which leaves the most space of any
+            # figure and is what a sparse arrangement wants.
+            step, offset, hit = 8, 0, 2
+        elif figure == "alternating":
+            # Root and fifth traded on eighths.
+            step, offset, hit = 2, 0, 2
+            pitches = [pitches[0], pitches[-1]]
+        elif figure in ("arpeggio", "arpeggio_down"):
+            step, offset, hit = 2, 0, 2
+        else:  # offbeat
+            step, offset, hit = 4, 2, 2
         for index, row in enumerate(range(offset, span, step)):
             pitch = pitches[index % len(pitches)]
-            if style.harmony_style == "arpeggio" and index % len(pitches) == 0:
+            if figure == "arpeggio" and index % len(pitches) == 0:
                 # Alternate octave on each pass through the chord.
                 pitch += 12 * (index // len(pitches) % 2)
             pitch = clamp(pitch)
@@ -755,10 +833,41 @@ def render_harmony(
                     channel_id="P2",
                     tick=base + (start_row + row) * TICKS_PER_ROW,
                     pitch=pitch,
-                    duration=min(2, span - row) * TICKS_PER_ROW,
+                    duration=min(hit, span - row) * TICKS_PER_ROW,
                     velocity=72,
                 )
             )
+    return notes
+
+
+def render_counter(
+    melody: list[Note], style: Style, *, below: int = 2
+) -> list[Note]:
+    """P2 doubles the melody in parallel thirds instead of comping.
+
+    One of the re-orchestration moves a `vary` section can make: the same
+    sequence data, re-voiced. Parallel thirds because they are consonant
+    against any diatonic line, and `below` is in SCALE DEGREES rather than
+    semitones, so the interval follows the mode and stays inside the key -- a
+    fixed four semitones would produce a major third over a minor chord.
+    """
+    scale = SCALES[style.mode]
+    notes: list[Note] = []
+    for note in melody:
+        # Recover the melody note's scale degree, then step down the scale.
+        offset = note.pitch - style.tonic
+        octave, remainder = divmod(offset, 12)
+        nearest = min(range(len(scale)), key=lambda i: abs(scale[i] - remainder))
+        degree = octave * len(scale) + nearest - below
+        notes.append(
+            Note(
+                channel_id="P2",
+                tick=note.tick,
+                pitch=clamp(scale_pitch(style.tonic, style.mode, degree)),
+                duration=note.duration,
+                velocity=68,
+            )
+        )
     return notes
 
 
@@ -769,11 +878,13 @@ def render_bass(
     bar_offset: int,
     harmony_plan: list[tuple[int, int, int]],
     pedal: bool = False,
+    rows: tuple[int, ...] | None = None,
 ) -> list[Note]:
     """Bass on the triangle: chord roots and fifths, no passing tones.
 
-    Deterministic given the progression. The bass is what makes the harmony
-    audible, so it is the one voice with no randomness in it at all.
+    Deterministic given the progression and the figure. The bass is what
+    makes the harmony audible, so there is no randomness inside a section;
+    `rows` lets a song choose which figure it keeps throughout.
     """
     notes: list[Note] = []
     base = bar_offset * TICKS_PER_BAR
@@ -784,6 +895,7 @@ def render_bass(
         if pedal
         else None
     )
+    bass_rows = rows or style.bass_rows
     for bar in range(plan.bars):
         # Which chord is sounding at this bar's downbeat.
         bar_start = bar * ROWS_PER_BAR
@@ -797,14 +909,14 @@ def render_bass(
         )
         spec = plan.progression[chord_index % len(plan.progression)]
         low = chord_pitches(resolve_chord(spec, style), style, octave=-2)
-        for index, row in enumerate(style.bass_rows):
+        for index, row in enumerate(bass_rows):
             if pedal_pitch is not None:
                 pitch = clamp(pedal_pitch)
             else:
                 pitch = clamp(low[0] if index % 2 == 0 else low[2 % len(low)])
             length = (
-                style.bass_rows[index + 1] - row
-                if index + 1 < len(style.bass_rows)
+                bass_rows[index + 1] - row
+                if index + 1 < len(bass_rows)
                 else ROWS_PER_BAR - row
             )
             notes.append(
@@ -904,6 +1016,7 @@ def compose(
     tonic: int | None = None,
     phrasing: str | None = None,
     isolate_melody_rng: bool = False,
+    variety: str | None = None,
 ) -> ProceduralResult:
     """One complete NES piece from a style preset and a seed.
 
@@ -924,6 +1037,13 @@ def compose(
     each cadence, and a rest after it. Opt-in for the same reason the other
     expansions were -- v1 is what the listener approved, and v1 had one
     distinct rhythm across eight bars and no rest at all.
+
+    `variety` is `None` for v1 and `"full"` to open the four axes measured as
+    the causes of sameness: across 20 seeds of a style, the harmony and bass
+    had 5-6 variants (victory: 2) and the form, key and tempo had exactly one
+    each. With it on, a song draws its own key, tempo rung, section-form
+    archetype, accompaniment figure and bass figure, and `vary` sections
+    re-orchestrate rather than rewrite the motif. Opt-in, like the rest.
 
     `isolate_melody_rng` draws the melody's randomness from a generator seeded
     separately, so the NUMBER of melody notes cannot shift anything generated
@@ -983,26 +1103,94 @@ def compose(
             f"unknown phrasing {phrasing!r}; use None or 'period'"
         )
 
+    if variety not in (None, "full"):
+        raise KeyError(f"unknown variety {variety!r}; use None or 'full'")
+
+    arrangement = None
+    if variety == "full":
+        from rse.hardware.tempo import bpm_for_frames
+        from rse.procedural import variety as V
+
+        arrangement = V.choose(
+            style_name,
+            seed=seed,
+            default_harmony=style.harmony_style,
+            default_bass=style.bass_rows,
+            default_tonic=style.tonic,
+            default_frames=style.frames_per_row,
+            target_seconds=target_seconds,
+        )
+        # Key and tempo land on the style before anything is composed, so the
+        # whole piece -- melody, harmony, bass -- is written in them rather
+        # than transposed afterwards.
+        style = dataclasses.replace(
+            style,
+            tonic=arrangement.tonic,
+            tempo_bpm=bpm_for_frames(arrangement.frames_per_row),
+        )
+        seconds_per_bar = 4 * 60.0 / style.tempo_bpm
+        section_bars = V.section_bars_for(
+            arrangement.form,
+            target_seconds=target_seconds,
+            seconds_per_bar=seconds_per_bar,
+        )
+        # The vocabulary expansion is part of the variety switch: the extra
+        # progressions exist and were held back on the operator's instruction
+        # not to promote them on variety grounds alone. That instruction was
+        # lifted for this work.
+        if vocabulary is None:
+            pool = tuple(style.progressions) + tuple(extra)
+
     motif = make_motif(rng, style)
-    plans = plan_form(
-        rng,
-        style,
-        target_seconds=target_seconds,
-        section_bars=section_bars,
-        progressions=pool,
-    )
+    if arrangement is not None:
+        from rse.procedural import variety as V
+
+        plans = plan_archetype(
+            rng,
+            style,
+            form=arrangement.form,
+            section_bars=section_bars,
+            progressions=pool,
+        )
+    else:
+        plans = plan_form(
+            rng,
+            style,
+            target_seconds=target_seconds,
+            section_bars=section_bars,
+            progressions=pool,
+        )
 
     events: list[Note | Noise] = []
     variations: list[dict[str, Any]] = []
     truncation = {"notes_truncated": 0, "rows_removed": 0}
     bar_offset = 0
-    contrast_motif: Motif | None = None
+    contrast_motifs: dict[str, Motif] = {}
+    reorch_index = 0
     for plan in plans:
+        reorch = None
         if plan.treatment == "vary":
-            used = vary_motif(rng, motif)
-        elif plan.treatment == "contrast":
-            contrast_motif = contrast_motif or make_motif(rng, style)
-            used = contrast_motif
+            if arrangement is not None:
+                # Re-orchestration, not rewriting. A' in the repertoire was the
+                # same sequence data with the instruments reassigned, the track
+                # transposed, or a counter-melody layer toggled -- new melodic
+                # material cost memory that competed with the samples. Keeping
+                # the motif is also what lets the theme get established.
+                from rse.procedural.variety import REORCHESTRATIONS, Reorchestration
+
+                reorch = Reorchestration(
+                    **REORCHESTRATIONS[reorch_index % len(REORCHESTRATIONS)]
+                )
+                reorch_index += 1
+                used = motif
+            else:
+                used = vary_motif(rng, motif)
+        elif plan.treatment.startswith("contrast"):
+            # contrast, contrast2, contrast3 are DISTINCT ideas, which is what
+            # makes a linear A-B-C-D form linear rather than A-B-A-B.
+            if plan.treatment not in contrast_motifs:
+                contrast_motifs[plan.treatment] = make_motif(rng, style)
+            used = contrast_motifs[plan.treatment]
         else:
             used = motif
         harmony_plan = rhythm.plan(len(plan.progression), plan.bars)
@@ -1022,6 +1210,7 @@ def compose(
                 "motif": used.to_dict(),
                 "n_chord_changes": len(harmony_plan),
                 "phrases": [r.to_dict() for r in phrases] if phrases else None,
+                "reorchestration": reorch.to_dict() if reorch else None,
             }
         )
         melody, melody_stats = render_melody(
@@ -1036,15 +1225,39 @@ def compose(
         events += melody
         truncation["notes_truncated"] += melody_stats["notes_truncated"]
         truncation["rows_removed"] += melody_stats["rows_removed"]
-        events += render_harmony(
-            style, plan, bar_offset=bar_offset, harmony_plan=harmony_plan
-        )
+        section_style = style
+        if reorch is not None and reorch.transpose:
+            section_style = dataclasses.replace(
+                style, tonic=style.tonic + reorch.transpose
+            )
+        if reorch is not None and reorch.counter_melody:
+            # P2 doubles the line instead of comping: the layer change.
+            events += render_counter(melody, section_style)
+        elif reorch is not None and reorch.thin:
+            pass  # accompaniment dropped entirely for this section
+        else:
+            figure = arrangement.harmony_style if arrangement else None
+            if reorch is not None and reorch.harmony_style:
+                figure = reorch.harmony_style
+            events += render_harmony(
+                section_style,
+                plan,
+                bar_offset=bar_offset,
+                harmony_plan=harmony_plan,
+                figure=figure,
+            )
+        bass_rows = arrangement.bass_rows if arrangement else None
+        if reorch is not None and reorch.bass_pattern:
+            from rse.procedural.variety import BASS_PATTERNS
+
+            bass_rows = BASS_PATTERNS[reorch.bass_pattern]
         events += render_bass(
-            style,
+            section_style,
             plan,
             bar_offset=bar_offset,
             harmony_plan=harmony_plan,
             pedal=rhythm.pedal,
+            rows=bass_rows,
         )
         events += render_drums(rng, style, plan, bar_offset=bar_offset)
         bar_offset += plan.bars
