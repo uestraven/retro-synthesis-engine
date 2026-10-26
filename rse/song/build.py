@@ -26,14 +26,17 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rse.analysis.restatement import ticks_per_bar
 from rse.codec.benchmark import enforce_monophony
 from rse.events.schema import Composition, TempoChange, TimeSignatureChange
 from rse.prompt.profile import NesCompositionProfile, Section
 from rse.transfer.arranger import arrange_for_nes, row_seconds
-from rse.transfer.fermata import Vocab, decode, trim_to_bars
+
+if TYPE_CHECKING:  # the Fermata codec belongs to the legacy engine only, so
+    # the procedural path can import `music_end_bar` without pulling it in
+    from rse.transfer.fermata import Vocab
 
 ROW_SEC = 0.1
 TICKS_PER_BEAT = 480
@@ -215,6 +218,8 @@ class SongBuilder:
         self.bar_ticks = ticks_per_bar()
 
     def to_nes(self, ids: list[int], *, n_bars: int) -> tuple[Composition, dict[str, Any]] | None:
+        from rse.transfer.fermata import decode, trim_to_bars
+
         trimmed = trim_to_bars(ids, vocab=self.vocab, n_bars=n_bars)
         if not (trimmed.complete and trimmed.n_bars == n_bars):
             return None

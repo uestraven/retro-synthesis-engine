@@ -1,0 +1,142 @@
+[
+  {
+    "file": "take_01.wav",
+    "name": "town_s10040",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_02.wav",
+    "name": "fast_rhythmic_s6031",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_03.wav",
+    "name": "action_s8662",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_04.wav",
+    "name": "town_s10040",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_05.wav",
+    "name": "town_s10041",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_06.wav",
+    "name": "action_s8660",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_07.wav",
+    "name": "fast_rhythmic_s6030",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_08.wav",
+    "name": "action_s8661",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_09.wav",
+    "name": "town_s10041",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_10.wav",
+    "name": "ominous_s2260",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_11.wav",
+    "name": "exploration_s11310",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_12.wav",
+    "name": "exploration_s11312",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_13.wav",
+    "name": "ominous_s2261",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_14.wav",
+    "name": "ominous_s2263",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_15.wav",
+    "name": "exploration_s11310",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_16.wav",
+    "name": "town_s10042",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_17.wav",
+    "name": "exploration_s11312",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_18.wav",
+    "name": "fast_rhythmic_s6030",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_19.wav",
+    "name": "fast_rhythmic_s6032",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_20.wav",
+    "name": "action_s8660",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_21.wav",
+    "name": "town_s10042",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_22.wav",
+    "name": "action_s8662",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_23.wav",
+    "name": "action_s8661",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_24.wav",
+    "name": "fast_rhythmic_s6032",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_25.wav",
+    "name": "ominous_s2260",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_26.wav",
+    "name": "ominous_s2263",
+    "arm_bars": 8
+  },
+  {
+    "file": "take_27.wav",
+    "name": "fast_rhythmic_s6031",
+    "arm_bars": 16
+  },
+  {
+    "file": "take_28.wav",
+    "name": "ominous_s2261",
+    "arm_bars": 16
+  }
+]

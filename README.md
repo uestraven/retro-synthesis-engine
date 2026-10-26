@@ -244,3 +244,83 @@ server has no authentication, so it must not be reachable from off the machine.
 A non-loopback `--host` is refused unless you also pass `--allow-remote`, and
 Gradio's public `share` tunnel is never used. To reach it from another machine,
 forward the port over SSH rather than widening the bind.
+
+## The generation API
+
+The public-facing path: an HTTP service that turns a prompt and a few controls
+into a finished NES soundtrack. It is the backend the browser generator calls,
+and it exists so the thing a person uses is the same thing the command line
+uses — both call `rse.song.generate`, so neither can produce different music
+from the same request.
+
+```bash
+pip install -e ".[api]"
+rse-api                      # then open http://127.0.0.1:8000
+```
+
+That is the whole generator: `rse-api` serves the page at `/` as well as the
+API, so there is nothing to build and no second process. **`npm install` is not
+required to use it** — it is only for editing the page with hot reload:
+
+```bash
+npm install
+npm run dev                  # http://127.0.0.1:5173, proxies /api to :8000
+```
+
+The dev server serves the page only. Generation happens in Python either way,
+so `rse-api` must be running for the Generate button to do anything.
+
+On Windows, from a checkout:
+
+```
+py -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[api]"
+rse-api
+```
+
+then open <http://127.0.0.1:8000>. No dataset, no checkpoint and no model
+download are needed — the procedural composer is the whole engine.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/generate \
+  -H 'content-type: application/json' \
+  -d '{"prompt": "A dark and dramatic boss battle theme with driving percussion.",
+       "seconds": 60, "energy": 75, "loop": true}'
+```
+
+The response carries the song's links, the seed that produced it, and the
+requirement report. `GET /api/capabilities` returns the styles, the duration
+limits and the formats, read from the engine rather than duplicated in the
+frontend.
+
+**No model, no GPU.** A 60-second song costs about 1.2 s of CPU, 97% of it in
+the audio renderer and 3 ms in composition. That is short enough to answer
+inside the request, so there is no job queue and no polling: one POST returns a
+finished song. The service imports neither torch nor transformers.
+
+**Reproducing and varying.** Omit `seed` for a new variation; the response
+tells you which seed it used. Send that seed back to get the same song, byte
+for byte — the same one `scripts/prompt_to_song.py` produces for that seed.
+
+**It binds `127.0.0.1` by default**, and `rse-api` refuses a non-loopback host
+unless `RSE_API_ALLOW_REMOTE=1` says you meant it. A container platform routes
+to the service instead, and states its own wildcard bind in
+`deploy/render.yaml` where the choice is visible.
+
+**Caps, because it is anonymous and public.** There is no authentication — the
+audience is anyone who wants retro music, and a gate would lock out exactly
+those people — so the controls are on cost instead: a duration ceiling
+(`RSE_API_MAX_SECONDS`, default 180), a concurrency ceiling
+(`RSE_API_MAX_CONCURRENT`, default 2), a per-caller token bucket
+(`RSE_API_RATE_PER_MINUTE`, default 20, burst 5), and a retention window after
+which generated songs are deleted (`RSE_API_RETENTION_SECONDS`, default 1800).
+CORS is same-origin until `RSE_API_ALLOWED_ORIGINS` names the site; it is never
+`*`.
+
+**SNES returns 501.** Only the 8-bit NES engine exists. Sample-based
+instruments, eight DSP voices, envelopes and stereo are a separate milestone,
+and playing NES compositions through different instruments would not be SNES
+output — so the API refuses rather than returning NES audio under an SNES
+label. `GET /api/capabilities` marks it unavailable so the interface can grey
+the option out.

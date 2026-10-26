@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<!--
+  Retro Synthesis Engine -- the generator page.
+
+  One file, no build step, no dependencies. It is served by the API at `/`, so
+  locally it is same-origin and needs no CORS configuration at all; hosted on
+  Cloudflare Pages it reads `?api=` or the API_BASE constant below.
+
+  Everything the page offers is read from `GET /api/capabilities` rather than
+  written here: the style list, the duration limits and the formats. A frontend
+  carrying its own copy of the style list drifts from the composer the first
+  time a preset changes, and then the dropdown offers music the engine cannot
+  write.
+
+  The requirement report is shown, not hidden. The whole point of RSE's
+  reporting is that it distinguishes what was asked for from what was
+  approximated, imposed, or cannot be taken as input at all -- "memorable" is
+  always unsupported, because nothing in the composer takes memorability as an
+  input. Burying that would turn an honest generator into one that implies it
+  did something it did not.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retro Synthesis Engine</title>
+<style>
+  :root {
+    --bg: #11121a; --panel: #1b1d2a; --edge: #2e3147;
+    --ink: #e8e9f3; --dim: #9aa0bd; --accent: #ffd166; --accent2: #65d9a5;
+    --warn: #ff8f6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    display: flex; justify-content: center; padding: 2rem 1rem 4rem;
+  }
+  main { width: 100%; max-width: 46rem; }
+  h1 {
+    font-size: 1.5rem; letter-spacing: .14em; text-transform: uppercase;
+    margin: 0 0 .25rem; color: var(--accent);
+  }
+  .sub { color: var(--dim); margin: 0 0 2rem; font-size: .85rem; }
+  fieldset {
+    border: 1px solid var(--edge); border-radius: 10px; padding: 1.1rem 1.25rem;
+    margin: 0 0 1.25rem; background: var(--panel);
+  }
+  legend {
+    padding: 0 .5rem; font-size: .7rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  label { display: block; font-size: .78rem; color: var(--dim);
+          text-transform: uppercase; letter-spacing: .1em; margin-bottom: .4rem; }
+  textarea, select, input[type=number] {
+    width: 100%; background: #0d0e16; color: var(--ink); font: inherit;
+    border: 1px solid var(--edge); border-radius: 6px; padding: .6rem .7rem;
+  }
+  textarea { min-height: 5.5rem; resize: vertical; }
+  .row { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .row > div { flex: 1 1 12rem; }
+  .field { margin-bottom: 1.1rem; }
+  .field:last-child { margin-bottom: 0; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ends { display: flex; justify-content: space-between;
+          font-size: .7rem; color: var(--dim); }
+  .val { color: var(--accent); font-weight: 700; }
+  .consoles { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .console {
+    flex: 1 1 12rem; text-align: left; cursor: pointer; font: inherit;
+    background: #0d0e16; color: var(--ink); border: 1px solid var(--edge);
+    border-radius: 8px; padding: .7rem .8rem;
+  }
+  .console[aria-pressed=true] { border-color: var(--accent); color: var(--accent); }
+  .console:disabled { cursor: not-allowed; opacity: .5; }
+  .console small { display: block; color: var(--dim); font-size: .68rem;
+                   margin-top: .2rem; text-transform: none; letter-spacing: 0; }
+  .check { display: flex; align-items: center; gap: .55rem; }
+  .check label { margin: 0; text-transform: none; letter-spacing: 0;
+                 font-size: .9rem; color: var(--ink); }
+  button.go {
+    width: 100%; font: inherit; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; cursor: pointer; padding: .9rem;
+    background: var(--accent); color: #1b1200; border: 0; border-radius: 8px;
+  }
+  button.go:disabled { opacity: .55; cursor: wait; }
+  button.minor {
+    font: inherit; font-size: .78rem; cursor: pointer; padding: .45rem .8rem;
+    background: transparent; color: var(--accent2);
+    border: 1px solid var(--edge); border-radius: 6px;
+  }
+  audio { width: 100%; margin: .75rem 0; }
+  .facts { display: flex; flex-wrap: wrap; gap: .4rem 1.5rem;
+           font-size: .78rem; color: var(--dim); }
+  .facts b { color: var(--ink); font-weight: 600; }
+  .links { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .75rem; }
+  .links a {
+    font-size: .78rem; text-decoration: none; color: var(--accent2);
+    border: 1px solid var(--edge); border-radius: 6px; padding: .45rem .8rem;
+  }
+  .bucket { margin-top: .9rem; }
+  .bucket h3 { font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+               color: var(--dim); margin: 0 0 .3rem; }
+  .bucket ul { margin: 0; padding-left: 1.1rem; font-size: .78rem; color: var(--dim); }
+  .bucket.unsupported h3 { color: var(--warn); }
+  .seedrow { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; }
+  .seedrow > div { flex: 1 1 10rem; }
+  #status { font-size: .82rem; color: var(--dim); min-height: 1.4rem;
+            margin-top: .75rem; }
+  #status.bad { color: var(--warn); }
+  #result[hidden] { display: none; }
+  .hint { font-size: .72rem; color: var(--dim); margin-top: .35rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Retro Synthesis Engine</h1>
+  <p class="sub">Describe a soundtrack. Get a complete retro game track.
+    No model, no GPU &mdash; a procedural composer writing for real console hardware.</p>
+
+  <form id="form">
+    <fieldset>
+      <legend>Console sound</legend>
+      <div class="consoles" id="consoles"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Concept</legend>
+      <div class="field">
+        <label for="prompt">Describe your soundtrack</label>
+        <textarea id="prompt" maxlength="600"
+          placeholder="A dark and dramatic boss battle theme with an urgent melody and driving percussion."></textarea>
+        <div class="hint">Optional. The controls below work on their own.</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="style">Music style</label>
+          <select id="style"></select>
+        </div>
+        <div class="field">
+          <label for="duration">Duration <span class="val" id="durationVal">60 s</span></label>
+          <input type="range" id="duration" min="8" max="180" step="1" value="60">
+          <div class="ends"><span id="durMin">8 s</span><span id="durMax">180 s</span></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Feel</legend>
+      <div class="row">
+        <div class="field">
+          <label for="energy">Energy <span class="val" id="energyVal">75%</span></label>
+          <input type="range" id="energy" min="0" max="100" step="1" value="75">
+          <div class="ends"><span>Calm</span><span>Intense</span></div>
+        </div>
+        <div class="field">
+          <label for="tempo">Tempo <span class="val" id="tempoVal">style default</span></label>
+          <!--
+            The left-most notch is "use the style's own tempo", and `min` must
+            be 59 in the MARKUP, not set later from script. With min="60" the
+            browser clamps the initial value up to 60 at parse time, so the
+            auto position became unreachable and every generation silently
+            forced 60 BPM -- a slider nobody moved was overriding the preset.
+          -->
+          <input type="range" id="tempo" min="59" max="220" step="1" value="59">
+          <div class="ends"><span>style default</span><span>220 BPM</span></div>
+          <div class="hint">Left-most keeps the style's own tempo, which is part
+            of what makes it that style.</div>
+        </div>
+      </div>
+      <div class="field check">
+        <input type="checkbox" id="loop" checked>
+        <label for="loop">Make the song loopable</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Seed</legend>
+      <div class="seedrow">
+        <div>
+          <label for="seed">Seed (blank for a new variation)</label>
+          <input type="number" id="seed" min="0" max="2147483646" placeholder="random">
+        </div>
+        <button type="button" class="minor" id="clearSeed">New variation</button>
+      </div>
+      <div class="hint">The same seed and the same settings always give the same
+        song, so a track you like can be reproduced exactly.</div>
+    </fieldset>
+
+    <button type="submit" class="go" id="go">Generate Song</button>
+    <div id="status"></div>
+  </form>
+
+  <section id="result" hidden>
+    <fieldset>
+      <legend>Your soundtrack</legend>
+      <audio id="player" controls preload="auto"></audio>
+      <div class="facts" id="facts"></div>
+      <div class="links" id="links"></div>
+      <div class="seedrow" style="margin-top:.9rem">
+        <button type="button" class="minor" id="again">Generate another variation</button>
+        <button type="button" class="minor" id="same">Regenerate this exact song</button>
+      </div>
+      <div id="report"></div>
+    </fieldset>
+  </section>
+</main>
+
+<script>
+// Same-origin when the API serves this page, which is the local default.
+// Hosted separately, pass ?api=https://your-api.example or set this constant.
+const API_BASE = new URLSearchParams(location.search).get("api") || "";
+const api = (path) => API_BASE.replace(/\/$/, "") + path;
+
+const el = (id) => document.getElementById(id);
+let chosenConsole = "nes";
+let lastSeed = null;
+
+/** Everything offered is read from the engine, never hard-coded here. */
+async function loadCapabilities() {
+  const response = await fetch(api("/api/capabilities"));
+  if (!response.ok) throw new Error("capabilities " + response.status);
+  const caps = await response.json();
+
+  const styles = el("style");
+  styles.innerHTML = '<option value="">Infer from the description</option>';
+  for (const style of caps.styles) {
+    const option = document.createElement("option");
+    option.value = style.name;
+    option.textContent = `${style.label} — ${style.tempo_bpm} BPM, ${style.mode.replace(/_/g, " ")}`;
+    styles.append(option);
+  }
+
+  const duration = el("duration");
+  duration.min = caps.min_seconds;
+  duration.max = caps.max_seconds;
+  duration.value = Math.min(caps.default_seconds, caps.max_seconds);
+  el("durMin").textContent = `${caps.min_seconds} s`;
+  el("durMax").textContent = `${caps.max_seconds} s`;
+  showDuration();
+
+  // A console the server says is unavailable is disabled, not silently
+  // accepted and then refused with a 501.
+  const box = el("consoles");
+  box.innerHTML = "";
+  for (const console_ of caps.consoles) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "console";
+    button.disabled = !console_.available;
+    button.setAttribute("aria-pressed", String(console_.id === chosenConsole));
+    button.innerHTML =
+      `${console_.label}${console_.available ? "" : " — not available yet"}` +
+      `<small>${console_.detail}</small>`;
+    button.onclick = () => {
+      chosenConsole = console_.id;
+      for (const other of box.children) other.setAttribute("aria-pressed", "false");
+      button.setAttribute("aria-pressed", "true");
+    };
+    box.append(button);
+  }
+}
+
+const showDuration = () => { el("durationVal").textContent = el("duration").value + " s"; };
+el("duration").oninput = showDuration;
+el("energy").oninput = () => { el("energyVal").textContent = el("energy").value + "%"; };
+el("tempo").oninput = () => {
+  const value = Number(el("tempo").value);
+  el("tempoVal").textContent = value < 60 ? "style default" : value + " BPM";
+};
+el("clearSeed").onclick = () => { el("seed").value = ""; };
+
+function body() {
+  const tempo = Number(el("tempo").value);
+  const seed = el("seed").value.trim();
+  const request = {
+    prompt: el("prompt").value.trim() || el("prompt").placeholder.trim(),
+    console: chosenConsole,
+    seconds: Number(el("duration").value),
+    energy: Number(el("energy").value),
+    loop: el("loop").checked,
+  };
+  if (el("style").value) request.style = el("style").value;
+  if (tempo >= 60) request.tempo_bpm = tempo;
+  if (seed !== "") request.seed = Number(seed);
+  return request;
+}
+
+function bucket(title, items, extra) {
+  if (!items || !items.length) return "";
+  const rows = items
+    .map((item) => `<li><b>${escape_(item.text)}</b> — ${escape_(item.detail)}</li>`)
+    .join("");
+  return `<div class="bucket ${extra || ""}"><h3>${title}</h3><ul>${rows}</ul></div>`;
+}
+
+const escape_ = (text) =>
+  String(text).replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function render(song) {
+  lastSeed = song.seed;
+  el("seed").value = song.seed;
+  el("player").src = api(song.links.wav);
+
+  el("facts").innerHTML = [
+    ["style", song.style],
+    ["why", song.style_reason],
+    ["tempo", song.tempo_bpm + " BPM"],
+    ["key", song.mode.replace(/_/g, " ")],
+    ["form", song.form.join("-")],
+    ["length", song.duration_sec.toFixed(1) + " s / " + song.bars + " bars"],
+    ["loops cleanly", song.loop_timing_continuous ? "yes" : "no"],
+    ["hardware violations", String(song.hardware_violations)],
+    ["seed", String(song.seed)],
+  ].map(([k, v]) => `<span>${k}: <b>${escape_(v)}</b></span>`).join("");
+
+  const links = [[`Download WAV`, song.links.wav]];
+  if (song.links.midi) links.push(["Download MIDI", song.links.midi]);
+  links.push(["Generation report", song.links.report]);
+  el("links").innerHTML = links
+    .map(([text, href]) => `<a href="${api(href)}" download>${text}</a>`)
+    .join("");
+
+  const notes = song.notes && song.notes.length
+    ? `<div class="bucket"><h3>How your settings were read</h3><ul>` +
+      song.notes.map((n) => `<li>${escape_(n)}</li>`).join("") + `</ul></div>`
+    : "";
+  el("report").innerHTML =
+    notes +
+    bucket("Asked for and delivered", song.requirements.satisfied) +
+    bucket("Approximated", song.requirements.approximated) +
+    bucket("Chosen for you", song.requirements.imposed) +
+    bucket("Nothing takes this as input", song.requirements.unsupported, "unsupported");
+
+  el("result").hidden = false;
+}
+
+async function generate(request) {
+  const go = el("go");
+  const status = el("status");
+  go.disabled = true;
+  status.className = "";
+  status.textContent = "Composing and rendering…";
+  const started = performance.now();
+  try {
+    const response = await fetch(api("/api/generate"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      // The API's errors are specific; show them rather than "failed".
+      const retry = payload.retry_after_seconds
+        ? ` Try again in ${payload.retry_after_seconds}s.`
+        : "";
+      status.className = "bad";
+      status.textContent = (payload.message || `Request failed (${response.status}).`) + retry;
+      return;
+    }
+    render(payload);
+    const took = ((performance.now() - started) / 1000).toFixed(1);
+    status.textContent = `Done in ${took}s.`;
+  } catch (error) {
+    status.className = "bad";
+    status.textContent =
+      "Could not reach the generator. Is it running? (`rse-api`, then open " +
+      "http://127.0.0.1:8000)";
+  } finally {
+    go.disabled = false;
+  }
+}
+
+el("form").onsubmit = (event) => { event.preventDefault(); generate(body()); };
+el("again").onclick = () => {
+  el("seed").value = "";
+  generate(Object.assign(body(), { seed: undefined }));
+};
+el("same").onclick = () => {
+  if (lastSeed === null) return;
+  generate(Object.assign(body(), { seed: lastSeed }));
+};
+
+loadCapabilities().catch(() => {
+  const status = el("status");
+  status.className = "bad";
+  status.textContent =
+    "Could not load the generator's capabilities. Start it with `rse-api` and " +
+    "open http://127.0.0.1:8000, or pass ?api=<url>.";
+});
+</script>
+</body>
+</html>

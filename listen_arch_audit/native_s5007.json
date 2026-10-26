@@ -1,0 +1,43 @@
+{
+  "arm": "native",
+  "name": "native_s5007",
+  "seed": 5007,
+  "tempo_bpm": 120.0,
+  "n_tokens": 988,
+  "sampling": {
+    "seed": 5007,
+    "temperature": 0.7,
+    "structural_temperature": null,
+    "structural_isolate_eos": false,
+    "channel_temperature": {},
+    "top_k": 40,
+    "top_p": 0.95,
+    "max_tokens": 3072,
+    "constrain_to_grammar": true
+  },
+  "hit_token_limit": false,
+  "overran_length": true,
+  "underran_length": true,
+  "n_grammar_rejections": 0,
+  "hardware_modifications": null,
+  "hardware_violations": 0,
+  "metrics": {
+    "n_events": 220,
+    "notes_per_bar": 27.5,
+    "pitch_class_entropy": 1.4765,
+    "stepwise_fraction": 0.8421,
+    "ngram_repetition_rate": 0.5429,
+    "motif_note_participation": 0.7436,
+    "ioi_entropy": 2.0848,
+    "channels": [
+      "NO",
+      "P1",
+      "P2",
+      "TR"
+    ],
+    "n_percussion": 87,
+    "n_bars_occupied": 8,
+    "empty_trailing_bars": 0,
+    "duration_sec": 16.125
+  }
+}

@@ -1,0 +1,541 @@
+{
+  "version": "rse-prompt-to-song/0.2",
+  "engine": "procedural",
+  "prompt": "Compose a dark, energetic, 60-second NES boss battle theme with a memorable main melody, driving percussion, a contrasting middle section, and a dramatic return to the opening theme. Make it loop seamlessly.",
+  "seed": 20261026,
+  "songspec": {
+    "prompt": "Compose a dark, energetic, 60-second NES boss battle theme with a memorable main melody, driving percussion, a contrasting middle section, and a dramatic return to the opening theme. Make it loop seamlessly.",
+    "style": "nes",
+    "scenario": "boss_battle",
+    "mood": "dark",
+    "energy": "high",
+    "loop": true,
+    "genre": "soundtrack",
+    "ensemble": "band",
+    "tempo_bpm": 170,
+    "key": "0:minor",
+    "beats_per_bar": 4,
+    "target_seconds": 60.0,
+    "seconds_per_bar": 1.4118,
+    "programs": [
+      80,
+      81,
+      38
+    ],
+    "percussion": true,
+    "structure": [
+      "contrast_section",
+      "theme_return",
+      "loop"
+    ],
+    "requirements": [
+      {
+        "text": "60-second",
+        "status": "satisfied",
+        "detail": "target 60 s"
+      },
+      {
+        "text": "driving",
+        "status": "approximated",
+        "detail": "read as 170 BPM"
+      },
+      {
+        "text": "dark",
+        "status": "approximated",
+        "detail": "read as minor key"
+      },
+      {
+        "text": "boss battle",
+        "status": "approximated",
+        "detail": "recorded as scenario 'boss_battle'; the composer has no scenario input, so it reaches generation only through genre, key and tempo"
+      },
+      {
+        "text": "nes",
+        "status": "approximated",
+        "detail": "recorded as style 'nes'; expressed to the composer as a genre token and to the arranger as the NES profile"
+      },
+      {
+        "text": "battle",
+        "status": "approximated",
+        "detail": "genre token 'soundtrack'"
+      },
+      {
+        "text": "melody",
+        "status": "satisfied",
+        "detail": "GM program 80, square lead"
+      },
+      {
+        "text": "percussion",
+        "status": "satisfied",
+        "detail": "drum track requested in the plan"
+      },
+      {
+        "text": "contrasting",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "middle section",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "return",
+        "status": "imposed",
+        "detail": "theme_return built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "loop",
+        "status": "imposed",
+        "detail": "loop built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "memorable",
+        "status": "unsupported",
+        "detail": "no conditioning expresses memorability; nothing in the model takes it as input"
+      },
+      {
+        "text": "duration 56.5 s against 60 s requested",
+        "status": "satisfied",
+        "detail": "within the +/-10 s tolerance"
+      },
+      {
+        "text": "5 sections, A-A'1-A'2-B-A''",
+        "status": "imposed",
+        "detail": "section form chosen by the procedural composer"
+      }
+    ]
+  },
+  "composition": {
+    "engine": "procedural",
+    "selection": {
+      "style": "boss",
+      "reason": "scenario 'boss_battle'",
+      "matched_on": "scenario",
+      "tempo_bpm": 170,
+      "tonic": null,
+      "section_bars": 8,
+      "unsupported": [
+        {
+          "requirement": "memorable",
+          "reason": "no conditioning expresses memorability; nothing in the model takes it as input"
+        }
+      ],
+      "notes": []
+    },
+    "plan": {
+      "seed": 20261026,
+      "style": {
+        "name": "boss",
+        "mode": "harmonic_minor",
+        "tempo_bpm": 170,
+        "harmony_style": "offbeat",
+        "hat_every": 2,
+        "backbeat": true,
+        "tonic": 57,
+        "passing_chance": 0.35
+      },
+      "harmonic_rhythm": {
+        "name": "one_per_bar",
+        "durations": [
+          16
+        ],
+        "pedal": false
+      },
+      "vocabulary": null,
+      "truncation": {
+        "notes_truncated": 0,
+        "rows_removed": 0
+      },
+      "motif": {
+        "degrees": [
+          0,
+          1,
+          2,
+          1,
+          0,
+          -1
+        ],
+        "rhythm": [
+          2,
+          2,
+          2,
+          2,
+          4,
+          4
+        ]
+      },
+      "sections": [
+        {
+          "label": "A",
+          "bars": 8,
+          "progression": [
+            0,
+            6,
+            5,
+            4
+          ],
+          "treatment": "state"
+        },
+        {
+          "label": "A'1",
+          "bars": 8,
+          "progression": [
+            0,
+            6,
+            5,
+            4
+          ],
+          "treatment": "vary"
+        },
+        {
+          "label": "A'2",
+          "bars": 8,
+          "progression": [
+            0,
+            6,
+            5,
+            4
+          ],
+          "treatment": "vary"
+        },
+        {
+          "label": "B",
+          "bars": 8,
+          "progression": [
+            0,
+            3,
+            4,
+            0
+          ],
+          "treatment": "contrast"
+        },
+        {
+          "label": "A''",
+          "bars": 8,
+          "progression": [
+            0,
+            6,
+            5,
+            4
+          ],
+          "treatment": "state"
+        }
+      ],
+      "variations": [
+        {
+          "label": "A",
+          "motif": {
+            "degrees": [
+              0,
+              1,
+              2,
+              1,
+              0,
+              -1
+            ],
+            "rhythm": [
+              2,
+              2,
+              2,
+              2,
+              4,
+              4
+            ]
+          },
+          "n_chord_changes": 8
+        },
+        {
+          "label": "A'1",
+          "motif": {
+            "degrees": [
+              0,
+              1,
+              2,
+              1,
+              2,
+              3
+            ],
+            "rhythm": [
+              2,
+              2,
+              2,
+              2,
+              4,
+              4
+            ]
+          },
+          "n_chord_changes": 8
+        },
+        {
+          "label": "A'2",
+          "motif": {
+            "degrees": [
+              0,
+              1,
+              2,
+              1,
+              0,
+              0,
+              -1
+            ],
+            "rhythm": [
+              2,
+              2,
+              2,
+              1,
+              1,
+              4,
+              4
+            ]
+          },
+          "n_chord_changes": 8
+        },
+        {
+          "label": "B",
+          "motif": {
+            "degrees": [
+              0,
+              1,
+              2,
+              1,
+              0,
+              1
+            ],
+            "rhythm": [
+              2,
+              2,
+              2,
+              2,
+              4,
+              4
+            ]
+          },
+          "n_chord_changes": 8
+        },
+        {
+          "label": "A''",
+          "motif": {
+            "degrees": [
+              0,
+              1,
+              2,
+              1,
+              0,
+              -1
+            ],
+            "rhythm": [
+              2,
+              2,
+              2,
+              2,
+              4,
+              4
+            ]
+          },
+          "n_chord_changes": 8
+        }
+      ],
+      "n_events": 896
+    },
+    "form": [
+      "A",
+      "A'1",
+      "A'2",
+      "B",
+      "A''"
+    ],
+    "total_bars": 40,
+    "duration_sec": 56.471,
+    "tempo_bpm": 170,
+    "mode": "harmonic_minor",
+    "tonic": 57,
+    "sections": [
+      {
+        "label": "A",
+        "bars": 8,
+        "progression": [
+          0,
+          6,
+          5,
+          4
+        ],
+        "treatment": "state"
+      },
+      {
+        "label": "A'1",
+        "bars": 8,
+        "progression": [
+          0,
+          6,
+          5,
+          4
+        ],
+        "treatment": "vary"
+      },
+      {
+        "label": "A'2",
+        "bars": 8,
+        "progression": [
+          0,
+          6,
+          5,
+          4
+        ],
+        "treatment": "vary"
+      },
+      {
+        "label": "B",
+        "bars": 8,
+        "progression": [
+          0,
+          3,
+          4,
+          0
+        ],
+        "treatment": "contrast"
+      },
+      {
+        "label": "A''",
+        "bars": 8,
+        "progression": [
+          0,
+          6,
+          5,
+          4
+        ],
+        "treatment": "state"
+      }
+    ],
+    "unsupported": [
+      {
+        "requirement": "memorable",
+        "reason": "no conditioning expresses memorability; nothing in the model takes it as input"
+      }
+    ]
+  },
+  "duration_sec": 56.471,
+  "requested_seconds": 60.0,
+  "duration_tolerance_sec": 10.0,
+  "duration_within_tolerance": true,
+  "hardware_violations": 0,
+  "loop_diagnostic": {
+    "loop_start_tick": 0,
+    "loop_end_tick": 76800,
+    "timing_continuous": true,
+    "n_crossing_events": 0,
+    "crossing": [],
+    "n_past_end": 0,
+    "final_bar_onsets": 24,
+    "first_bar_onsets": 22,
+    "first_bar_rms": 6576.3,
+    "final_bar_rms": 7059.8,
+    "energy_ratio": 0.932,
+    "boundary_step": 2052,
+    "peak": 23197,
+    "notes": [
+      "no timing or level discontinuity found at the boundary"
+    ]
+  },
+  "render_padding": {
+    "padded": true,
+    "frames_before": 2490352,
+    "frames_after": 2490371,
+    "seconds_before": 56.4706,
+    "seconds_after": 56.471,
+    "loop_seconds": 56.471
+  },
+  "ogg": {
+    "exported": false,
+    "reason": "no Vorbis encoder available: the renderer writes WAV only, and neither ffmpeg nor oggenc is installed"
+  },
+  "requirement_report": {
+    "satisfied": [
+      {
+        "text": "60-second",
+        "status": "satisfied",
+        "detail": "target 60 s"
+      },
+      {
+        "text": "melody",
+        "status": "satisfied",
+        "detail": "GM program 80, square lead"
+      },
+      {
+        "text": "percussion",
+        "status": "satisfied",
+        "detail": "drum track requested in the plan"
+      },
+      {
+        "text": "duration 56.5 s against 60 s requested",
+        "status": "satisfied",
+        "detail": "within the +/-10 s tolerance"
+      }
+    ],
+    "approximated": [
+      {
+        "text": "driving",
+        "status": "approximated",
+        "detail": "read as 170 BPM"
+      },
+      {
+        "text": "dark",
+        "status": "approximated",
+        "detail": "read as minor key"
+      },
+      {
+        "text": "boss battle",
+        "status": "approximated",
+        "detail": "recorded as scenario 'boss_battle'; the composer has no scenario input, so it reaches generation only through genre, key and tempo"
+      },
+      {
+        "text": "nes",
+        "status": "approximated",
+        "detail": "recorded as style 'nes'; expressed to the composer as a genre token and to the arranger as the NES profile"
+      },
+      {
+        "text": "battle",
+        "status": "approximated",
+        "detail": "genre token 'soundtrack'"
+      }
+    ],
+    "imposed": [
+      {
+        "text": "contrasting",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "middle section",
+        "status": "imposed",
+        "detail": "contrast_section built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "return",
+        "status": "imposed",
+        "detail": "theme_return built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "loop",
+        "status": "imposed",
+        "detail": "loop built deterministically by the assembler, not requested of the composer"
+      },
+      {
+        "text": "5 sections, A-A'1-A'2-B-A''",
+        "status": "imposed",
+        "detail": "section form chosen by the procedural composer"
+      }
+    ],
+    "unsupported": [
+      {
+        "text": "memorable",
+        "status": "unsupported",
+        "detail": "no conditioning expresses memorability; nothing in the model takes it as input"
+      }
+    ]
+  },
+  "files": {
+    "wav": "songs/boss_procedural.wav",
+    "midi": "songs/boss_procedural.mid"
+  }
+}

@@ -17,16 +17,68 @@ htmlcov/
 # Written by scripts/make_sample_release.py, not authored.
 /configs/datasets/rse_sample.json
 
-# Model weights stay local.
+# Model weights stay local -- anywhere, not just in checkpoints/. Four 21 MB
+# checkpoints reached git history through tmp/, and two more sit in the
+# repository root; a path-scoped rule did not stop either.
+*.pt
+*.pth
+*.safetensors
+*.ckpt
 /checkpoints/*
 !/checkpoints/.gitkeep
 
-# Rendered output.
+# Rendered output. No audio is ever committed: a listening batch is hundreds
+# of megabytes, it is reproducible from its seed, and it is derived from
+# research-only source material.
 *.wav
 *.ogg
+*.mid
+*.midi
+*.mp3
+*.flac
 /out/
 
 # Window caches: large, derived from research-only data, and rebuildable
 # with `rse windows`. Never publish these.
 caches/
 /songs/*.wav
+
+# Songs the API generates at runtime. Temporary by design -- the retention
+# sweep deletes them -- and never part of the repository.
+var/
+
+# Generated songs, from either front end. The RATINGS.md and *_KEY.json files
+# beside them ARE kept: the ratings are the research record, the audio is not.
+/songs/
+/listen_*/*.wav
+/listen_*/**/*.wav
+/codec_audio/
+/transfer_audio/
+/fermata_nes_audio/
+/fermata_nes_audio_v2/
+/gridtest/
+
+# Scratch directories. `tmp/` held four 21 MB checkpoints and a .DS_Store for
+# most of this project's history -- 86 MB of the repository, committed by
+# accident. The checkpoints remain in git history, so nothing is lost.
+tmp/
+*.tar.gz
+.DS_Store
+
+# Analysis artifacts derived from NES-MDB. Regenerable by the scripts that
+# wrote them, and never publishable: they carry per-window labels keyed to
+# specific commercial games.
+/repetition_train.json
+/melodic_features.json
+/conditioning_labels.jsonl
+/window_motif_labels.jsonl
+/fermata_representation_audit.json
+/restatement_reference.json
+
+# Frontend dependencies.
+node_modules/
+frontend/dist/
+.vite/
+
+# Build and run logs.
+*.log

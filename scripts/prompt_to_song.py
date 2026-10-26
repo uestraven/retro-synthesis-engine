@@ -45,7 +45,10 @@ if str(_ROOT) not in sys.path:
 import argparse
 import dataclasses
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:  # the Fermata codec is a legacy-path import only
+    from rse.transfer.fermata import Vocab
 
 from rse.analysis.restatement import ticks_per_bar
 from rse.codec.benchmark import enforce_monophony
@@ -59,7 +62,6 @@ from rse.song.loopcheck import pad_to_loop_length
 from rse.tokenizers.frozen import frozen_config
 from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.transfer.arranger import arrange_for_nes, row_seconds
-from rse.transfer.fermata import Vocab, decode, trim_to_bars
 
 ROW_SEC = 0.1
 SECTION_BARS = 8
@@ -181,6 +183,85 @@ def concatenate(
     return track, placement
 
 
+def compose_procedural(
+    plan: SongPlan, *, seed: int, section_bars: int
+) -> tuple[Any, dict[str, Any]]:
+    """The default engine, now a thin call into the library.
+
+    The generation path lives in `rse.song.generate` so the CLI and the web
+    API cannot drift apart; this wrapper exists because the tests and the
+    older scripts call it by this name.
+    """
+    from rse.song.generate import compose_song
+
+    result = compose_song(plan, seed=seed, section_bars=section_bars)
+    return result.composition, result.meta
+
+
+def run_procedural(
+    args: Any, plan: SongPlan, *, render_window: Any, normalise_peak: Any
+) -> int:
+    """The default path, end to end: prompt in, playable NES song out.
+
+    Composition, rendering and reporting all come from `rse.song.generate`;
+    what stays here is the terminal output, which is this front end's own.
+    """
+    from rse.song.generate import compose_song, write_artifacts
+
+    del render_window, normalise_peak  # the library owns both now
+    result = compose_song(plan, seed=args.seed, section_bars=SECTION_BARS)
+    meta = result.meta
+    violations = result.violations
+    duration = result.duration_sec
+
+    print(f"prompt: {args.prompt}\n")
+    sel = meta["selection"]
+    print("engine:  procedural (no model, no weights)")
+    print(f"style:   {sel['style']}  <- {sel['reason']}")
+    print(f"music:   {meta['tempo_bpm']} BPM, {meta['mode']}, tonic "
+          f"{meta['tonic']}, {plan.beats_per_bar}/4")
+    print(f"form:    {'-'.join(meta['form'])}  ({meta['total_bars']} bars, "
+          f"{duration:.1f} s; requested {plan.target_seconds:g} s)")
+    for note in sel["notes"]:
+        print(f"         note: {note}")
+    print()
+
+    payload = write_artifacts(
+        result, out_dir=args.out_dir, name=args.name, seed=args.seed
+    )
+    out_json = args.out_dir / f"{args.name}.json"
+
+    wav = Path(payload["files"]["wav"])
+    midi_path = Path(payload["files"]["midi"]) if payload["files"]["midi"] else None
+    if payload.get("midi_error"):
+        print(f"  midi export failed: {payload['midi_error']}")
+    diagnostic = payload["loop_diagnostic"]
+    report = payload["requirement_report"]
+
+    print(f"{'-' * 68}")
+    print(f"{meta['total_bars']} bars, {duration:.1f} s, "
+          f"{len(violations)} hardware violations")
+    print("\nloop boundary")
+    print(f"  timing continuous: {diagnostic['timing_continuous']}")
+    for line in diagnostic["notes"]:
+        print(f"  - {line}")
+    print("\nrequirement report")
+    for status in ("satisfied", "approximated", "imposed", "unsupported"):
+        items = report.get(status, [])
+        print(f"  {status.upper()} ({len(items)})")
+        for item in items:
+            print(f"    - {item['text']}: {item['detail']}")
+    if meta["unsupported"]:
+        print("\n  composer could not take:")
+        for item in meta["unsupported"]:
+            print(f"    - {item['requirement']}: {item['reason']}")
+    print(f"\nwrote {wav}")
+    if midi_path:
+        print(f"wrote {midi_path}")
+    print(f"wrote {out_json}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -208,16 +289,22 @@ def main() -> int:
         "are hard constraints and override anything inferred from the prompt "
         "wording; the prompt still supplies mood, key and scenario.",
     )
+    parser.add_argument(
+        "--engine",
+        choices=("procedural", "fermata"),
+        default="procedural",
+        help="procedural is the default composer. fermata is the legacy "
+        "experimental backend and is never selected implicitly.",
+    )
     parser.add_argument("--out-dir", type=Path, default=Path("songs"))
     parser.add_argument("--name", default="song_v01")
     args = parser.parse_args()
 
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import torch
-    from architecture_comparison import normalise_peak
-    from codec_comparison import render_window
-    from transformers import LlamaForCausalLM
-    from transformers.generation.logits_process import LogitsProcessor
+    # Rendering and normalisation come from the library, not from a sibling
+    # experiment script: `architecture_comparison` imports the Fermata codec at
+    # module scope, so reaching into it for a gain calculation loaded Fermata
+    # on the default path. The ML stack is imported ONLY on the fermata branch.
+    from rse.song.audio import normalise_peak, render_window
 
     plan = interpret(args.prompt)
     song_profile = None
@@ -247,6 +334,22 @@ def main() -> int:
         plan.target_seconds = song_profile.duration_seconds
         plan.programs = song_profile.programs()
         plan.percussion = song_profile.percussion_requested
+
+    if args.engine == "procedural":
+        return run_procedural(
+            args,
+            plan,
+            render_window=render_window,
+            normalise_peak=normalise_peak,
+        )
+
+    # ---- fermata, the legacy backend, only when explicitly requested ----
+    # Imported here and nowhere else, so the default path never loads torch.
+    import torch
+    from transformers import LlamaForCausalLM
+    from transformers.generation.logits_process import LogitsProcessor
+
+    from rse.transfer.fermata import Vocab, decode, trim_to_bars
 
     total_bars = plan.bars_for_target(section_bars=SECTION_BARS)
     n_sections = max(2, total_bars // SECTION_BARS)

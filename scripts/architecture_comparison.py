@@ -57,12 +57,9 @@ if str(_ROOT) not in sys.path:
 import argparse
 import json
 import random
-import wave
 import zlib
 from collections import Counter
 from typing import Any
-
-import numpy as np
 
 from rse.analysis.restatement import ticks_per_bar
 from rse.codec.benchmark import enforce_monophony, ioi_entropy
@@ -79,40 +76,15 @@ from rse.transfer.fermata import RECONSTRUCTION_ID, Vocab, decode, trim_to_bars
 ROW_SEC = 0.1
 BARS = 8
 
-#: Peak target for every rendered file, in dBFS. Below 0 so normalisation
-#: never has to clip a sample that was already near full scale.
-PEAK_DBFS = -3.0
+# Peak normalisation moved into the library when the product entry point
+# stopped importing this experiment script to get it. Re-exported so the
+# recorded listening batches reproduce byte for byte.
+from rse.song.audio import PEAK_DBFS, normalise_peak  # noqa: E402
+
+__all__ = ["PEAK_DBFS", "normalise_peak"]
 
 CHECKPOINT_REVISION = "18b647098f579ee41db67c0ad4c7f7f39ce0eac1"
 CHECKPOINT_SHA256 = "4ca6a5db3a2d1510bad7acde4d313a9ad732fc91dcda4776f044c5b5bd8ea9b7"
-
-
-def normalise_peak(path: Path, *, dbfs: float = PEAK_DBFS) -> dict[str, Any]:
-    """Rewrite a mono 16-bit WAV so its peak sits at `dbfs`.
-
-    Equalising peak rather than loudness on purpose: a true loudness match
-    would alter the perceived balance between a sparse piece and a dense one,
-    which is part of what is being judged. Peak matching only removes the
-    gross level cue that would identify the arm.
-    """
-    with wave.open(str(path), "rb") as handle:
-        params = handle.getparams()
-        frames = handle.readframes(handle.getnframes())
-    samples = np.frombuffer(frames, dtype="<i2").astype(np.float64)
-    peak = float(np.abs(samples).max()) if samples.size else 0.0
-    if peak <= 0:
-        return {"peak_before": 0.0, "gain": 1.0, "silent": True}
-    target = (10.0 ** (dbfs / 20.0)) * 32767.0
-    gain = target / peak
-    scaled = np.clip(samples * gain, -32768, 32767).astype("<i2")
-    with wave.open(str(path), "wb") as handle:
-        handle.setparams(params)
-        handle.writeframes(scaled.tobytes())
-    return {
-        "peak_before": round(peak / 32767.0, 5),
-        "gain": round(gain, 5),
-        "silent": False,
-    }
 
 
 def measure(composition: Any, profile: Any, *, bars: int) -> dict[str, Any]:

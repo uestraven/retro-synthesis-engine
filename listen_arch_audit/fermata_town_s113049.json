@@ -1,0 +1,79 @@
+{
+  "arm": "fermata",
+  "name": "fermata_town_s113049",
+  "seed": 113049,
+  "scenario": "town",
+  "tempo_bpm": 132.0,
+  "n_tokens": 792,
+  "termination": "bar_limit",
+  "decode": {
+    "reconstruction": "rse-fermata-reconstruction/1.0.0",
+    "n_tokens": 792,
+    "n_skipped": 4,
+    "n_events": 150,
+    "n_bars": 8,
+    "hit_eos": true,
+    "had_plan": true,
+    "warnings": []
+  },
+  "arrangement": {
+    "n_events_in": 150,
+    "n_events_out": 150,
+    "retention": 1.0,
+    "n_polyphony_dropped": 0,
+    "n_polyphony_arpeggiated": 37,
+    "n_stolen_truncated": 36,
+    "n_transposed": 0,
+    "n_out_of_range_dropped": 0,
+    "n_percussion_approximated": 60,
+    "n_percussion_dropped": 0,
+    "n_tracks_merged": 0,
+    "role_assignment": {
+      "0": "accompaniment->P2",
+      "1": "melody->P1",
+      "2": "bass->TR",
+      "3": "percussion->NO"
+    },
+    "warnings": []
+  },
+  "ensemble": {
+    "scenario": "town",
+    "n_requested_tracks": 4,
+    "requested_percussion": true,
+    "n_generated_tracks": 4,
+    "generated_percussion": true,
+    "n_mapped_tracks": 4,
+    "channels_sounding": [
+      "P1",
+      "P2",
+      "TR",
+      "NO"
+    ],
+    "percussion_sounding": true,
+    "n_tracks_merged": 0,
+    "missing_tracks": 0,
+    "percussion_as_requested": true,
+    "honours_request": true
+  },
+  "hardware_modifications": null,
+  "hardware_violations": 0,
+  "metrics": {
+    "n_events": 147,
+    "notes_per_bar": 21.0,
+    "pitch_class_entropy": -0.0,
+    "stepwise_fraction": 0.0,
+    "ngram_repetition_rate": 1.0,
+    "motif_note_participation": 1.0,
+    "ioi_entropy": 1.398,
+    "channels": [
+      "NO",
+      "P1",
+      "P2",
+      "TR"
+    ],
+    "n_percussion": 57,
+    "n_bars_occupied": 7,
+    "empty_trailing_bars": 1,
+    "duration_sec": 11.351
+  }
+}

@@ -1,0 +1,218 @@
+[
+  {
+    "pair": "pair_01",
+    "A": "treatment",
+    "B": "control",
+    "name": "action_s803",
+    "style": "action",
+    "seed": 803,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_02",
+    "A": "treatment",
+    "B": "control",
+    "name": "tension_s802",
+    "style": "tension",
+    "seed": 802,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_03",
+    "A": "control",
+    "B": "treatment",
+    "name": "adventure_s800",
+    "style": "adventure",
+    "seed": 800,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_04",
+    "A": "control",
+    "B": "treatment",
+    "name": "boss_s803",
+    "style": "boss",
+    "seed": 803,
+    "treatment_rhythm": "two_per_bar"
+  },
+  {
+    "pair": "pair_05",
+    "A": "treatment",
+    "B": "control",
+    "name": "action_s800",
+    "style": "action",
+    "seed": 800,
+    "treatment_rhythm": "two_per_bar"
+  },
+  {
+    "pair": "pair_06",
+    "A": "treatment",
+    "B": "control",
+    "name": "victory_s801",
+    "style": "victory",
+    "seed": 801,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_07",
+    "A": "treatment",
+    "B": "control",
+    "name": "tension_s801",
+    "style": "tension",
+    "seed": 801,
+    "treatment_rhythm": "tonic_pedal"
+  },
+  {
+    "pair": "pair_08",
+    "A": "control",
+    "B": "treatment",
+    "name": "action_s802",
+    "style": "action",
+    "seed": 802,
+    "treatment_rhythm": "two_per_bar"
+  },
+  {
+    "pair": "pair_09",
+    "A": "treatment",
+    "B": "control",
+    "name": "town_s801",
+    "style": "town",
+    "seed": 801,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_10",
+    "A": "control",
+    "B": "treatment",
+    "name": "victory_s800",
+    "style": "victory",
+    "seed": 800,
+    "treatment_rhythm": "two_per_bar"
+  },
+  {
+    "pair": "pair_11",
+    "A": "treatment",
+    "B": "control",
+    "name": "town_s803",
+    "style": "town",
+    "seed": 803,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_12",
+    "A": "control",
+    "B": "treatment",
+    "name": "boss_s802",
+    "style": "boss",
+    "seed": 802,
+    "treatment_rhythm": "tonic_pedal"
+  },
+  {
+    "pair": "pair_13",
+    "A": "treatment",
+    "B": "control",
+    "name": "boss_s801",
+    "style": "boss",
+    "seed": 801,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_14",
+    "A": "treatment",
+    "B": "control",
+    "name": "action_s801",
+    "style": "action",
+    "seed": 801,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_15",
+    "A": "control",
+    "B": "treatment",
+    "name": "boss_s800",
+    "style": "boss",
+    "seed": 800,
+    "treatment_rhythm": "two_per_bar"
+  },
+  {
+    "pair": "pair_16",
+    "A": "control",
+    "B": "treatment",
+    "name": "adventure_s801",
+    "style": "adventure",
+    "seed": 801,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_17",
+    "A": "treatment",
+    "B": "control",
+    "name": "victory_s802",
+    "style": "victory",
+    "seed": 802,
+    "treatment_rhythm": "two_per_bar"
+  },
+  {
+    "pair": "pair_18",
+    "A": "treatment",
+    "B": "control",
+    "name": "town_s800",
+    "style": "town",
+    "seed": 800,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_19",
+    "A": "treatment",
+    "B": "control",
+    "name": "town_s802",
+    "style": "town",
+    "seed": 802,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_20",
+    "A": "treatment",
+    "B": "control",
+    "name": "tension_s803",
+    "style": "tension",
+    "seed": 803,
+    "treatment_rhythm": "tonic_pedal"
+  },
+  {
+    "pair": "pair_21",
+    "A": "control",
+    "B": "treatment",
+    "name": "adventure_s803",
+    "style": "adventure",
+    "seed": 803,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_22",
+    "A": "treatment",
+    "B": "control",
+    "name": "victory_s803",
+    "style": "victory",
+    "seed": 803,
+    "treatment_rhythm": "accelerating"
+  },
+  {
+    "pair": "pair_23",
+    "A": "control",
+    "B": "treatment",
+    "name": "adventure_s802",
+    "style": "adventure",
+    "seed": 802,
+    "treatment_rhythm": "two_bar_hold"
+  },
+  {
+    "pair": "pair_24",
+    "A": "treatment",
+    "B": "control",
+    "name": "tension_s800",
+    "style": "tension",
+    "seed": 800,
+    "treatment_rhythm": "two_bar_hold"
+  }
+]

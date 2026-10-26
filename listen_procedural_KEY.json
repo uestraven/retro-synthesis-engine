@@ -1,0 +1,146 @@
+[
+  {
+    "file": "proc_01.wav",
+    "name": "victory_s801",
+    "style": "victory",
+    "seed": 801
+  },
+  {
+    "file": "proc_02.wav",
+    "name": "victory_s800",
+    "style": "victory",
+    "seed": 800
+  },
+  {
+    "file": "proc_03.wav",
+    "name": "town_s802",
+    "style": "town",
+    "seed": 802
+  },
+  {
+    "file": "proc_04.wav",
+    "name": "action_s800",
+    "style": "action",
+    "seed": 800
+  },
+  {
+    "file": "proc_05.wav",
+    "name": "tension_s803",
+    "style": "tension",
+    "seed": 803
+  },
+  {
+    "file": "proc_06.wav",
+    "name": "town_s800",
+    "style": "town",
+    "seed": 800
+  },
+  {
+    "file": "proc_07.wav",
+    "name": "boss_s800",
+    "style": "boss",
+    "seed": 800
+  },
+  {
+    "file": "proc_08.wav",
+    "name": "town_s803",
+    "style": "town",
+    "seed": 803
+  },
+  {
+    "file": "proc_09.wav",
+    "name": "boss_s801",
+    "style": "boss",
+    "seed": 801
+  },
+  {
+    "file": "proc_10.wav",
+    "name": "adventure_s801",
+    "style": "adventure",
+    "seed": 801
+  },
+  {
+    "file": "proc_11.wav",
+    "name": "tension_s802",
+    "style": "tension",
+    "seed": 802
+  },
+  {
+    "file": "proc_12.wav",
+    "name": "adventure_s802",
+    "style": "adventure",
+    "seed": 802
+  },
+  {
+    "file": "proc_13.wav",
+    "name": "adventure_s800",
+    "style": "adventure",
+    "seed": 800
+  },
+  {
+    "file": "proc_14.wav",
+    "name": "action_s801",
+    "style": "action",
+    "seed": 801
+  },
+  {
+    "file": "proc_15.wav",
+    "name": "town_s801",
+    "style": "town",
+    "seed": 801
+  },
+  {
+    "file": "proc_16.wav",
+    "name": "adventure_s803",
+    "style": "adventure",
+    "seed": 803
+  },
+  {
+    "file": "proc_17.wav",
+    "name": "action_s803",
+    "style": "action",
+    "seed": 803
+  },
+  {
+    "file": "proc_18.wav",
+    "name": "victory_s802",
+    "style": "victory",
+    "seed": 802
+  },
+  {
+    "file": "proc_19.wav",
+    "name": "boss_s802",
+    "style": "boss",
+    "seed": 802
+  },
+  {
+    "file": "proc_20.wav",
+    "name": "action_s802",
+    "style": "action",
+    "seed": 802
+  },
+  {
+    "file": "proc_21.wav",
+    "name": "boss_s803",
+    "style": "boss",
+    "seed": 803
+  },
+  {
+    "file": "proc_22.wav",
+    "name": "tension_s801",
+    "style": "tension",
+    "seed": 801
+  },
+  {
+    "file": "proc_23.wav",
+    "name": "tension_s800",
+    "style": "tension",
+    "seed": 800
+  },
+  {
+    "file": "proc_24.wav",
+    "name": "victory_s803",
+    "style": "victory",
+    "seed": 803
+  }
+]

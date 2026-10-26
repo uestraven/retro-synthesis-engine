@@ -1,0 +1,73 @@
+{
+  "name": "control_town_s81130",
+  "arm": "control",
+  "theme_id": null,
+  "scenario": "town",
+  "seed": 81130,
+  "attempt": 1,
+  "n_prefix_tokens": 0,
+  "n_generated_tokens": 1333,
+  "termination": "bar_limit",
+  "decode": {
+    "reconstruction": "rse-fermata-reconstruction/1.0.0",
+    "n_tokens": 1333,
+    "n_skipped": 4,
+    "n_events": 256,
+    "n_bars": 8,
+    "hit_eos": true,
+    "had_plan": true,
+    "n_events_before_first_bar": 0,
+    "implicit_first_bar": false,
+    "warnings": []
+  },
+  "arrangement": {
+    "n_events_in": 256,
+    "n_events_out": 256,
+    "retention": 1.0,
+    "n_polyphony_dropped": 0,
+    "n_polyphony_arpeggiated": 91,
+    "n_stolen_truncated": 56,
+    "n_transposed": 0,
+    "n_out_of_range_dropped": 0,
+    "n_percussion_approximated": 108,
+    "n_percussion_dropped": 0,
+    "n_tracks_merged": 0,
+    "role_assignment": {
+      "0": "accompaniment->P2",
+      "1": "melody->P1",
+      "2": "bass->TR",
+      "3": "percussion->NO"
+    },
+    "warnings": []
+  },
+  "tempo_bpm": 132.0,
+  "hardware_violations": 0,
+  "metrics": {
+    "n_events": 256,
+    "notes_per_bar": 32.0,
+    "pitch_class_entropy": 2.7561,
+    "stepwise_fraction": 0.0299,
+    "motif_note_participation": 0.8824,
+    "ioi_entropy": 2.0208,
+    "channels": [
+      "NO",
+      "P1",
+      "P2",
+      "TR"
+    ],
+    "duration_sec": 14.631
+  },
+  "development": {
+    "lead_channel": "P1",
+    "n_lead_opening": 38,
+    "n_lead_later": 30,
+    "lead_ratio": 0.7895,
+    "contour_recurrence": 0.5,
+    "identical_bars": 0,
+    "melody_notes": 68
+  },
+  "render": {
+    "clip": "clip_11.wav",
+    "piece": "piece_11.wav"
+  }
+}

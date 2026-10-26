@@ -1,0 +1,122 @@
+[
+  {
+    "file": "take_01.wav",
+    "name": "ominous_s7262",
+    "scenario": "ominous",
+    "seed": 7262
+  },
+  {
+    "file": "take_02.wav",
+    "name": "town_s15040",
+    "scenario": "town",
+    "seed": 15040
+  },
+  {
+    "file": "take_03.wav",
+    "name": "exploration_s16314",
+    "scenario": "exploration",
+    "seed": 16314
+  },
+  {
+    "file": "take_04.wav",
+    "name": "ominous_s7260",
+    "scenario": "ominous",
+    "seed": 7260
+  },
+  {
+    "file": "take_05.wav",
+    "name": "town_s15042",
+    "scenario": "town",
+    "seed": 15042
+  },
+  {
+    "file": "take_06.wav",
+    "name": "ominous_s7261",
+    "scenario": "ominous",
+    "seed": 7261
+  },
+  {
+    "file": "take_07.wav",
+    "name": "exploration_s16312",
+    "scenario": "exploration",
+    "seed": 16312
+  },
+  {
+    "file": "take_08.wav",
+    "name": "fast_rhythmic_s11032",
+    "scenario": "fast_rhythmic",
+    "seed": 11032
+  },
+  {
+    "file": "take_09.wav",
+    "name": "ominous_s7264",
+    "scenario": "ominous",
+    "seed": 7264
+  },
+  {
+    "file": "take_10.wav",
+    "name": "town_s15043",
+    "scenario": "town",
+    "seed": 15043
+  },
+  {
+    "file": "take_11.wav",
+    "name": "fast_rhythmic_s11031",
+    "scenario": "fast_rhythmic",
+    "seed": 11031
+  },
+  {
+    "file": "take_12.wav",
+    "name": "action_s13661",
+    "scenario": "action",
+    "seed": 13661
+  },
+  {
+    "file": "take_13.wav",
+    "name": "town_s15041",
+    "scenario": "town",
+    "seed": 15041
+  },
+  {
+    "file": "take_14.wav",
+    "name": "exploration_s16310",
+    "scenario": "exploration",
+    "seed": 16310
+  },
+  {
+    "file": "take_15.wav",
+    "name": "action_s13660",
+    "scenario": "action",
+    "seed": 13660
+  },
+  {
+    "file": "take_16.wav",
+    "name": "exploration_s16313",
+    "scenario": "exploration",
+    "seed": 16313
+  },
+  {
+    "file": "take_17.wav",
+    "name": "fast_rhythmic_s11033",
+    "scenario": "fast_rhythmic",
+    "seed": 11033
+  },
+  {
+    "file": "take_18.wav",
+    "name": "action_s13662",
+    "scenario": "action",
+    "seed": 13662
+  },
+  {
+    "file": "take_19.wav",
+    "name": "action_s13663",
+    "scenario": "action",
+    "seed": 13663
+  },
+  {
+    "file": "take_20.wav",
+    "name": "fast_rhythmic_s11030",
+    "scenario": "fast_rhythmic",
+    "seed": 11030
+  }
+]

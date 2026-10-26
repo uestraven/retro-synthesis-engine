@@ -1,0 +1,170 @@
+[
+  {
+    "file": "cmp_01.wav",
+    "arm": "native",
+    "name": "native_s5006",
+    "seed": 5006,
+    "scenario": null
+  },
+  {
+    "file": "cmp_02.wav",
+    "arm": "fermata",
+    "name": "fermata_fast_rhythmic_s109034",
+    "seed": 109034,
+    "scenario": "fast_rhythmic"
+  },
+  {
+    "file": "cmp_03.wav",
+    "arm": "native",
+    "name": "native_s5003",
+    "seed": 5003,
+    "scenario": null
+  },
+  {
+    "file": "cmp_04.wav",
+    "arm": "native",
+    "name": "native_s5001",
+    "seed": 5001,
+    "scenario": null
+  },
+  {
+    "file": "cmp_05.wav",
+    "arm": "native",
+    "name": "native_s5008",
+    "seed": 5008,
+    "scenario": null
+  },
+  {
+    "file": "cmp_06.wav",
+    "arm": "native",
+    "name": "native_s5005",
+    "seed": 5005,
+    "scenario": null
+  },
+  {
+    "file": "cmp_07.wav",
+    "arm": "native",
+    "name": "native_s5010",
+    "seed": 5010,
+    "scenario": null
+  },
+  {
+    "file": "cmp_08.wav",
+    "arm": "fermata",
+    "name": "fermata_sparse_s108301",
+    "seed": 108301,
+    "scenario": "sparse"
+  },
+  {
+    "file": "cmp_09.wav",
+    "arm": "fermata",
+    "name": "fermata_action_s111666",
+    "seed": 111666,
+    "scenario": "action"
+  },
+  {
+    "file": "cmp_10.wav",
+    "arm": "fermata",
+    "name": "fermata_action_s111660",
+    "seed": 111660,
+    "scenario": "action"
+  },
+  {
+    "file": "cmp_11.wav",
+    "arm": "fermata",
+    "name": "fermata_sparse_s108295",
+    "seed": 108295,
+    "scenario": "sparse"
+  },
+  {
+    "file": "cmp_12.wav",
+    "arm": "fermata",
+    "name": "fermata_ominous_s105268",
+    "seed": 105268,
+    "scenario": "ominous"
+  },
+  {
+    "file": "cmp_13.wav",
+    "arm": "native",
+    "name": "native_s5009",
+    "seed": 5009,
+    "scenario": null
+  },
+  {
+    "file": "cmp_14.wav",
+    "arm": "native",
+    "name": "native_s5004",
+    "seed": 5004,
+    "scenario": null
+  },
+  {
+    "file": "cmp_15.wav",
+    "arm": "fermata",
+    "name": "fermata_fast_rhythmic_s109040",
+    "seed": 109040,
+    "scenario": "fast_rhythmic"
+  },
+  {
+    "file": "cmp_16.wav",
+    "arm": "fermata",
+    "name": "fermata_ominous_s105262",
+    "seed": 105262,
+    "scenario": "ominous"
+  },
+  {
+    "file": "cmp_17.wav",
+    "arm": "native",
+    "name": "native_s5007",
+    "seed": 5007,
+    "scenario": null
+  },
+  {
+    "file": "cmp_18.wav",
+    "arm": "fermata",
+    "name": "fermata_exploration_s114311",
+    "seed": 114311,
+    "scenario": "exploration"
+  },
+  {
+    "file": "cmp_19.wav",
+    "arm": "fermata",
+    "name": "fermata_exploration_s114317",
+    "seed": 114317,
+    "scenario": "exploration"
+  },
+  {
+    "file": "cmp_20.wav",
+    "arm": "native",
+    "name": "native_s5011",
+    "seed": 5011,
+    "scenario": null
+  },
+  {
+    "file": "cmp_21.wav",
+    "arm": "native",
+    "name": "native_s5002",
+    "seed": 5002,
+    "scenario": null
+  },
+  {
+    "file": "cmp_22.wav",
+    "arm": "fermata",
+    "name": "fermata_town_s113043",
+    "seed": 113043,
+    "scenario": "town"
+  },
+  {
+    "file": "cmp_23.wav",
+    "arm": "fermata",
+    "name": "fermata_town_s113049",
+    "seed": 113049,
+    "scenario": "town"
+  },
+  {
+    "file": "cmp_24.wav",
+    "arm": "native",
+    "name": "native_s5000",
+    "seed": 5000,
+    "scenario": null
+  }
+]

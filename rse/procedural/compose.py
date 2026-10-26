@@ -35,6 +35,7 @@ test a design philosophy against the 60% NES-game-music pass rate.
 
 from __future__ import annotations
 
+import dataclasses
 import random
 from dataclasses import dataclass, field
 from typing import Any
@@ -756,6 +757,8 @@ def compose(
     section_bars: int = 8,
     harmonic_rhythm: str | None = None,
     vocabulary: str | None = None,
+    tempo_bpm: int | None = None,
+    tonic: int | None = None,
 ) -> ProceduralResult:
     """One complete NES piece from a style preset and a seed.
 
@@ -769,10 +772,23 @@ def compose(
     `vocabulary` is `None` for v1's progressions, `"extra"` for the Stage 2
     families only, or `"all"` for both. Also opt-in, and the v1 path draws
     from the same pool in the same order so the baseline is untouched.
+
+    `tempo_bpm` and `tonic` override the preset so a prompt can ask for a
+    tempo or a key without needing a new style. Both default to the preset's
+    own values and neither consumes the generator, so the frozen baseline is
+    unaffected: a request that names no tempo and no key composes exactly
+    what v1 composed.
     """
     if style_name not in STYLES:
         raise KeyError(f"unknown style {style_name!r}; have {sorted(STYLES)}")
     style = STYLES[style_name]
+    if tempo_bpm is not None or tonic is not None:
+        # A copy, so the shared preset is never mutated by a request.
+        style = dataclasses.replace(
+            style,
+            tempo_bpm=int(tempo_bpm) if tempo_bpm is not None else style.tempo_bpm,
+            tonic=int(tonic) if tonic is not None else style.tonic,
+        )
     rng = random.Random(seed)
     if harmonic_rhythm is None:
         rhythm = ONE_PER_BAR

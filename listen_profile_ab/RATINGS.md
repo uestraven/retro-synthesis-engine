@@ -16,8 +16,8 @@ Then: **which track is the better song overall?** `1`, `2`, or `=`
 
 | track | passes? | melody returns? | accompaniment | transitions | loop |
 |---|---|---|---|---|---|
-| track_1.wav |  |  |  |  |  |
-| track_2.wav |  |  |  |  |  |
+| track_1.wav | it passes but it would not be considered very good | the melody is not very catchy | not much accompaniment but its fine | transitions are basically a constant drum - which is fine | loop is fine |
+| track_2.wav | it passes but its very progressive | the melody switches up a bit a few times but its fine | the accompaniment does not clash | transitions are fine, slightly jarring around 30 seconds |loop is fine |
 
 **Better song overall:** 
 

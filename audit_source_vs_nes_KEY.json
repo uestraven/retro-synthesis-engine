@@ -1,0 +1,270 @@
+{
+  "pieces": [
+    {
+      "stem": "piece_E",
+      "name": "action_s13662",
+      "scenario": "action",
+      "rating": "GOOD",
+      "comment": "",
+      "selected_because": "BEST/GOOD, least arranged in its band",
+      "listening_file": "take_18.wav",
+      "tempo_bpm": 168.0,
+      "n_source_events": 111,
+      "intended_lead_index": 0,
+      "arranger_lead_index": 0,
+      "arranger_agrees_with_plan": true,
+      "implicit_first_bar": false,
+      "arrangement": {
+        "n_events_in": 111,
+        "n_events_out": 111,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 8,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 35,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "arp_pct": 0.0,
+      "stolen_pct": 7.21,
+      "events_lost": 0,
+      "files": {
+        "source_midi": "piece_E.source.mid",
+        "lead_midi": "piece_E.lead.mid",
+        "busiest_midi": null,
+        "nes_wav": "piece_E.nes.wav"
+      }
+    },
+    {
+      "stem": "piece_B",
+      "name": "fast_rhythmic_s11032",
+      "scenario": "fast_rhythmic",
+      "rating": "BEST",
+      "comment": "cool",
+      "selected_because": "BEST/GOOD, most arranged in its band",
+      "listening_file": "take_08.wav",
+      "tempo_bpm": 180.0,
+      "n_source_events": 326,
+      "intended_lead_index": 0,
+      "arranger_lead_index": 1,
+      "arranger_agrees_with_plan": false,
+      "implicit_first_bar": false,
+      "arrangement": {
+        "n_events_in": 326,
+        "n_events_out": 326,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 132,
+        "n_stolen_truncated": 71,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 154,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "arp_pct": 40.49,
+      "stolen_pct": 21.78,
+      "events_lost": 0,
+      "files": {
+        "source_midi": "piece_B.source.mid",
+        "lead_midi": "piece_B.lead.mid",
+        "busiest_midi": "piece_B.busiest.mid",
+        "nes_wav": "piece_B.nes.wav"
+      }
+    },
+    {
+      "stem": "piece_D",
+      "name": "fast_rhythmic_s11033",
+      "scenario": "fast_rhythmic",
+      "rating": "OK",
+      "comment": "has potential, too repetetive",
+      "selected_because": "OK, least arranged in its band",
+      "listening_file": "take_17.wav",
+      "tempo_bpm": 180.0,
+      "n_source_events": 196,
+      "intended_lead_index": 0,
+      "arranger_lead_index": 1,
+      "arranger_agrees_with_plan": false,
+      "implicit_first_bar": false,
+      "arrangement": {
+        "n_events_in": 196,
+        "n_events_out": 196,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 10,
+        "n_stolen_truncated": 4,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 55,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "arp_pct": 5.1,
+      "stolen_pct": 2.04,
+      "events_lost": 0,
+      "files": {
+        "source_midi": "piece_D.source.mid",
+        "lead_midi": "piece_D.lead.mid",
+        "busiest_midi": "piece_D.busiest.mid",
+        "nes_wav": "piece_D.nes.wav"
+      }
+    },
+    {
+      "stem": "piece_C",
+      "name": "exploration_s16310",
+      "scenario": "exploration",
+      "rating": "OK",
+      "comment": "has potential",
+      "selected_because": "OK, most arranged in its band",
+      "listening_file": "take_14.wav",
+      "tempo_bpm": 120.0,
+      "n_source_events": 339,
+      "intended_lead_index": 0,
+      "arranger_lead_index": 1,
+      "arranger_agrees_with_plan": false,
+      "implicit_first_bar": false,
+      "arrangement": {
+        "n_events_in": 339,
+        "n_events_out": 339,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 133,
+        "n_stolen_truncated": 78,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 112,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "arp_pct": 39.23,
+      "stolen_pct": 23.01,
+      "events_lost": 0,
+      "files": {
+        "source_midi": "piece_C.source.mid",
+        "lead_midi": "piece_C.lead.mid",
+        "busiest_midi": "piece_C.busiest.mid",
+        "nes_wav": "piece_C.nes.wav"
+      }
+    },
+    {
+      "stem": "piece_A",
+      "name": "exploration_s16314",
+      "scenario": "exploration",
+      "rating": "BAD",
+      "comment": "harmonies make no sense",
+      "selected_because": "BAD, least arranged in its band",
+      "listening_file": "take_03.wav",
+      "tempo_bpm": 120.0,
+      "n_source_events": 148,
+      "intended_lead_index": 0,
+      "arranger_lead_index": 0,
+      "arranger_agrees_with_plan": true,
+      "implicit_first_bar": false,
+      "arrangement": {
+        "n_events_in": 148,
+        "n_events_out": 148,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 32,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "arp_pct": 0.0,
+      "stolen_pct": 0.0,
+      "events_lost": 0,
+      "files": {
+        "source_midi": "piece_A.source.mid",
+        "lead_midi": "piece_A.lead.mid",
+        "busiest_midi": null,
+        "nes_wav": "piece_A.nes.wav"
+      }
+    },
+    {
+      "stem": "piece_F",
+      "name": "action_s13663",
+      "scenario": "action",
+      "rating": "BAD",
+      "comment": "",
+      "selected_because": "BAD, most arranged in its band",
+      "listening_file": "take_19.wav",
+      "tempo_bpm": 168.0,
+      "n_source_events": 199,
+      "intended_lead_index": null,
+      "arranger_lead_index": 1,
+      "arranger_agrees_with_plan": false,
+      "implicit_first_bar": true,
+      "arrangement": {
+        "n_events_in": 199,
+        "n_events_out": 199,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 90,
+        "n_stolen_truncated": 48,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 80,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 1,
+        "role_assignment": {
+          "0": "percussion->NO",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": [
+          "track 3 merged onto NO"
+        ]
+      },
+      "arp_pct": 45.23,
+      "stolen_pct": 24.12,
+      "events_lost": 0,
+      "files": {
+        "source_midi": "piece_F.source.mid",
+        "lead_midi": "piece_F.lead.mid",
+        "busiest_midi": "piece_F.busiest.mid",
+        "nes_wav": "piece_F.nes.wav"
+      }
+    }
+  ]
+}

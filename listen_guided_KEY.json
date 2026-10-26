@@ -1,0 +1,272 @@
+[
+  {
+    "clip": "clip_01.wav",
+    "piece": "piece_01.wav",
+    "arm": "control",
+    "name": "control_town_s81110",
+    "theme_id": null,
+    "scenario": "town",
+    "seed": 81110
+  },
+  {
+    "clip": "clip_02.wav",
+    "piece": "piece_02.wav",
+    "arm": "control",
+    "name": "control_ominous_s81090",
+    "theme_id": null,
+    "scenario": "ominous",
+    "seed": 81090
+  },
+  {
+    "clip": "clip_03.wav",
+    "piece": "piece_03.wav",
+    "arm": "guided",
+    "name": "guided_t4_s31400",
+    "theme_id": 4,
+    "scenario": "town",
+    "seed": 31400
+  },
+  {
+    "clip": "clip_04.wav",
+    "piece": "piece_04.wav",
+    "arm": "control",
+    "name": "control_town_s81120",
+    "theme_id": null,
+    "scenario": "town",
+    "seed": 81120
+  },
+  {
+    "clip": "clip_05.wav",
+    "piece": "piece_05.wav",
+    "arm": "guided",
+    "name": "guided_t3_s31301",
+    "theme_id": 3,
+    "scenario": "ominous",
+    "seed": 31301
+  },
+  {
+    "clip": "clip_06.wav",
+    "piece": "piece_06.wav",
+    "arm": "guided",
+    "name": "guided_t1_s31100",
+    "theme_id": 1,
+    "scenario": "fast_rhythmic",
+    "seed": 31100
+  },
+  {
+    "clip": "clip_07.wav",
+    "piece": "piece_07.wav",
+    "arm": "control",
+    "name": "control_ominous_s81070",
+    "theme_id": null,
+    "scenario": "ominous",
+    "seed": 81070
+  },
+  {
+    "clip": "clip_08.wav",
+    "piece": "piece_08.wav",
+    "arm": "guided",
+    "name": "guided_t2_s31201",
+    "theme_id": 2,
+    "scenario": "action",
+    "seed": 31201
+  },
+  {
+    "clip": "clip_09.wav",
+    "piece": "piece_09.wav",
+    "arm": "guided",
+    "name": "guided_t1_s31101",
+    "theme_id": 1,
+    "scenario": "fast_rhythmic",
+    "seed": 31101
+  },
+  {
+    "clip": "clip_10.wav",
+    "piece": "piece_10.wav",
+    "arm": "control",
+    "name": "control_fast_rhythmic_s81030",
+    "theme_id": null,
+    "scenario": "fast_rhythmic",
+    "seed": 81030
+  },
+  {
+    "clip": "clip_11.wav",
+    "piece": "piece_11.wav",
+    "arm": "control",
+    "name": "control_town_s81130",
+    "theme_id": null,
+    "scenario": "town",
+    "seed": 81130
+  },
+  {
+    "clip": "clip_12.wav",
+    "piece": "piece_12.wav",
+    "arm": "control",
+    "name": "control_action_s81040",
+    "theme_id": null,
+    "scenario": "action",
+    "seed": 81040
+  },
+  {
+    "clip": "clip_13.wav",
+    "piece": "piece_13.wav",
+    "arm": "control",
+    "name": "control_action_s81050",
+    "theme_id": null,
+    "scenario": "action",
+    "seed": 81050
+  },
+  {
+    "clip": "clip_14.wav",
+    "piece": "piece_14.wav",
+    "arm": "control",
+    "name": "control_town_s81100",
+    "theme_id": null,
+    "scenario": "town",
+    "seed": 81100
+  },
+  {
+    "clip": "clip_15.wav",
+    "piece": "piece_15.wav",
+    "arm": "guided",
+    "name": "guided_t2_s31200",
+    "theme_id": 2,
+    "scenario": "action",
+    "seed": 31200
+  },
+  {
+    "clip": "clip_16.wav",
+    "piece": "piece_16.wav",
+    "arm": "control",
+    "name": "control_town_s81150",
+    "theme_id": null,
+    "scenario": "town",
+    "seed": 81150
+  },
+  {
+    "clip": "clip_17.wav",
+    "piece": "piece_17.wav",
+    "arm": "guided",
+    "name": "guided_t5_s31500",
+    "theme_id": 5,
+    "scenario": "town",
+    "seed": 31500
+  },
+  {
+    "clip": "clip_18.wav",
+    "piece": "piece_18.wav",
+    "arm": "guided",
+    "name": "guided_t3_s31300",
+    "theme_id": 3,
+    "scenario": "ominous",
+    "seed": 31300
+  },
+  {
+    "clip": "clip_19.wav",
+    "piece": "piece_19.wav",
+    "arm": "control",
+    "name": "control_ominous_s81080",
+    "theme_id": null,
+    "scenario": "ominous",
+    "seed": 81080
+  },
+  {
+    "clip": "clip_20.wav",
+    "piece": "piece_20.wav",
+    "arm": "guided",
+    "name": "guided_t2_s31202",
+    "theme_id": 2,
+    "scenario": "action",
+    "seed": 31202
+  },
+  {
+    "clip": "clip_21.wav",
+    "piece": "piece_21.wav",
+    "arm": "control",
+    "name": "control_action_s81060",
+    "theme_id": null,
+    "scenario": "action",
+    "seed": 81060
+  },
+  {
+    "clip": "clip_22.wav",
+    "piece": "piece_22.wav",
+    "arm": "guided",
+    "name": "guided_t3_s31302",
+    "theme_id": 3,
+    "scenario": "ominous",
+    "seed": 31302
+  },
+  {
+    "clip": "clip_23.wav",
+    "piece": "piece_23.wav",
+    "arm": "guided",
+    "name": "guided_t1_s31102",
+    "theme_id": 1,
+    "scenario": "fast_rhythmic",
+    "seed": 31102
+  },
+  {
+    "clip": "clip_24.wav",
+    "piece": "piece_24.wav",
+    "arm": "guided",
+    "name": "guided_t4_s31403",
+    "theme_id": 4,
+    "scenario": "town",
+    "seed": 31403
+  },
+  {
+    "clip": "clip_25.wav",
+    "piece": "piece_25.wav",
+    "arm": "control",
+    "name": "control_town_s81140",
+    "theme_id": null,
+    "scenario": "town",
+    "seed": 81140
+  },
+  {
+    "clip": "clip_26.wav",
+    "piece": "piece_26.wav",
+    "arm": "guided",
+    "name": "guided_t5_s31503",
+    "theme_id": 5,
+    "scenario": "town",
+    "seed": 31503
+  },
+  {
+    "clip": "clip_27.wav",
+    "piece": "piece_27.wav",
+    "arm": "guided",
+    "name": "guided_t4_s31402",
+    "theme_id": 4,
+    "scenario": "town",
+    "seed": 31402
+  },
+  {
+    "clip": "clip_28.wav",
+    "piece": "piece_28.wav",
+    "arm": "guided",
+    "name": "guided_t5_s31502",
+    "theme_id": 5,
+    "scenario": "town",
+    "seed": 31502
+  },
+  {
+    "clip": "clip_29.wav",
+    "piece": "piece_29.wav",
+    "arm": "control",
+    "name": "control_fast_rhythmic_s81021",
+    "theme_id": null,
+    "scenario": "fast_rhythmic",
+    "seed": 81021
+  },
+  {
+    "clip": "clip_30.wav",
+    "piece": "piece_30.wav",
+    "arm": "control",
+    "name": "control_fast_rhythmic_s81000",
+    "theme_id": null,
+    "scenario": "fast_rhythmic",
+    "seed": 81000
+  }
+]

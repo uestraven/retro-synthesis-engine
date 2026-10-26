@@ -22,11 +22,11 @@ For each: **is there a musical idea here?** Write `YES`, `WEAK`, or
 
 | theme | idea? YES / WEAK / NO | notes |
 |---|---|---|
-| theme_01 |  |  |
-| theme_02 |  |  |
-| theme_03 |  |  |
-| theme_04 |  |  |
-| theme_05 |  |  |
+| theme_01 | YES |  |
+| theme_02 | YES | weaker than 01 but its there |
+| theme_03 | WEAK | there is a hook but its weak |
+| theme_04 | YES |  |
+| theme_05 | YES |  |
 
 Weak or absent openings stay in the experiment as diagnostic
 cases. They are not replaced -- if most openings are weak, that is

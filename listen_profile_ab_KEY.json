@@ -1,0 +1,10 @@
+[
+  {
+    "file": "track_1.wav",
+    "arm": "current"
+  },
+  {
+    "file": "track_2.wav",
+    "arm": "profile"
+  }
+]

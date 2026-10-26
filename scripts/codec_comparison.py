@@ -74,36 +74,9 @@ from rse.training.corpus import corpus_from_release
 CONTEXT_LIMIT = 2304
 
 
-def render_window(
-    composition: Composition,
-    destination: Path,
-    *,
-    profile_id: str = "nes",
-) -> Path | None:
-    """Render one window through the same renderer every comparison uses.
-
-    The same renderer for original and reconstruction on purpose: a codec
-    difference must not be confused with a synthesis difference, which is the
-    error that kept the synthesizer under suspicion for so long.
-    """
-    from rse.events.convert import composition_to_intake
-    from rse.exporters.wav import write_wav
-    from rse.hardware.constraints import ConstraintEngine
-    from rse.hardware.profile import load_profile
-    from rse.renderers.base import RenderSettings, notes_from_record
-    from rse.renderers.nes_apu import NesApuRenderer
-
-    profile = load_profile(profile_id)
-    # The same hardware repair the sampler applies, so the audio is what the
-    # console could play rather than what the codec happens to describe.
-    playable, _repair = ConstraintEngine(profile).apply(composition)
-    record = composition_to_intake(playable, profile=profile)
-    notes = notes_from_record(record)
-    if not notes:
-        return None
-    result = NesApuRenderer(profile).render(notes, RenderSettings(tail_sec=0.0))
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    return write_wav(destination, result.samples, result.sample_rate)
+# Moved into the library for the same reason as `normalise_peak`; re-exported
+# so this script and every batch built from it behave identically.
+from rse.song.audio import render_window  # noqa: E402
 
 
 @dataclass

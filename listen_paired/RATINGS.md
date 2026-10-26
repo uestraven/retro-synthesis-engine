@@ -14,7 +14,7 @@ that goes nowhere should score worse than a short one that works.
 |---|---|---|
 | take_01.wav |  |  |
 | take_02.wav |  |  |
-| take_03.wav |  |  |
+| take_03.wav | bad |  |
 | take_04.wav |  |  |
 | take_05.wav |  |  |
 | take_06.wav |  |  |
@@ -27,13 +27,13 @@ that goes nowhere should score worse than a short one that works.
 | take_13.wav |  |  |
 | take_14.wav |  |  |
 | take_15.wav |  |  |
-| take_16.wav |  |  |
+| take_16.wav | 1 | no recognizable hook |
 | take_17.wav |  |  |
 | take_18.wav |  |  |
-| take_19.wav |  |  |
+| take_19.wav | 1 | genuinely good |
 | take_20.wav |  |  |
-| take_21.wav |  |  |
-| take_22.wav |  |  |
+| take_21.wav | 1 |  |
+| take_22.wav | bad |  |
 | take_23.wav |  |  |
 | take_24.wav |  |  |
 | take_25.wav |  |  |

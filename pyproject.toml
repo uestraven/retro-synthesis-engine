@@ -28,6 +28,13 @@ ml = [
 ]
 # Phase 5 local UI.
 ui = ["gradio>=4.44"]
+# The public generation API. Deliberately light: the procedural composer needs
+# no model, so serving it needs no ML stack.
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.6",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -36,6 +43,7 @@ dev = [
 
 [project.scripts]
 rse = "rse.cli:main"
+rse-api = "rse.api.app:main"
 
 [tool.setuptools.packages.find]
 include = ["rse*"]

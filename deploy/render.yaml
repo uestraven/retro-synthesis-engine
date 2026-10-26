@@ -1,0 +1,43 @@
+# Render blueprint for the generation API.
+#
+# The wildcard bind lives HERE, not in the application's defaults. The service
+# runs inside a container whose only published port is the one Render routes
+# to, so binding every interface inside that container is how the platform
+# reaches it -- but it is a deployment decision, visible in the deployment
+# file, rather than a default that ships in the repository and silently
+# exposes anyone who runs the service on a laptop or a shared host.
+services:
+  - type: web
+    name: rse-api
+    runtime: python
+    plan: starter
+    buildCommand: pip install -e ".[api]"
+    # PORT is injected by Render; rse.api.settings honours it.
+    startCommand: uvicorn rse.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: RSE_API_HOST
+        value: 0.0.0.0
+      # Caps, set against a measured ~20 ms of CPU per rendered second.
+      # 180 s of music is ~3.6 s of CPU on one core.
+      - key: RSE_API_MAX_SECONDS
+        value: "180"
+      - key: RSE_API_MIN_SECONDS
+        value: "8"
+      # The starter plan is a fraction of a core; two concurrent renders is
+      # already more than it can do quickly.
+      - key: RSE_API_MAX_CONCURRENT
+        value: "2"
+      - key: RSE_API_RATE_PER_MINUTE
+        value: "20"
+      - key: RSE_API_RATE_BURST
+        value: "5"
+      - key: RSE_API_RETENTION_SECONDS
+        value: "1800"
+      - key: RSE_API_MAX_STORED_SONGS
+        value: "200"
+      # The public site's origin. Set this to the real frontend origin before
+      # the site goes live; empty means same-origin only, and the API refuses
+      # to guess. Never "*".
+      - key: RSE_API_ALLOWED_ORIGINS
+        sync: false

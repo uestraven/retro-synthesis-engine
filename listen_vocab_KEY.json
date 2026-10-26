@@ -1,0 +1,218 @@
+[
+  {
+    "pair": "pair_01",
+    "A": "treatment",
+    "B": "control",
+    "style": "action",
+    "seed": 1009,
+    "has_borrowed": true,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_02",
+    "A": "treatment",
+    "B": "control",
+    "style": "boss",
+    "seed": 1007,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_03",
+    "A": "control",
+    "B": "treatment",
+    "style": "boss",
+    "seed": 1006,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_04",
+    "A": "treatment",
+    "B": "control",
+    "style": "boss",
+    "seed": 1002,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_05",
+    "A": "control",
+    "B": "treatment",
+    "style": "town",
+    "seed": 1001,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_06",
+    "A": "treatment",
+    "B": "control",
+    "style": "action",
+    "seed": 1001,
+    "has_borrowed": true,
+    "flat_nine_count": 5
+  },
+  {
+    "pair": "pair_07",
+    "A": "treatment",
+    "B": "control",
+    "style": "boss",
+    "seed": 1005,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_08",
+    "A": "treatment",
+    "B": "control",
+    "style": "victory",
+    "seed": 1001,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_09",
+    "A": "treatment",
+    "B": "control",
+    "style": "action",
+    "seed": 1012,
+    "has_borrowed": true,
+    "flat_nine_count": 5
+  },
+  {
+    "pair": "pair_10",
+    "A": "treatment",
+    "B": "control",
+    "style": "action",
+    "seed": 1002,
+    "has_borrowed": true,
+    "flat_nine_count": 1
+  },
+  {
+    "pair": "pair_11",
+    "A": "control",
+    "B": "treatment",
+    "style": "action",
+    "seed": 1006,
+    "has_borrowed": true,
+    "flat_nine_count": 5
+  },
+  {
+    "pair": "pair_12",
+    "A": "control",
+    "B": "treatment",
+    "style": "action",
+    "seed": 1010,
+    "has_borrowed": true,
+    "flat_nine_count": 3
+  },
+  {
+    "pair": "pair_13",
+    "A": "control",
+    "B": "treatment",
+    "style": "action",
+    "seed": 1008,
+    "has_borrowed": true,
+    "flat_nine_count": 2
+  },
+  {
+    "pair": "pair_14",
+    "A": "control",
+    "B": "treatment",
+    "style": "tension",
+    "seed": 1001,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_15",
+    "A": "control",
+    "B": "treatment",
+    "style": "action",
+    "seed": 1007,
+    "has_borrowed": true,
+    "flat_nine_count": 2
+  },
+  {
+    "pair": "pair_16",
+    "A": "treatment",
+    "B": "control",
+    "style": "adventure",
+    "seed": 1001,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_17",
+    "A": "treatment",
+    "B": "control",
+    "style": "boss",
+    "seed": 1001,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_18",
+    "A": "control",
+    "B": "treatment",
+    "style": "action",
+    "seed": 1004,
+    "has_borrowed": true,
+    "flat_nine_count": 1
+  },
+  {
+    "pair": "pair_19",
+    "A": "treatment",
+    "B": "control",
+    "style": "action",
+    "seed": 1005,
+    "has_borrowed": true,
+    "flat_nine_count": 4
+  },
+  {
+    "pair": "pair_20",
+    "A": "control",
+    "B": "treatment",
+    "style": "boss",
+    "seed": 1003,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_21",
+    "A": "control",
+    "B": "treatment",
+    "style": "action",
+    "seed": 1003,
+    "has_borrowed": true,
+    "flat_nine_count": 1
+  },
+  {
+    "pair": "pair_22",
+    "A": "treatment",
+    "B": "control",
+    "style": "action",
+    "seed": 1011,
+    "has_borrowed": true,
+    "flat_nine_count": 1
+  },
+  {
+    "pair": "pair_23",
+    "A": "control",
+    "B": "treatment",
+    "style": "boss",
+    "seed": 1008,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  },
+  {
+    "pair": "pair_24",
+    "A": "control",
+    "B": "treatment",
+    "style": "boss",
+    "seed": 1004,
+    "has_borrowed": false,
+    "flat_nine_count": 0
+  }
+]
