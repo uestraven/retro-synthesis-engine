@@ -1,56 +1,47 @@
-# Source versus arrangement
+# Source vs NES — simple version
 
-Six compositions, each in three forms. Same music throughout -- the
-scores are rebuilt from the stored token streams, with no cleanup,
-transposition or requantisation.
+Six pieces. **Two files each.** Ignore every other file in this folder.
 
-- `*.source.mid` -- Fermata's own score, before NES conversion, at
-  its own tempo with its declared GM instruments.
-- `*.lead.mid` -- the track Fermata DECLARED as the lead (program 80).
-  In most of these pieces it carries under 17% of the notes, so it is a
-  thin line over the top rather than the tune.
-- `*.busiest.mid` -- the track the arranger picked as the melody instead,
-  where that differs. Often the voice actually carrying the material.
-- `*.nes.wav` -- the NES rendition you already rated.
+For each piece:
 
-**Play the `.mid` files through Windows' built-in GM synth** (just
-open them) and the `.wav` with the player. The timbres are not
-comparable and are not meant to be.
+1. Open `piece_X.source.mid` — this is what Fermata composed, played on normal
+   instruments.
+2. Play `piece_X.nes.wav` — this is the same music turned into NES sound.
 
-For each piece, answer the three questions **separately for the MIDI
-and the NES version** -- that contrast is the whole point:
+Then answer two things.
 
-1. **Melody** -- can you follow a tune? (yes / barely / no)
-2. **Harmony** -- does it hold together? (yes / barely / no)
-3. **Direction** -- does it go somewhere? (yes / barely / no)
+**Column 1 — which sounds more like music?** Write `MIDI`, `NES`, or `SAME`.
 
-| piece | MIDI: mel / harm / dir | NES: mel / harm / dir | notes |
+Don't worry about the instruments sounding different. Ask which one has more
+of a tune and holds together better.
+
+**Column 2 — is either one actually good?** Write `YES` or `NO`.
+
+Just your gut. A piece can be "more musical than the other one" and still be
+something you'd never use.
+
+| piece | more musical: MIDI / NES / SAME | either one good? YES / NO | notes |
 |---|---|---|---|
-| piece_E |  |  |  |
-| piece_B |  |  |  |
-| piece_D |  |  |  |
-| piece_C |  |  |  |
 | piece_A |  |  |  |
+| piece_B |  |  |  |
+| piece_C |  |  |  |
+| piece_D |  |  |  |
+| piece_E |  |  |  |
 | piece_F |  |  |  |
 
-Labels are neutral and shuffled. They carry no information about
-which piece this is, what it scored before, or how much the arranger
-changed it -- the mapping is held outside this directory until your
-answers are recorded.
+Notes are optional. Anything is useful — "no tune", "wrong notes", "too busy",
+"good until it stops".
 
-## Which voice is the tune?
+---
 
-The declared lead holds only a small share of each piece:
+That's it. The rest of this file is only why it matters; you don't need to read
+it to answer.
 
-| piece | source notes | declared lead | arranger's pick |
-|---|---|---|---|
-| piece_A | 148 | trk 0 | (same) |
-| piece_B | 326 | trk 0 | trk 1 |
-| piece_C | 339 | trk 0 | trk 1 |
-| piece_D | 196 | trk 0 | trk 1 |
-| piece_E | 111 | trk 0 | (same) |
-| piece_F | 199 | trk None | trk 1 |
+**If MIDI consistently wins**, our NES conversion is damaging good music and we
+fix the conversion.
 
-If `busiest.mid` sounds more like the melody than `lead.mid` does,
-that is worth noting -- it means Fermata is not putting the tune where
-its own track plan says it will be.
+**If they're mostly SAME and column 2 is mostly NO**, Fermata's compositions
+are the problem and we work on composition.
+
+The `.lead.mid` and `.busiest.mid` files are leftovers from a more complicated
+version of this audit. Skip them.
