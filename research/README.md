@@ -26,8 +26,14 @@ Batches, roughly in order:
 | `listen_vocab-RATINGS.md` | harmonic vocabulary, 24 pairs, no preference |
 | `listen_paired-RATINGS.md` | paired 8-vs-16-bar material |
 | `listen_prompt_to_song-README.md` | the first complete Prompt-to-Song track |
+| `listen_tempo-RATINGS.md` | tempo snapped to the NES frame grid — accepted |
 
-Two results worth not re-deriving: the quality measure is **"would this pass as
+A third: tempo on this hardware is a **frame count**, not a BPM. The console
+advances a tracker row every whole video frame, so only a ladder of tempos
+exists (180.30, 150.25, 128.78, 112.69, 100.16, 90.15 …). Four of the six
+presets had asked for tempos no NES could play.
+
+Two more results worth not re-deriving: the quality measure is **"would this pass as
 NES game music"** (60%), not "is this good" (25%) — the wrong question
 understated the system for weeks. And harmony expansion is **closed**: 48 pairs
 across two experiments returned zero preference.

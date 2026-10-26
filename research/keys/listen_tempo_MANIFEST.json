@@ -1,0 +1,104 @@
+{
+  "action": {
+    "old": {
+      "bpm": 168,
+      "bars": 40,
+      "sections": 5,
+      "seconds": 57.14,
+      "file": "action_A_old_168bpm.wav"
+    },
+    "new": {
+      "bpm": 180.3,
+      "bars": 48,
+      "sections": 6,
+      "seconds": 63.89,
+      "file": "action_B_new_180bpm.wav"
+    },
+    "frames_per_row": 5
+  },
+  "adventure": {
+    "old": {
+      "bpm": 137,
+      "bars": 32,
+      "sections": 4,
+      "seconds": 56.06,
+      "file": "adventure_A_old_137bpm.wav"
+    },
+    "new": {
+      "bpm": 128.78,
+      "bars": 32,
+      "sections": 4,
+      "seconds": 59.64,
+      "file": "adventure_B_new_129bpm.wav"
+    },
+    "frames_per_row": 7
+  },
+  "boss": {
+    "old": {
+      "bpm": 150,
+      "bars": 40,
+      "sections": 5,
+      "seconds": 64.0,
+      "file": "boss_A_old_150bpm.wav"
+    },
+    "new": {
+      "bpm": 150.25,
+      "bars": 40,
+      "sections": 5,
+      "seconds": 63.89,
+      "file": "boss_B_new_150bpm.wav"
+    },
+    "frames_per_row": 6
+  },
+  "tension": {
+    "old": {
+      "bpm": 104,
+      "bars": 24,
+      "sections": 3,
+      "seconds": 55.38,
+      "file": "tension_A_old_104bpm.wav"
+    },
+    "new": {
+      "bpm": 100.16,
+      "bars": 24,
+      "sections": 3,
+      "seconds": 57.51,
+      "file": "tension_B_new_100bpm.wav"
+    },
+    "frames_per_row": 9
+  },
+  "town": {
+    "old": {
+      "bpm": 128,
+      "bars": 32,
+      "sections": 4,
+      "seconds": 60.0,
+      "file": "town_A_old_128bpm.wav"
+    },
+    "new": {
+      "bpm": 128.78,
+      "bars": 32,
+      "sections": 4,
+      "seconds": 59.64,
+      "file": "town_B_new_129bpm.wav"
+    },
+    "frames_per_row": 7
+  },
+  "victory": {
+    "old": {
+      "bpm": 144,
+      "bars": 32,
+      "sections": 4,
+      "seconds": 53.33,
+      "file": "victory_A_old_144bpm.wav"
+    },
+    "new": {
+      "bpm": 150.25,
+      "bars": 40,
+      "sections": 5,
+      "seconds": 63.89,
+      "file": "victory_B_new_150bpm.wav"
+    },
+    "frames_per_row": 6
+  }
+}

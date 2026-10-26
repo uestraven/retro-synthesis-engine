@@ -240,13 +240,17 @@ def test_tempo_control_reaches_the_composer(client: TestClient) -> None:
     reported "the prompt named no tempo"."""
     slow = generate(client, prompt=PROMPT, tempo_bpm=90, seed=7)
     fast = generate(client, prompt=PROMPT, tempo_bpm=180, seed=7)
-    assert slow["tempo_bpm"] == 90
-    assert fast["tempo_bpm"] == 180
+    # Snapped to the NES frame grid: 90 -> 90.15 (10 frames), 180 -> 180.30 (5).
+    assert slow["tempo_bpm"] == pytest.approx(90.15, abs=0.01)
+    assert fast["tempo_bpm"] == pytest.approx(180.30, abs=0.01)
+    assert (slow["frames_per_row"], fast["frames_per_row"]) == (10, 5)
     # The composer fits the requested duration and varies the bar count, so
     # tempo shows up in the bars rather than the seconds. Checking the seconds
     # would pass whether or not the tempo arrived.
     assert fast["bars"] > slow["bars"]
-    assert any("chosen directly" in note for note in slow["notes"])
+    # The note must name the frame count, which is what actually changed.
+    assert any("frames per tracker row" in note for note in slow["notes"])
+    assert any("overrides" in note for note in slow["notes"])
 
 
 def test_an_explicit_tempo_is_not_called_absent(client: TestClient) -> None:
@@ -254,8 +258,12 @@ def test_an_explicit_tempo_is_not_called_absent(client: TestClient) -> None:
     named one."""
     body = generate(client, prompt=PROMPT, tempo_bpm=90, seed=7)
     assert not any("named no tempo" in note for note in body["notes"])
-    satisfied = {item["text"] for item in body["requirements"]["satisfied"]}
-    assert "tempo 90 BPM" in satisfied
+    stated = {
+        item["text"]
+        for bucket in body["requirements"].values()
+        for item in bucket
+    }
+    assert "tempo 90 BPM" in stated
 
 
 def test_a_preset_tempo_request_is_not_reported_as_an_override(
@@ -263,7 +271,7 @@ def test_a_preset_tempo_request_is_not_reported_as_an_override(
 ) -> None:
     """Asking for exactly what the preset already does is not an override."""
     body = generate(client, prompt=PROMPT, tempo_bpm=150, seed=7)
-    assert body["tempo_bpm"] == 150
+    assert body["tempo_bpm"] == pytest.approx(150.25, abs=0.01)
     assert not any("overriding" in note for note in body["notes"])
 
 

@@ -65,6 +65,11 @@ TICKS_PER_BEAT = 480
 TICKS_PER_ROW = TICKS_PER_BEAT // ROWS_PER_BEAT
 TICKS_PER_BAR = TICKS_PER_ROW * ROWS_PER_BAR
 
+#: Tempo is a frame count on this hardware, not a free-running BPM.
+#: See rse/hardware/tempo.py for why the reachable tempos are a ladder.
+from rse.hardware.tempo import NTSC_FRAME_RATE  # noqa: E402
+from rse.hardware.tempo import snap as snap_tempo  # noqa: E402
+
 #: NES pitch range the hardware profile accepts.
 PITCH_MIN, PITCH_MAX = 33, 108
 
@@ -137,11 +142,23 @@ RHYTHMS: dict[str, HarmonicRhythm] = {
 
 @dataclass
 class Style:
-    """A preset: what the rules are allowed to choose from."""
+    """A preset: what the rules are allowed to choose from.
+
+    `tempo_bpm` is snapped to the NES frame grid in `__post_init__`, so a
+    preset cannot hold a tempo the console could not play and the value the
+    report shows is always the value the music uses. Four of the six presets
+    were off the grid -- `action` asked for 168 BPM, which is 5.37 frames per
+    row -- and because every layer downstream agreed with that float, nothing
+    noticed.
+
+    Snapping here rather than at render time is deliberate: `dataclasses.replace`
+    runs `__post_init__`, so a tempo override from a prompt or a slider lands on
+    the grid by the same path as a preset.
+    """
 
     name: str
     mode: str
-    tempo_bpm: int
+    tempo_bpm: float
     #: Candidate progressions as scale-degree indices, one chord per bar.
     progressions: tuple[tuple[int, ...], ...]
     #: Rows per melody note, sampled per phrase. Smaller is busier.
@@ -160,12 +177,32 @@ class Style:
     #: Harmonic rhythms this style may use when variety is requested. The
     #: default stays one-per-bar so v1 output is unchanged.
     rhythms: tuple[str, ...] = ("one_per_bar",)
+    #: Frames per tracker row, the hardware's own tempo unit. Derived from
+    #: `tempo_bpm` by snapping, and the authority for what actually plays.
+    frames_per_row: int = 0
+
+    def __post_init__(self) -> None:
+        # Full precision kept internally and rounded only for display. Storing
+        # the rounded BPM and then deriving the tempo map from it put the
+        # playback 7 microseconds a beat off the frame count it claimed --
+        # inaudible, but it meant `frames_per_row` was not quite what played,
+        # which defeats the point of making it the source of truth.
+        tempo = snap_tempo(self.tempo_bpm)
+        object.__setattr__(self, "frames_per_row", tempo.frames_per_row)
+        object.__setattr__(self, "tempo_bpm", tempo.bpm)
+
+    @property
+    def row_sec(self) -> float:
+        """One tracker row, in seconds. What the driver would wait."""
+        return self.frames_per_row / NTSC_FRAME_RATE
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "mode": self.mode,
-            "tempo_bpm": self.tempo_bpm,
+            "tempo_bpm": round(self.tempo_bpm, 2),
+            "frames_per_row": self.frames_per_row,
+            "row_ms": round(self.row_sec * 1000, 3),
             "harmony_style": self.harmony_style,
             "hat_every": self.hat_every,
             "backbeat": self.backbeat,
@@ -867,8 +904,14 @@ def compose(
     composition = Composition(
         hardware_profile="nes", ticks_per_beat=TICKS_PER_BEAT, events=events
     )
+    # Microseconds per beat from the FRAME COUNT, not from the BPM. A beat is
+    # `rows_per_beat * frames_per_row` video frames, and that is the quantity
+    # the console actually counts.
     composition.tempo_map = [
-        TempoChange(0, int(round(60_000_000 / style.tempo_bpm)))
+        TempoChange(
+            0,
+            int(round(ROWS_PER_BEAT * style.frames_per_row / NTSC_FRAME_RATE * 1e6)),
+        )
     ]
     composition.time_signatures = [TimeSignatureChange(0, 4, 4)]
     composition.loop_start_tick = 0

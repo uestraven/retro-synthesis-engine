@@ -172,8 +172,8 @@ def select(plan: Any) -> Selection:
             chosen.tempo_bpm = int(plan.tempo_bpm)
         else:
             chosen.notes.append(
-                f"kept the preset tempo {preset.tempo_bpm} BPM; the prompt "
-                "named no tempo or energy"
+                f"kept the preset tempo {preset.tempo_bpm:.2f} BPM; the "
+                "prompt named no tempo or energy"
             )
 
     if plan.key_root:

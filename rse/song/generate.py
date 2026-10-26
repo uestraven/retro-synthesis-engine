@@ -24,6 +24,7 @@ from rse.analysis.restatement import ticks_per_bar
 from rse.events.schema import Composition
 from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import load_profile
+from rse.hardware.tempo import snap as snap_tempo
 from rse.prompt.interpret import Requirement, SongPlan, interpret
 from rse.song.audio import PEAK_DBFS, normalise_peak, render_window
 from rse.song.loopcheck import check as loop_check
@@ -182,6 +183,7 @@ def compose_song(
     section_bars: int = SECTION_BARS,
     style: str | None = None,
     tempo_bpm: int | None = None,
+    tempo_from_prompt: bool = True,
 ) -> SongResult:
     """Interpreted prompt in, complete NES composition out.
 
@@ -194,6 +196,12 @@ def compose_song(
     `style` overrides selection for a caller that offers a style control. It is
     recorded as the reason, so a chosen style and an inferred one stay
     distinguishable in the report.
+
+    `tempo_from_prompt` says whether `plan.energy` was set by the prompt or by
+    a caller's control. It matters because `select()` reads a non-empty energy
+    as proof that the prompt's tempo was requested, which is true of the
+    interpreter and false of an energy slider. Defaults to True so existing
+    callers, which only ever pass an interpreted plan, behave as before.
 
     `tempo_bpm` bypasses selection entirely, and must. `select()` discards a
     tempo unless the prompt also carried an energy word or a literal "bpm",
@@ -223,19 +231,46 @@ def compose_song(
         selection.matched_on = "explicit"
     selection.section_bars = section_bars
 
+    if not tempo_from_prompt and tempo_bpm is None and selection.tempo_bpm:
+        # `select()` applies the prompt's tempo only when the prompt carried an
+        # energy word, on the reasoning that such a tempo was asked for. That
+        # reasoning is sound and this caller broke it: setting `plan.energy`
+        # from an energy SLIDER forges the signal, so the interpreter's
+        # unrequested default of 120 BPM looked like a request and overrode
+        # every preset. A boss theme asked for at "style default" played
+        # 112.69 BPM instead of 150.25 -- neither the preset nor the 120.
+        selection.notes.append(
+            f"kept the {selection.style!r} preset tempo; the energy control "
+            "chose the style, and no tempo was asked for"
+        )
+        selection.tempo_bpm = None
+
     chosen_tempo = selection.tempo_bpm
     if tempo_bpm is not None:
         chosen_tempo = int(tempo_bpm)
-        preset = STYLES[selection.style].tempo_bpm
         selection.tempo_bpm = chosen_tempo
         # Drop the inference note, which would otherwise contradict the music.
         selection.notes = [
             note for note in selection.notes if "kept the preset tempo" not in note
         ]
-        if chosen_tempo != preset:
+
+    # One place reports the snap, whichever route the tempo arrived by. It was
+    # only reported on the caller's route at first, so a tempo the PROMPT asked
+    # for -- "a battle theme at 200 bpm" -- was snapped to 180.30 in silence.
+    # Any tempo not on the frame grid is changed, so every route has to say so.
+    if chosen_tempo:
+        preset = STYLES[selection.style].tempo_bpm
+        played = snap_tempo(chosen_tempo)
+        if abs(played.bpm - chosen_tempo) > 0.01:
             selection.notes.append(
-                f"tempo {chosen_tempo} BPM chosen directly, overriding the "
-                f"{selection.style!r} preset's {preset} BPM"
+                f"tempo {chosen_tempo} BPM is not playable on NES hardware; "
+                f"snapped to {played.bpm:.2f} BPM "
+                f"({played.frames_per_row} frames per tracker row)"
+            )
+        if abs(played.bpm - preset) > 0.01:
+            selection.notes.append(
+                f"tempo {played.bpm:.2f} BPM overrides the "
+                f"{selection.style!r} preset's {preset:.2f} BPM"
             )
 
     _restate_for_procedural(plan, selection)
@@ -267,6 +302,8 @@ def compose_song(
         "total_bars": end // ticks_per_bar(),
         "duration_sec": round(composition.time.seconds(end), 3),
         "tempo_bpm": result.style.tempo_bpm,
+        "frames_per_row": result.style.frames_per_row,
+        "row_ms": round(result.style.row_sec * 1000, 3),
         "mode": result.style.mode,
         "tonic": result.style.tonic,
         "sections": [
@@ -316,6 +353,14 @@ def generate_song(
     throws guessed tempos away.
     """
     plan = interpret(prompt)
+    # Read before anything overrides it. The prompt asked for a tempo if it
+    # carried an energy word (which sets `energy`) OR named a literal BPM
+    # (which does not) -- the same two signals `select()` itself uses. Testing
+    # only for energy dropped "a battle theme at 200 bpm" on the floor.
+    tempo_from_prompt = bool(plan.energy) or any(
+        requirement.text.lower().endswith("bpm")
+        for requirement in plan.requirements
+    )
     for name, value, incoming in (
         ("target_seconds", plan.target_seconds, target_seconds),
         ("loop", plan.loop, loop),
@@ -332,11 +377,17 @@ def generate_song(
             )
         )
     if tempo_bpm is not None and tempo_bpm != plan.tempo_bpm:
+        played = snap_tempo(tempo_bpm)
+        exact = abs(played.bpm - tempo_bpm) <= 0.01
         plan.requirements.append(
             Requirement(
                 f"tempo {tempo_bpm} BPM",
-                "satisfied",
-                "requested directly; the composer took it",
+                "satisfied" if exact else "approximated",
+                "requested directly; the composer took it"
+                if exact
+                else f"the NES advances a tracker row on a whole video frame, "
+                f"so {tempo_bpm} BPM is not playable; the nearest that is, "
+                f"{played.bpm:.2f} BPM, was used",
             )
         )
     return compose_song(
@@ -345,6 +396,7 @@ def generate_song(
         section_bars=section_bars,
         style=style,
         tempo_bpm=tempo_bpm,
+        tempo_from_prompt=tempo_from_prompt,
     )
 
 

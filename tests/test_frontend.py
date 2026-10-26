@@ -108,23 +108,40 @@ def test_the_page_does_not_hard_code_the_console_list(source: str) -> None:
     assert "console_.available" in source
 
 
-def test_the_tempo_slider_can_reach_its_style_default(source: str) -> None:
+def test_the_tempo_slider_starts_at_style_default(source: str) -> None:
     """The defect a browser found.
 
-    The auto position is one step below the real tempo floor. With `min="60"`
-    in the markup the browser clamps the initial value up to 60 at parse time,
-    so the auto position was unreachable and a slider nobody touched silently
-    overrode every preset's tempo with 60 BPM.
+    `min` and `value` must both be set in the MARKUP. Setting `min` from
+    script lets the browser clamp the initial value first, which made the
+    auto position unreachable and silently forced every song to the slider's
+    floor -- a control nobody touched overriding every preset.
     """
     tempo = re.search(r'<input type="range" id="tempo"[^>]*>', source)
     assert tempo, "tempo slider not found"
     tag = tempo.group(0)
     minimum = int(re.search(r'min="(\d+)"', tag).group(1))
     value = int(re.search(r'value="(\d+)"', tag).group(1))
-    assert minimum < 60, "the auto position must be below the tempo floor"
+    assert minimum == 0, "index 0 is the style-default position"
     assert value == minimum, "the slider must start at the auto position"
-    # And the request must omit tempo entirely when it sits there.
-    assert "if (tempo >= 60) request.tempo_bpm = tempo" in source
+    # At index 0 no tempo is sent, so the preset keeps its own.
+    assert "if (index > 0 && TEMPO_LADDER[index - 1])" in source
+
+
+def test_the_tempo_slider_indexes_the_hardware_ladder(source: str) -> None:
+    """A free BPM dial offers tempos no NES can play. The slider must index
+    the ladder the server reports, and hold no copy of it."""
+    assert "caps.tempo_ladder" in source
+    assert "TEMPO_LADDER" in source
+    # No hard-coded rung: 150.25 and friends come from the server.
+    for rung in ("180.3", "150.25", "128.78", "100.16"):
+        assert rung not in source, f"{rung} is hard-coded in the page"
+
+
+def test_the_page_shows_the_frame_count(source: str) -> None:
+    """Showing frames/row is what makes the uneven BPM numbers legible rather
+    than looking like a rounding bug."""
+    assert "frames_per_row" in source
+    assert "frames per tracker row" in source
 
 
 def test_the_duration_slider_is_bounded_by_the_server(source: str) -> None:

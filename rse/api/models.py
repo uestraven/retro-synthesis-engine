@@ -131,7 +131,10 @@ class GenerateResponse(BaseModel):
     duration_sec: float
     requested_seconds: float
     duration_within_tolerance: bool
-    tempo_bpm: int
+    tempo_bpm: float
+    #: The hardware's own tempo unit. Sent so the page can show that the
+    #: number is a tempo a console could actually produce.
+    frames_per_row: int
     mode: str
     bars: int
     form: list[str]
@@ -150,8 +153,25 @@ class GenerateResponse(BaseModel):
 class StyleInfo(BaseModel):
     name: str
     label: str
-    tempo_bpm: int
+    tempo_bpm: float
+    #: The hardware's own tempo unit. Sent so the page can show that the
+    #: number is a tempo a console could actually produce.
+    frames_per_row: int
     mode: str
+
+
+class TempoStep(BaseModel):
+    """One rung of the tempo ladder the NES can actually play.
+
+    The console advances a tracker row every integer number of video frames,
+    so tempo is a discrete ladder rather than a dial. Sent to the page so its
+    slider snaps to the grid instead of offering tempos no console could
+    produce -- `action` used to ask for 168 BPM, which is 5.37 frames a row.
+    """
+
+    frames_per_row: int
+    bpm: float
+    row_ms: float
 
 
 class CapabilitiesResponse(BaseModel):
@@ -165,3 +185,6 @@ class CapabilitiesResponse(BaseModel):
     default_seconds: float
     formats: list[str]
     engine: str = "procedural"
+    #: Every playable tempo, so the page's slider snaps to the hardware grid
+    #: instead of offering BPM values no console could output.
+    tempo_ladder: list[TempoStep] = Field(default_factory=list)

@@ -41,6 +41,7 @@ from rse.api.models import (
     GenerateResponse,
     SongLinks,
     StyleInfo,
+    TempoStep,
     energy_from_percent,
 )
 from rse.api.settings import Settings
@@ -166,6 +167,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/capabilities", response_model=CapabilitiesResponse)
     def capabilities() -> CapabilitiesResponse:
         """Read from the engine, so the frontend cannot drift from it."""
+        from rse.hardware.tempo import ladder as tempo_ladder
         from rse.procedural.compose import STYLES
 
         return CapabilitiesResponse(
@@ -174,6 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     name=name,
                     label=STYLE_LABELS.get(name, name.title()),
                     tempo_bpm=style.tempo_bpm,
+                    frames_per_row=style.frames_per_row,
                     mode=style.mode,
                 )
                 for name, style in sorted(STYLES.items())
@@ -186,6 +189,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # image, and advertising a format the server cannot write would
             # put a dead download button on the page.
             formats=["wav", "mid"],
+            tempo_ladder=[TempoStep(**step.to_dict()) for step in tempo_ladder()],
         )
 
     @app.post("/api/generate", response_model=GenerateResponse)
@@ -275,6 +279,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             requested_seconds=payload["requested_seconds"],
             duration_within_tolerance=payload["duration_within_tolerance"],
             tempo_bpm=meta["tempo_bpm"],
+            frames_per_row=meta["frames_per_row"],
             mode=meta["mode"],
             bars=meta["total_bars"],
             form=meta["form"],

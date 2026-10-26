@@ -24,6 +24,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Retro Synthesis Engine</title>
+<!-- Empty data URI: stops the browser requesting /favicon.ico and logging a
+     404 that looks like a real failure in the console. -->
+<link rel="icon" href="data:,">
 <style>
   :root {
     --bg: #11121a; --panel: #1b1d2a; --edge: #2e3147;
@@ -156,16 +159,19 @@
         <div class="field">
           <label for="tempo">Tempo <span class="val" id="tempoVal">style default</span></label>
           <!--
-            The left-most notch is "use the style's own tempo", and `min` must
-            be 59 in the MARKUP, not set later from script. With min="60" the
-            browser clamps the initial value up to 60 at parse time, so the
-            auto position became unreachable and every generation silently
-            forced 60 BPM -- a slider nobody moved was overriding the preset.
+            This slider indexes the TEMPO LADDER, not BPM. The NES advances a
+            tracker row every whole video frame, so only a discrete set of
+            tempos exists; a free BPM dial offers values no console could play
+            and 168 BPM was 5.37 frames a row. Position 0 is "use the style's
+            own tempo" and must be both `min` and `value` in the markup --
+            setting `min` from script lets the browser clamp the initial value
+            first, which once made the auto position unreachable and silently
+            forced every song to the slider's floor.
           -->
-          <input type="range" id="tempo" min="59" max="220" step="1" value="59">
-          <div class="ends"><span>style default</span><span>220 BPM</span></div>
-          <div class="hint">Left-most keeps the style's own tempo, which is part
-            of what makes it that style.</div>
+          <input type="range" id="tempo" min="0" max="1" step="1" value="0">
+          <div class="ends"><span>style default</span><span id="tempoFast">faster</span></div>
+          <div class="hint" id="tempoHint">Left-most keeps the style's own
+            tempo, which is part of what makes it that style.</div>
         </div>
       </div>
       <div class="field check">
@@ -227,9 +233,23 @@ async function loadCapabilities() {
   for (const style of caps.styles) {
     const option = document.createElement("option");
     option.value = style.name;
-    option.textContent = `${style.label} — ${style.tempo_bpm} BPM, ${style.mode.replace(/_/g, " ")}`;
+    option.textContent =
+      `${style.label} — ${style.tempo_bpm.toFixed(2)} BPM, ` +
+      `${style.mode.replace(/_/g, " ")}`;
     styles.append(option);
   }
+
+  // Slowest first, so the slider moves left-to-right slow-to-fast.
+  TEMPO_LADDER = (caps.tempo_ladder || [])
+    .slice()
+    .sort((a, b) => a.bpm - b.bpm);
+  const tempo = el("tempo");
+  tempo.max = TEMPO_LADDER.length;
+  tempo.value = 0;
+  el("tempoFast").textContent = TEMPO_LADDER.length
+    ? TEMPO_LADDER[TEMPO_LADDER.length - 1].bpm.toFixed(0) + " BPM"
+    : "faster";
+  showTempo();
 
   const duration = el("duration");
   duration.min = caps.min_seconds;
@@ -264,14 +284,33 @@ async function loadCapabilities() {
 const showDuration = () => { el("durationVal").textContent = el("duration").value + " s"; };
 el("duration").oninput = showDuration;
 el("energy").oninput = () => { el("energyVal").textContent = el("energy").value + "%"; };
-el("tempo").oninput = () => {
-  const value = Number(el("tempo").value);
-  el("tempoVal").textContent = value < 60 ? "style default" : value + " BPM";
-};
+// Filled from /api/capabilities: the tempos the hardware can actually play,
+// slowest first so the slider reads left-to-right as slow-to-fast. Index 0 is
+// reserved for "style default".
+let TEMPO_LADDER = [];
+
+function showTempo() {
+  const index = Number(el("tempo").value);
+  if (index === 0 || !TEMPO_LADDER.length) {
+    el("tempoVal").textContent = "style default";
+    el("tempoHint").textContent =
+      "Left-most keeps the style's own tempo, which is part of what makes it" +
+      " that style.";
+    return;
+  }
+  const step = TEMPO_LADDER[index - 1];
+  el("tempoVal").textContent = step.bpm.toFixed(2) + " BPM";
+  // Say why the numbers are uneven, so they do not look like a bug.
+  el("tempoHint").textContent =
+    `${step.frames_per_row} frames per tracker row (${step.row_ms.toFixed(1)}` +
+    ` ms). The NES advances a row on a whole video frame, so these are the` +
+    ` only tempos it can play.`;
+}
+el("tempo").oninput = showTempo;
 el("clearSeed").onclick = () => { el("seed").value = ""; };
 
 function body() {
-  const tempo = Number(el("tempo").value);
+  const index = Number(el("tempo").value);
   const seed = el("seed").value.trim();
   const request = {
     prompt: el("prompt").value.trim() || el("prompt").placeholder.trim(),
@@ -281,7 +320,12 @@ function body() {
     loop: el("loop").checked,
   };
   if (el("style").value) request.style = el("style").value;
-  if (tempo >= 60) request.tempo_bpm = tempo;
+  // Index 0 means "style default", so no tempo is sent at all and the preset
+  // keeps its own. Any other position sends a tempo already on the ladder, so
+  // the server has nothing to snap.
+  if (index > 0 && TEMPO_LADDER[index - 1]) {
+    request.tempo_bpm = Math.round(TEMPO_LADDER[index - 1].bpm);
+  }
   if (seed !== "") request.seed = Number(seed);
   return request;
 }
@@ -306,7 +350,8 @@ function render(song) {
   el("facts").innerHTML = [
     ["style", song.style],
     ["why", song.style_reason],
-    ["tempo", song.tempo_bpm + " BPM"],
+    ["tempo", `${song.tempo_bpm.toFixed(2)} BPM`],
+    ["frames/row", String(song.frames_per_row)],
     ["key", song.mode.replace(/_/g, " ")],
     ["form", song.form.join("-")],
     ["length", song.duration_sec.toFixed(1) + " s / " + song.bars + " bars"],
