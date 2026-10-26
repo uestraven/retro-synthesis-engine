@@ -9,28 +9,28 @@ which system produced it. Filenames carry none either.
 
 | file | rating | weakness / comment |
 |---|---|---|
-| cmp_01.wav |  |  |
-| cmp_02.wav |  |  |
-| cmp_03.wav |  |  |
-| cmp_04.wav |  |  |
-| cmp_05.wav |  |  |
-| cmp_06.wav |  |  |
-| cmp_07.wav |  |  |
-| cmp_08.wav |  |  |
-| cmp_09.wav |  |  |
-| cmp_10.wav |  |  |
-| cmp_11.wav |  |  |
-| cmp_12.wav |  |  |
-| cmp_13.wav |  |  |
-| cmp_14.wav |  |  |
-| cmp_15.wav |  |  |
-| cmp_16.wav |  |  |
-| cmp_17.wav |  |  |
-| cmp_18.wav |  |  |
-| cmp_19.wav |  |  |
-| cmp_20.wav |  |  |
-| cmp_21.wav |  |  |
-| cmp_22.wav |  |  |
-| cmp_23.wav |  |  |
-| cmp_24.wav |  |  |
+| cmp_01.wav |  | random repeating notes. not musical |
+| cmp_02.wav |  | not bad |
+| cmp_03.wav |  | chords being played but no musical direction |
+| cmp_04.wav |  | repetative pulsing. not musical |
+| cmp_05.wav |  | random notes being played |
+| cmp_06.wav |  | beeping. not musical |
+| cmp_07.wav |  | more random repeating notes |
+| cmp_08.wav |  | chaotic arpeggios. not musical |
+| cmp_09.wav |  | not bad but could be more harmonic |
+| cmp_10.wav |  | could use more musical direction |
+| cmp_11.wav |  | random notes. not musical |
+| cmp_12.wav |  | slightly musical but still random and unpleasant |
+| cmp_13.wav |  | repeating notes |
+| cmp_14.wav |  | random notes. not musical |
+| cmp_15.wav |  | not bad. could be better |
+| cmp_16.wav |  | too fast. too chaotic |
+| cmp_17.wav |  | random notes |
+| cmp_18.wav |  | random chaotic |
+| cmp_19.wav |  | bad but has potential |
+| cmp_20.wav |  | repeating notes |
+| cmp_21.wav |  | not bad but repetative |
+| cmp_22.wav |  | sloppy |
+| cmp_23.wav |  | not bad. actual arpeggios |
+| cmp_24.wav |  | random notes |
 

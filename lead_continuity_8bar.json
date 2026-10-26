@@ -1,0 +1,2127 @@
+{
+  "bars": 8,
+  "ngram": 4,
+  "source": "architecture_comparison.json",
+  "intended_lead_program": 80,
+  "n_pieces": 12,
+  "n_reproduced": 12,
+  "reproduction_mismatches": [],
+  "pieces": [
+    {
+      "name": "fermata_action_s111660",
+      "scenario": "action",
+      "seed": 111660,
+      "reproduced": true,
+      "n_events_recorded": 229,
+      "n_events_rebuilt": 229,
+      "intended_lead_role": "accompaniment",
+      "arrangement": {
+        "n_events_in": 229,
+        "n_events_out": 229,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 15,
+        "n_stolen_truncated": 30,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 44,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 1,
+        "arranger_agrees_with_plan": false,
+        "role_assignment": {
+          "0": "accompaniment",
+          "1": "melody",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 40,
+            "n_percussion": 0,
+            "mean_pitch": 67.12,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 3,
+            "n_percussion": 0,
+            "mean_pitch": 70.33,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 111,
+            "n_percussion": 0,
+            "mean_pitch": 42.45,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 75,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 40,
+        "lead_notes_per_bar": [
+          2,
+          5,
+          3,
+          8,
+          7,
+          5,
+          4,
+          6
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 18,
+        "lead_second_half": 22,
+        "lead_half_ratio": 1.2222,
+        "lead_sounding_fraction": 0.6094,
+        "lead_contour_recurrence": 0.2222222222222222,
+        "lead_distinct_contour_ngrams": 17
+      },
+      "after": {
+        "P1": {
+          "n_events": 3,
+          "per_bar": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3
+          ],
+          "silent_bars": 7,
+          "longest_silent_bars": 7,
+          "first_half": 0,
+          "second_half": 3,
+          "half_ratio": null,
+          "sounding_fraction": 0.1445,
+          "contour_recurrence": null
+        },
+        "P2": {
+          "n_events": 40,
+          "per_bar": [
+            2,
+            5,
+            1,
+            7,
+            7,
+            4,
+            6,
+            2
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 15,
+          "second_half": 19,
+          "half_ratio": 1.2667,
+          "sounding_fraction": 0.6777,
+          "contour_recurrence": 0.2222222222222222
+        },
+        "TR": {
+          "n_events": 111,
+          "per_bar": [
+            12,
+            10,
+            10,
+            12,
+            11,
+            12,
+            12,
+            16
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 44,
+          "second_half": 51,
+          "half_ratio": 1.1591,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 0.6
+        },
+        "NO": {
+          "n_events": 75,
+          "per_bar": [
+            9,
+            8,
+            7,
+            8,
+            8,
+            8,
+            8,
+            10
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 32,
+          "second_half": 34,
+          "half_ratio": 1.0625,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_exploration_s114311",
+      "scenario": "exploration",
+      "seed": 114311,
+      "reproduced": true,
+      "n_events_recorded": 173,
+      "n_events_rebuilt": 173,
+      "intended_lead_role": "accompaniment",
+      "arrangement": {
+        "n_events_in": 173,
+        "n_events_out": 173,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 16,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 1,
+        "arranger_agrees_with_plan": false,
+        "role_assignment": {
+          "0": "accompaniment",
+          "1": "melody",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 64,
+            "n_percussion": 0,
+            "mean_pitch": 63.98,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 13,
+            "n_percussion": 0,
+            "mean_pitch": 73.92,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 64,
+            "n_percussion": 0,
+            "mean_pitch": 37.38,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 32,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 64,
+        "lead_notes_per_bar": [
+          9,
+          9,
+          9,
+          1,
+          9,
+          9,
+          9,
+          9
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 28,
+        "lead_second_half": 36,
+        "lead_half_ratio": 1.2857,
+        "lead_sounding_fraction": 0.8359,
+        "lead_contour_recurrence": 1.0,
+        "lead_distinct_contour_ngrams": 10
+      },
+      "after": {
+        "P1": {
+          "n_events": 13,
+          "per_bar": [
+            2,
+            2,
+            2,
+            4,
+            1,
+            2,
+            0,
+            0
+          ],
+          "silent_bars": 2,
+          "longest_silent_bars": 2,
+          "first_half": 10,
+          "second_half": 3,
+          "half_ratio": 0.3,
+          "sounding_fraction": 0.334,
+          "contour_recurrence": null
+        },
+        "P2": {
+          "n_events": 64,
+          "per_bar": [
+            12,
+            11,
+            5,
+            9,
+            12,
+            11,
+            4,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 37,
+          "second_half": 27,
+          "half_ratio": 0.7297,
+          "sounding_fraction": 0.6387,
+          "contour_recurrence": 1.0
+        },
+        "TR": {
+          "n_events": 64,
+          "per_bar": [
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            4,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 40,
+          "second_half": 24,
+          "half_ratio": 0.6,
+          "sounding_fraction": 0.75,
+          "contour_recurrence": 0.2
+        },
+        "NO": {
+          "n_events": 32,
+          "per_bar": [
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            2,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 20,
+          "second_half": 12,
+          "half_ratio": 0.6,
+          "sounding_fraction": 0.8008,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_ominous_s105262",
+      "scenario": "ominous",
+      "seed": 105262,
+      "reproduced": true,
+      "n_events_recorded": 277,
+      "n_events_rebuilt": 277,
+      "intended_lead_role": "melody",
+      "arrangement": {
+        "n_events_in": 294,
+        "n_events_out": 294,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 43,
+        "n_stolen_truncated": 46,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 113,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 0,
+        "arranger_agrees_with_plan": true,
+        "role_assignment": {
+          "0": "melody",
+          "1": "accompaniment",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 60,
+            "n_percussion": 0,
+            "mean_pitch": 68.88,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 60,
+            "n_percussion": 0,
+            "mean_pitch": 68.88,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 60,
+            "n_percussion": 0,
+            "mean_pitch": 56.88,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 114,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 60,
+        "lead_notes_per_bar": [
+          7,
+          7,
+          7,
+          7,
+          8,
+          8,
+          8,
+          8
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 28,
+        "lead_second_half": 32,
+        "lead_half_ratio": 1.1429,
+        "lead_sounding_fraction": 0.9375,
+        "lead_contour_recurrence": 0.6363636363636364,
+        "lead_distinct_contour_ngrams": 12
+      },
+      "after": {
+        "P1": {
+          "n_events": 60,
+          "per_bar": [
+            12,
+            11,
+            13,
+            13,
+            11,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 49,
+          "second_half": 11,
+          "half_ratio": 0.2245,
+          "sounding_fraction": 0.5547,
+          "contour_recurrence": 1.0
+        },
+        "P2": {
+          "n_events": 60,
+          "per_bar": [
+            12,
+            11,
+            13,
+            13,
+            11,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 49,
+          "second_half": 11,
+          "half_ratio": 0.2245,
+          "sounding_fraction": 0.5547,
+          "contour_recurrence": 1.0
+        },
+        "TR": {
+          "n_events": 60,
+          "per_bar": [
+            12,
+            11,
+            13,
+            13,
+            11,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 49,
+          "second_half": 11,
+          "half_ratio": 0.2245,
+          "sounding_fraction": 0.5547,
+          "contour_recurrence": 1.0
+        },
+        "NO": {
+          "n_events": 97,
+          "per_bar": [
+            19,
+            19,
+            21,
+            18,
+            20,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 77,
+          "second_half": 20,
+          "half_ratio": 0.2597,
+          "sounding_fraction": 0.5195,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_town_s113043",
+      "scenario": "town",
+      "seed": 113043,
+      "reproduced": true,
+      "n_events_recorded": 212,
+      "n_events_rebuilt": 212,
+      "intended_lead_role": "accompaniment",
+      "arrangement": {
+        "n_events_in": 214,
+        "n_events_out": 214,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 14,
+        "n_stolen_truncated": 15,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 42,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 1,
+        "arranger_agrees_with_plan": false,
+        "role_assignment": {
+          "0": "accompaniment",
+          "1": "melody",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 77,
+            "n_percussion": 0,
+            "mean_pitch": 50.47,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 67,
+            "n_percussion": 0,
+            "mean_pitch": 50.72,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 28,
+            "n_percussion": 0,
+            "mean_pitch": 32.71,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 42,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 77,
+        "lead_notes_per_bar": [
+          10,
+          9,
+          10,
+          10,
+          9,
+          10,
+          9,
+          10
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 39,
+        "lead_second_half": 38,
+        "lead_half_ratio": 0.9744,
+        "lead_sounding_fraction": 0.8984,
+        "lead_contour_recurrence": 1.0,
+        "lead_distinct_contour_ngrams": 14
+      },
+      "after": {
+        "P1": {
+          "n_events": 67,
+          "per_bar": [
+            2,
+            10,
+            12,
+            10,
+            11,
+            11,
+            11,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 34,
+          "second_half": 33,
+          "half_ratio": 0.9706,
+          "sounding_fraction": 0.707,
+          "contour_recurrence": 1.0
+        },
+        "P2": {
+          "n_events": 77,
+          "per_bar": [
+            12,
+            10,
+            12,
+            10,
+            11,
+            11,
+            11,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 44,
+          "second_half": 33,
+          "half_ratio": 0.75,
+          "sounding_fraction": 0.8047,
+          "contour_recurrence": 1.0
+        },
+        "TR": {
+          "n_events": 28,
+          "per_bar": [
+            1,
+            5,
+            4,
+            5,
+            4,
+            5,
+            4,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 15,
+          "second_half": 13,
+          "half_ratio": 0.8667,
+          "sounding_fraction": 0.7656,
+          "contour_recurrence": 0.625
+        },
+        "NO": {
+          "n_events": 40,
+          "per_bar": [
+            1,
+            6,
+            6,
+            7,
+            5,
+            9,
+            6,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 20,
+          "second_half": 20,
+          "half_ratio": 1.0,
+          "sounding_fraction": 0.7656,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_fast_rhythmic_s109034",
+      "scenario": "fast_rhythmic",
+      "seed": 109034,
+      "reproduced": true,
+      "n_events_recorded": 238,
+      "n_events_rebuilt": 238,
+      "intended_lead_role": "accompaniment",
+      "arrangement": {
+        "n_events_in": 238,
+        "n_events_out": 238,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 48,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 36,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 1,
+        "arranger_agrees_with_plan": false,
+        "role_assignment": {
+          "0": "accompaniment",
+          "1": "melody",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 61,
+            "n_percussion": 0,
+            "mean_pitch": 71.87,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 96,
+            "n_percussion": 0,
+            "mean_pitch": 56.31,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 45,
+            "n_percussion": 0,
+            "mean_pitch": 42.6,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 36,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 61,
+        "lead_notes_per_bar": [
+          7,
+          8,
+          3,
+          8,
+          8,
+          8,
+          6,
+          8
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 26,
+        "lead_second_half": 30,
+        "lead_half_ratio": 1.1538,
+        "lead_sounding_fraction": 1.0,
+        "lead_contour_recurrence": 0.4444444444444444,
+        "lead_distinct_contour_ngrams": 27
+      },
+      "after": {
+        "P1": {
+          "n_events": 96,
+          "per_bar": [
+            0,
+            8,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 28,
+          "second_half": 40,
+          "half_ratio": 1.4286,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 1.0
+        },
+        "P2": {
+          "n_events": 61,
+          "per_bar": [
+            4,
+            6,
+            6,
+            6,
+            3,
+            6,
+            7,
+            7
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 22,
+          "second_half": 23,
+          "half_ratio": 1.0455,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 0.3333333333333333
+        },
+        "TR": {
+          "n_events": 45,
+          "per_bar": [
+            4,
+            5,
+            3,
+            5,
+            4,
+            4,
+            4,
+            5
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 17,
+          "second_half": 17,
+          "half_ratio": 1.0,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 1.0
+        },
+        "NO": {
+          "n_events": 36,
+          "per_bar": [
+            4,
+            3,
+            3,
+            4,
+            3,
+            3,
+            4,
+            3
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 14,
+          "second_half": 13,
+          "half_ratio": 0.9286,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_sparse_s108295",
+      "scenario": "sparse",
+      "seed": 108295,
+      "reproduced": true,
+      "n_events_recorded": 84,
+      "n_events_rebuilt": 84,
+      "intended_lead_role": "melody",
+      "arrangement": {
+        "n_events_in": 86,
+        "n_events_out": 86,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 4,
+        "n_stolen_truncated": 7,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 2,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 0,
+        "arranger_agrees_with_plan": true,
+        "role_assignment": {
+          "0": "melody",
+          "1": "bass"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 45,
+            "n_percussion": 0,
+            "mean_pitch": 54.47,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 1,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 41,
+            "n_percussion": 0,
+            "mean_pitch": 41.41,
+            "assigned_role": "bass"
+          }
+        ],
+        "lead_notes_total": 45,
+        "lead_notes_per_bar": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          6,
+          7,
+          7
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 20,
+        "lead_second_half": 25,
+        "lead_half_ratio": 1.25,
+        "lead_sounding_fraction": 0.9219,
+        "lead_contour_recurrence": 0.1875,
+        "lead_distinct_contour_ngrams": 18
+      },
+      "after": {
+        "P1": {
+          "n_events": 43,
+          "per_bar": [
+            10,
+            10,
+            10,
+            13,
+            0,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 4,
+          "longest_silent_bars": 4,
+          "first_half": 43,
+          "second_half": 0,
+          "half_ratio": 0.0,
+          "sounding_fraction": 0.4355,
+          "contour_recurrence": null
+        },
+        "TR": {
+          "n_events": 41,
+          "per_bar": [
+            10,
+            10,
+            10,
+            11,
+            0,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 4,
+          "longest_silent_bars": 4,
+          "first_half": 41,
+          "second_half": 0,
+          "half_ratio": 0.0,
+          "sounding_fraction": 0.4609,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_action_s111666",
+      "scenario": "action",
+      "seed": 111666,
+      "reproduced": true,
+      "n_events_recorded": 252,
+      "n_events_rebuilt": 252,
+      "intended_lead_role": "melody",
+      "arrangement": {
+        "n_events_in": 252,
+        "n_events_out": 252,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 0,
+        "n_stolen_truncated": 33,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 128,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 0,
+        "arranger_agrees_with_plan": true,
+        "role_assignment": {
+          "0": "melody",
+          "1": "accompaniment",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 45,
+            "n_percussion": 0,
+            "mean_pitch": 66.29,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 43,
+            "n_percussion": 0,
+            "mean_pitch": 79.0,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 36,
+            "n_percussion": 0,
+            "mean_pitch": 50.86,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 128,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 45,
+        "lead_notes_per_bar": [
+          6,
+          5,
+          6,
+          6,
+          5,
+          6,
+          5,
+          6
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 23,
+        "lead_second_half": 22,
+        "lead_half_ratio": 0.9565,
+        "lead_sounding_fraction": 1.0,
+        "lead_contour_recurrence": 1.0,
+        "lead_distinct_contour_ngrams": 8
+      },
+      "after": {
+        "P1": {
+          "n_events": 45,
+          "per_bar": [
+            6,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 21,
+          "second_half": 20,
+          "half_ratio": 0.9524,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 1.0
+        },
+        "P2": {
+          "n_events": 43,
+          "per_bar": [
+            0,
+            0,
+            6,
+            5,
+            4,
+            7,
+            7,
+            8
+          ],
+          "silent_bars": 2,
+          "longest_silent_bars": 2,
+          "first_half": 11,
+          "second_half": 26,
+          "half_ratio": 2.3636,
+          "sounding_fraction": 0.8047,
+          "contour_recurrence": 0.0
+        },
+        "TR": {
+          "n_events": 36,
+          "per_bar": [
+            0,
+            0,
+            5,
+            5,
+            6,
+            5,
+            5,
+            6
+          ],
+          "silent_bars": 2,
+          "longest_silent_bars": 2,
+          "first_half": 10,
+          "second_half": 22,
+          "half_ratio": 2.2,
+          "sounding_fraction": 0.8398,
+          "contour_recurrence": 0.6
+        },
+        "NO": {
+          "n_events": 128,
+          "per_bar": [
+            15,
+            14,
+            14,
+            15,
+            14,
+            14,
+            14,
+            15
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 58,
+          "second_half": 57,
+          "half_ratio": 0.9828,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_exploration_s114317",
+      "scenario": "exploration",
+      "seed": 114317,
+      "reproduced": true,
+      "n_events_recorded": 214,
+      "n_events_rebuilt": 214,
+      "intended_lead_role": "accompaniment",
+      "arrangement": {
+        "n_events_in": 220,
+        "n_events_out": 220,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 32,
+        "n_stolen_truncated": 0,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 1,
+        "arranger_agrees_with_plan": false,
+        "role_assignment": {
+          "0": "accompaniment",
+          "1": "melody",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 48,
+            "n_percussion": 0,
+            "mean_pitch": 77.83,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 64,
+            "n_percussion": 0,
+            "mean_pitch": 54.56,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 76,
+            "n_percussion": 0,
+            "mean_pitch": 45.91,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 32,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 48,
+        "lead_notes_per_bar": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 24,
+        "lead_second_half": 24,
+        "lead_half_ratio": 1.0,
+        "lead_sounding_fraction": 0.5078,
+        "lead_contour_recurrence": 0.14285714285714285,
+        "lead_distinct_contour_ngrams": 17
+      },
+      "after": {
+        "P1": {
+          "n_events": 58,
+          "per_bar": [
+            9,
+            9,
+            9,
+            9,
+            9,
+            9,
+            4,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 36,
+          "second_half": 22,
+          "half_ratio": 0.6111,
+          "sounding_fraction": 0.3672,
+          "contour_recurrence": 0.6363636363636364
+        },
+        "P2": {
+          "n_events": 48,
+          "per_bar": [
+            7,
+            8,
+            7,
+            8,
+            7,
+            8,
+            3,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 30,
+          "second_half": 18,
+          "half_ratio": 0.6,
+          "sounding_fraction": 0.3828,
+          "contour_recurrence": 0.4
+        },
+        "TR": {
+          "n_events": 76,
+          "per_bar": [
+            12,
+            11,
+            13,
+            11,
+            12,
+            12,
+            5,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 47,
+          "second_half": 29,
+          "half_ratio": 0.617,
+          "sounding_fraction": 0.75,
+          "contour_recurrence": 1.0
+        },
+        "NO": {
+          "n_events": 32,
+          "per_bar": [
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            2,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 20,
+          "second_half": 12,
+          "half_ratio": 0.6,
+          "sounding_fraction": 0.8008,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_ominous_s105268",
+      "scenario": "ominous",
+      "seed": 105268,
+      "reproduced": true,
+      "n_events_recorded": 151,
+      "n_events_rebuilt": 151,
+      "intended_lead_role": "melody",
+      "arrangement": {
+        "n_events_in": 156,
+        "n_events_out": 156,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 16,
+        "n_stolen_truncated": 47,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 72,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 0,
+        "arranger_agrees_with_plan": true,
+        "role_assignment": {
+          "0": "melody",
+          "1": "accompaniment",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 32,
+            "n_percussion": 0,
+            "mean_pitch": 66.22,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 32,
+            "n_percussion": 0,
+            "mean_pitch": 66.22,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 20,
+            "n_percussion": 0,
+            "mean_pitch": 44.05,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 72,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 32,
+        "lead_notes_per_bar": [
+          2,
+          3,
+          3,
+          3,
+          6,
+          7,
+          3,
+          5
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 11,
+        "lead_second_half": 21,
+        "lead_half_ratio": 1.9091,
+        "lead_sounding_fraction": 1.0,
+        "lead_contour_recurrence": 0.3333333333333333,
+        "lead_distinct_contour_ngrams": 16
+      },
+      "after": {
+        "P1": {
+          "n_events": 32,
+          "per_bar": [
+            5,
+            6,
+            6,
+            10,
+            5,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 27,
+          "second_half": 5,
+          "half_ratio": 0.1852,
+          "sounding_fraction": 0.5898,
+          "contour_recurrence": 0.0
+        },
+        "P2": {
+          "n_events": 32,
+          "per_bar": [
+            5,
+            6,
+            6,
+            10,
+            5,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 27,
+          "second_half": 5,
+          "half_ratio": 0.1852,
+          "sounding_fraction": 0.5898,
+          "contour_recurrence": 0.0
+        },
+        "TR": {
+          "n_events": 20,
+          "per_bar": [
+            4,
+            3,
+            3,
+            7,
+            3,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 17,
+          "second_half": 3,
+          "half_ratio": 0.1765,
+          "sounding_fraction": 0.5508,
+          "contour_recurrence": null
+        },
+        "NO": {
+          "n_events": 67,
+          "per_bar": [
+            15,
+            13,
+            15,
+            12,
+            12,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 3,
+          "longest_silent_bars": 3,
+          "first_half": 55,
+          "second_half": 12,
+          "half_ratio": 0.2182,
+          "sounding_fraction": 0.5645,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_town_s113049",
+      "scenario": "town",
+      "seed": 113049,
+      "reproduced": true,
+      "n_events_recorded": 147,
+      "n_events_rebuilt": 147,
+      "intended_lead_role": "accompaniment",
+      "arrangement": {
+        "n_events_in": 150,
+        "n_events_out": 150,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 37,
+        "n_stolen_truncated": 36,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 60,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "accompaniment->P2",
+          "1": "melody->P1",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 1,
+        "arranger_agrees_with_plan": false,
+        "role_assignment": {
+          "0": "accompaniment",
+          "1": "melody",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 13,
+            "n_percussion": 0,
+            "mean_pitch": 76.23,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 21,
+            "n_percussion": 0,
+            "mean_pitch": 68.86,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 56,
+            "n_percussion": 0,
+            "mean_pitch": 61.32,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 60,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 13,
+        "lead_notes_per_bar": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          4,
+          4
+        ],
+        "lead_silent_bars": 5,
+        "lead_longest_silent_bars": 5,
+        "lead_first_half": 0,
+        "lead_second_half": 13,
+        "lead_half_ratio": null,
+        "lead_sounding_fraction": 0.375,
+        "lead_contour_recurrence": null,
+        "lead_distinct_contour_ngrams": 9
+      },
+      "after": {
+        "P1": {
+          "n_events": 21,
+          "per_bar": [
+            0,
+            0,
+            0,
+            0,
+            5,
+            9,
+            7,
+            0
+          ],
+          "silent_bars": 5,
+          "longest_silent_bars": 4,
+          "first_half": 0,
+          "second_half": 21,
+          "half_ratio": null,
+          "sounding_fraction": 0.3301,
+          "contour_recurrence": null
+        },
+        "P2": {
+          "n_events": 13,
+          "per_bar": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            7,
+            5,
+            0
+          ],
+          "silent_bars": 5,
+          "longest_silent_bars": 4,
+          "first_half": 0,
+          "second_half": 13,
+          "half_ratio": null,
+          "sounding_fraction": 0.3281,
+          "contour_recurrence": null
+        },
+        "TR": {
+          "n_events": 56,
+          "per_bar": [
+            2,
+            9,
+            9,
+            9,
+            9,
+            9,
+            9,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 29,
+          "second_half": 27,
+          "half_ratio": 0.931,
+          "sounding_fraction": 0.7656,
+          "contour_recurrence": 1.0
+        },
+        "NO": {
+          "n_events": 57,
+          "per_bar": [
+            6,
+            8,
+            9,
+            10,
+            6,
+            10,
+            8,
+            0
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 33,
+          "second_half": 24,
+          "half_ratio": 0.7273,
+          "sounding_fraction": 0.8008,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_fast_rhythmic_s109040",
+      "scenario": "fast_rhythmic",
+      "seed": 109040,
+      "reproduced": true,
+      "n_events_recorded": 217,
+      "n_events_rebuilt": 217,
+      "intended_lead_role": "melody",
+      "arrangement": {
+        "n_events_in": 217,
+        "n_events_out": 217,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 36,
+        "n_stolen_truncated": 35,
+        "n_transposed": 0,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 54,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "accompaniment->P2",
+          "2": "bass->TR",
+          "3": "percussion->NO"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 4,
+        "n_tracks": 4,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 0,
+        "arranger_agrees_with_plan": true,
+        "role_assignment": {
+          "0": "melody",
+          "1": "accompaniment",
+          "2": "bass",
+          "3": "percussion"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 34,
+            "n_percussion": 0,
+            "mean_pitch": 72.5,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 1,
+            "program": 81,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 30,
+            "n_percussion": 0,
+            "mean_pitch": 57.43,
+            "assigned_role": "accompaniment"
+          },
+          {
+            "index": 2,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 72,
+            "n_percussion": 0,
+            "mean_pitch": 46.64,
+            "assigned_role": "bass"
+          },
+          {
+            "index": 3,
+            "program": null,
+            "role_declared": "percussion",
+            "percussion": true,
+            "n_notes": 0,
+            "n_percussion": 81,
+            "mean_pitch": null,
+            "assigned_role": "percussion"
+          }
+        ],
+        "lead_notes_total": 34,
+        "lead_notes_per_bar": [
+          4,
+          5,
+          7,
+          6,
+          0,
+          5,
+          2,
+          2
+        ],
+        "lead_silent_bars": 1,
+        "lead_longest_silent_bars": 1,
+        "lead_first_half": 22,
+        "lead_second_half": 9,
+        "lead_half_ratio": 0.4091,
+        "lead_sounding_fraction": 0.9688,
+        "lead_contour_recurrence": 0.4,
+        "lead_distinct_contour_ngrams": 19
+      },
+      "after": {
+        "P1": {
+          "n_events": 34,
+          "per_bar": [
+            2,
+            4,
+            4,
+            5,
+            5,
+            5,
+            0,
+            3
+          ],
+          "silent_bars": 1,
+          "longest_silent_bars": 1,
+          "first_half": 15,
+          "second_half": 13,
+          "half_ratio": 0.8667,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 0.36363636363636365
+        },
+        "P2": {
+          "n_events": 30,
+          "per_bar": [
+            2,
+            3,
+            3,
+            4,
+            3,
+            3,
+            4,
+            3
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 12,
+          "second_half": 13,
+          "half_ratio": 1.0833,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 0.4
+        },
+        "TR": {
+          "n_events": 72,
+          "per_bar": [
+            7,
+            7,
+            6,
+            7,
+            7,
+            6,
+            7,
+            7
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 27,
+          "second_half": 27,
+          "half_ratio": 1.0,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": 0.7272727272727273
+        },
+        "NO": {
+          "n_events": 81,
+          "per_bar": [
+            9,
+            7,
+            7,
+            9,
+            6,
+            7,
+            9,
+            7
+          ],
+          "silent_bars": 0,
+          "longest_silent_bars": 0,
+          "first_half": 32,
+          "second_half": 29,
+          "half_ratio": 0.9062,
+          "sounding_fraction": 1.0,
+          "contour_recurrence": null
+        }
+      }
+    },
+    {
+      "name": "fermata_sparse_s108301",
+      "scenario": "sparse",
+      "seed": 108301,
+      "reproduced": true,
+      "n_events_recorded": 185,
+      "n_events_rebuilt": 185,
+      "intended_lead_role": "melody",
+      "arrangement": {
+        "n_events_in": 206,
+        "n_events_out": 206,
+        "retention": 1.0,
+        "n_polyphony_dropped": 0,
+        "n_polyphony_arpeggiated": 34,
+        "n_stolen_truncated": 64,
+        "n_transposed": 2,
+        "n_out_of_range_dropped": 0,
+        "n_percussion_approximated": 0,
+        "n_percussion_dropped": 0,
+        "n_tracks_merged": 0,
+        "role_assignment": {
+          "0": "melody->P1",
+          "1": "bass->TR"
+        },
+        "warnings": []
+      },
+      "before": {
+        "ticks_per_quarter": 24,
+        "beats_per_bar": 3,
+        "n_tracks": 2,
+        "intended_lead_index": 0,
+        "intended_lead_program": 80,
+        "arranger_lead_index": 0,
+        "arranger_agrees_with_plan": true,
+        "role_assignment": {
+          "0": "melody",
+          "1": "bass"
+        },
+        "tracks": [
+          {
+            "index": 0,
+            "program": 80,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 105,
+            "n_percussion": 0,
+            "mean_pitch": 48.46,
+            "assigned_role": "melody"
+          },
+          {
+            "index": 1,
+            "program": 38,
+            "role_declared": "melody",
+            "percussion": false,
+            "n_notes": 101,
+            "n_percussion": 0,
+            "mean_pitch": 47.35,
+            "assigned_role": "bass"
+          }
+        ],
+        "lead_notes_total": 105,
+        "lead_notes_per_bar": [
+          12,
+          13,
+          16,
+          12,
+          12,
+          12,
+          12,
+          12
+        ],
+        "lead_silent_bars": 0,
+        "lead_longest_silent_bars": 0,
+        "lead_first_half": 53,
+        "lead_second_half": 48,
+        "lead_half_ratio": 0.9057,
+        "lead_sounding_fraction": 1.0,
+        "lead_contour_recurrence": 0.3684210526315789,
+        "lead_distinct_contour_ngrams": 19
+      },
+      "after": {
+        "P1": {
+          "n_events": 101,
+          "per_bar": [
+            33,
+            31,
+            32,
+            5,
+            0,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 4,
+          "longest_silent_bars": 4,
+          "first_half": 101,
+          "second_half": 0,
+          "half_ratio": 0.0,
+          "sounding_fraction": 0.3828,
+          "contour_recurrence": null
+        },
+        "TR": {
+          "n_events": 84,
+          "per_bar": [
+            4,
+            43,
+            32,
+            5,
+            0,
+            0,
+            0,
+            0
+          ],
+          "silent_bars": 4,
+          "longest_silent_bars": 4,
+          "first_half": 84,
+          "second_half": 0,
+          "half_ratio": 0.0,
+          "sounding_fraction": 0.25,
+          "contour_recurrence": null
+        }
+      }
+    }
+  ]
+}
