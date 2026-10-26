@@ -69,6 +69,7 @@ TICKS_PER_BAR = TICKS_PER_ROW * ROWS_PER_BAR
 #: See rse/hardware/tempo.py for why the reachable tempos are a ladder.
 from rse.hardware.tempo import NTSC_FRAME_RATE  # noqa: E402
 from rse.hardware.tempo import snap as snap_tempo  # noqa: E402
+from rse.procedural.phrase import BarRole, plan_phrases  # noqa: E402
 
 #: NES pitch range the hardware profile accepts.
 PITCH_MIN, PITCH_MAX = 33, 108
@@ -503,6 +504,42 @@ def plan_form(
     return plans
 
 
+def cadence_pitch(
+    style: Style, voicing: Any, cadence: str | None, fallback: int
+) -> int:
+    """The pitch a phrase arrives on, chosen by harmonic function.
+
+    "closed" lands on the tonic, which is what makes a consequent sound
+    finished. "open" lands on the nearest chord tone that is NOT the tonic, so
+    the antecedent asks a question the next phrase can answer. Measured against
+    the fallback so the arrival is a step away from where the line already was
+    rather than a leap across the register.
+    """
+    tonic_pc = style.tonic % 12
+    if cadence == "closed":
+        # Nearest octave of the tonic to where the melody already is.
+        candidates = [style.tonic + 12 * octave for octave in (-1, 0, 1, 2)]
+        return min(candidates, key=lambda p: abs(p - fallback))
+
+    # Open: a chord tone other than the tonic.
+    if voicing.degrees is not None:
+        pitches = [
+            scale_pitch(style.tonic, style.mode, d) + 12 * octave
+            for d in voicing.degrees
+            for octave in (-1, 0, 1)
+        ]
+    else:
+        pitches = [
+            style.tonic + semitone + 12 * octave
+            for semitone in voicing.semitones
+            for octave in (-1, 0, 1)
+        ]
+    other = [p for p in pitches if p % 12 != tonic_pc]
+    if not other:
+        return fallback
+    return min(other, key=lambda p: abs(p - fallback))
+
+
 def render_melody(
     rng: random.Random,
     style: Style,
@@ -511,12 +548,21 @@ def render_melody(
     *,
     bar_offset: int,
     harmony_plan: list[tuple[int, int, int]],
+    phrases: list[BarRole] | None = None,
 ) -> tuple[list[Note], dict[str, int]]:
     """Melody on P1, re-harmonised bar by bar against the progression.
 
     Each phrase starts on a tone of the bar's chord and follows the motif's
     degree contour. A step that lands outside the chord is kept only if it is
     in the scale, so a passing tone is a passing tone and never an accident.
+
+    `phrases` is the opt-in phrase structure. With it `None` the melody behaves
+    exactly as v1 did -- same draws, same output -- because v1 is the version
+    the listener approved and a silent change to it is not something to risk on
+    an untested idea. With a plan, each bar takes a role: the motif is stated,
+    varied, climbed to a peak, and then resolved on a long cadence note
+    followed by a rest. v1 had one distinct rhythm across eight bars and no
+    rest at all, which is why it reads as a loop rather than a line.
     """
     notes: list[Note] = []
     # Measurement only. Truncating a melody note at a chord change is an
@@ -560,8 +606,61 @@ def render_melody(
         row = 0
         if altered:
             tones = pick_from
-        for step, length in zip(motif.degrees, motif.rhythm, strict=False):
-            if row >= span:
+
+        # Which bar of the section this chord sits in, and what that bar is
+        # for. `start_row` is in rows from the section start, so this works
+        # whether the harmonic rhythm puts one chord in a bar or several.
+        role = None
+        if phrases:
+            bar_index = start_row // ROWS_PER_BAR
+            if bar_index < len(phrases):
+                role = phrases[bar_index]
+
+        degrees, rhythm = motif.degrees, motif.rhythm
+        usable = span
+        if role is not None:
+            if role.role == "climb":
+                # Lift the whole contour so the phrase has a registral peak
+                # somewhere chosen rather than wherever the walk landed.
+                degrees = tuple(d + role.lift for d in degrees)
+            elif role.role == "vary":
+                # Retrograde the tail: the repeat is recognisable but not
+                # literal, and it costs no RNG draw.
+                head, tail = degrees[: len(degrees) // 2], degrees[len(degrees) // 2 :]
+                degrees = head + tuple(reversed(tail))
+                # And vary the RHYTHM, which is what actually makes the bar
+                # sound different. Altering only the pitches left bars 0-2 of
+                # every phrase attacking identical rows -- the exact defect
+                # this work exists to fix. Augmenting the opening pair into one
+                # longer note removes an attack and shifts every later one,
+                # without changing how many notes the bar holds enough to
+                # disturb the contour.
+                if len(rhythm) >= 3:
+                    rhythm = (rhythm[0] + rhythm[1],) + tuple(rhythm[2:])
+                    degrees = (degrees[0],) + tuple(degrees[2:])
+                else:
+                    # A one- or two-note bar has nothing to augment, so the
+                    # sparse styles kept their single attack pattern. Displace
+                    # the bar instead: the same notes entering late is
+                    # syncopation, and it is the only rhythmic contrast
+                    # available when there is just one note in the bar.
+                    displace = min(2, max(1, span // 8))
+                    rhythm = tuple(rhythm[:-1]) + (
+                        max(1, rhythm[-1] - displace),
+                    )
+                    row = displace
+            elif role.is_cadence:
+                # Abandon the motif's rhythm. A cadence is an arrival: a short
+                # approach and then one long note, with the rest after it.
+                usable = max(1, span - role.rest_rows)
+                approach = min(2, max(0, len(degrees) - 1))
+                degrees = degrees[:approach] + (degrees[-1],)
+                lead_rows = sum(rhythm[:approach]) if approach else 0
+                hold = max(1, usable - lead_rows)
+                rhythm = tuple(rhythm[:approach]) + (hold,)
+
+        for step, length in zip(degrees, rhythm, strict=False):
+            if row >= usable:
                 break
             absolute = start_row + row
             if altered:
@@ -585,7 +684,14 @@ def render_melody(
                 ):
                     degree = min(tones, key=lambda t: abs(t - degree))
                 pitch = clamp(scale_pitch(style.tonic, style.mode, degree))
-            kept = min(length, span - row)
+
+            # The arrival note is chosen for its function, not by the walk: a
+            # consequent closes on the tonic, an antecedent leaves the question
+            # open on a chord tone that is not the tonic. Without this, bar
+            # endings hit the tonic once or twice in eight, by accident.
+            if role is not None and role.is_cadence and step is degrees[-1]:
+                pitch = clamp(cadence_pitch(style, voicing, role.cadence, pitch))
+            kept = min(length, usable - row)
             if kept < length:
                 truncated += 1
                 rows_removed += length - kept
@@ -796,6 +902,8 @@ def compose(
     vocabulary: str | None = None,
     tempo_bpm: int | None = None,
     tonic: int | None = None,
+    phrasing: str | None = None,
+    isolate_melody_rng: bool = False,
 ) -> ProceduralResult:
     """One complete NES piece from a style preset and a seed.
 
@@ -809,6 +917,24 @@ def compose(
     `vocabulary` is `None` for v1's progressions, `"extra"` for the Stage 2
     families only, or `"all"` for both. Also opt-in, and the v1 path draws
     from the same pool in the same order so the baseline is untouched.
+
+    `phrasing` is `None` for v1's bar-by-bar melody and `"period"` for the
+    phrase structure: four-bar phrases, an antecedent that leaves the question
+    open and a consequent that closes on the tonic, a registral peak before
+    each cadence, and a rest after it. Opt-in for the same reason the other
+    expansions were -- v1 is what the listener approved, and v1 had one
+    distinct rhythm across eight bars and no rest at all.
+
+    `isolate_melody_rng` draws the melody's randomness from a generator seeded
+    separately, so the NUMBER of melody notes cannot shift anything generated
+    after it. It has to exist before phrasing can be tested: the melody draws
+    once per note for its passing-tone decision, the phrased melody has fewer
+    notes, and so the drums and every later section's motif came out different
+    too -- a paired test would have been measuring phrasing plus a different
+    arrangement. Off by default, because turning it on changes v1's output and
+    v1 is the approved baseline; if phrasing is promoted this should be
+    promoted with it, since melody density leaking into the drum pattern is a
+    coupling defect either way.
 
     `tempo_bpm` and `tonic` override the preset so a prompt can ask for a
     tempo or a key without needing a new style. Both default to the preset's
@@ -852,6 +978,11 @@ def compose(
             f"unknown vocabulary {vocabulary!r}; use None, 'extra' or 'all'"
         )
 
+    if phrasing not in (None, "period"):
+        raise KeyError(
+            f"unknown phrasing {phrasing!r}; use None or 'period'"
+        )
+
     motif = make_motif(rng, style)
     plans = plan_form(
         rng,
@@ -875,15 +1006,32 @@ def compose(
         else:
             used = motif
         harmony_plan = rhythm.plan(len(plan.progression), plan.bars)
+        # The phrase plan is deterministic from the bar count, so it costs no
+        # RNG draw and cannot shift the percussion generated after it.
+        phrases = plan_phrases(plan.bars) if phrasing == "period" else None
+        # Seeded from the main seed and the bar offset, so it is deterministic
+        # and distinct per section, and consumes nothing from `rng`.
+        melody_rng = (
+            random.Random(seed ^ 0xA3E1 ^ (bar_offset << 8))
+            if isolate_melody_rng
+            else rng
+        )
         variations.append(
             {
                 "label": plan.label,
                 "motif": used.to_dict(),
                 "n_chord_changes": len(harmony_plan),
+                "phrases": [r.to_dict() for r in phrases] if phrases else None,
             }
         )
         melody, melody_stats = render_melody(
-            rng, style, used, plan, bar_offset=bar_offset, harmony_plan=harmony_plan
+            melody_rng,
+            style,
+            used,
+            plan,
+            bar_offset=bar_offset,
+            harmony_plan=harmony_plan,
+            phrases=phrases,
         )
         events += melody
         truncation["notes_truncated"] += melody_stats["notes_truncated"]
