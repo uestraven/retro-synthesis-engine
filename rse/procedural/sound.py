@@ -62,21 +62,25 @@ TIMBRES: dict[str, int] = {
 #: dry arm can be reproduced exactly.
 DRY_DUTY: dict[str, int] = {"P1": 2, "P2": 1}
 
-#: Complementary lead/accompaniment pairs per style, as (P1, P2) timbres.
+#: Which named profiles each style may draw.
 #:
-#: Complementary rather than arbitrary: the lead and the comp share two
-#: monophonic channels of the same waveform, so if both use the same duty the
-#: arrangement turns to mush. A fuller lead sits over a thinner comp, or the
-#: reverse for a thinner, more anxious character -- which is why `tension`
-#: inverts what `boss` does.
-VOICE_PRESETS: dict[str, tuple[tuple[str, str], ...]] = {
-    "boss": (("hollow", "classic"), ("classic", "bright"), ("hollow", "bright")),
-    "action": (("classic", "bright"), ("bright", "classic"), ("hollow", "classic")),
-    "adventure": (("hollow", "classic"), ("classic", "bright"), ("hollow", "bright")),
-    "town": (("hollow", "classic"), ("classic", "hollow"), ("hollow", "bright")),
-    # Thin lead over a rounded bed: the reverse of the boss choice.
-    "tension": (("bright", "hollow"), ("classic", "hollow"), ("bright", "classic")),
-    "victory": (("classic", "bright"), ("hollow", "classic"), ("classic", "hollow")),
+#: Declared by PROFILE NAME rather than by raw timbre pair, because the first
+#: version was written as ad-hoc pairs and three styles ended up able to draw a
+#: profile that contradicted them: `boss` could draw `warm` and could never
+#: draw `aggressive`, `tension` could draw `aggressive`, and `victory` could
+#: draw `mellow`. Nothing in a pair of duty indices says what it will sound
+#: like; the name does, so the name is what the pool is written in.
+#:
+#: Character grouping: `aggressive` and `sharp` are assertive, `full`, `warm`
+#: and `mellow` are rounded, `eerie` is thin and unsettled.
+STYLE_PROFILES: dict[str, tuple[str, ...]] = {
+    "boss": ("aggressive", "full", "sharp"),
+    "action": ("aggressive", "sharp", "full"),
+    "adventure": ("full", "sharp", "warm"),
+    "town": ("warm", "mellow", "full"),
+    # Thin and restrained, and never assertive: the reverse of boss.
+    "tension": ("eerie", "mellow", "full"),
+    "victory": ("sharp", "aggressive", "full"),
 }
 
 #: Named instrument profiles, as (lead, accompaniment) timbres.
@@ -192,6 +196,13 @@ class SoundDesign:
             "lead_duty_percent": _percent(TIMBRES[self.lead_timbre]),
             "comp_duty_percent": _percent(TIMBRES[self.comp_timbre]),
         }
+
+
+#: Derived from `STYLE_PROFILES`, so the two cannot disagree.
+VOICE_PRESETS: dict[str, tuple[tuple[str, str], ...]] = {
+    style: tuple(SOUND_PROFILES[name] for name in names)
+    for style, names in STYLE_PROFILES.items()
+}
 
 
 def _percent(duty: int) -> str:

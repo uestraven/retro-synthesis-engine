@@ -161,11 +161,15 @@ def test_every_style_has_voice_presets() -> None:
         assert len(VOICE_PRESETS[style]) >= 3, style
 
 
-def test_tension_inverts_the_boss_choice() -> None:
-    """A thin lead over a rounded bed, rather than the reverse. The styles
-    should not all reach for the same instrument."""
-    assert all(lead == "bright" or comp == "hollow"
-               for lead, comp in VOICE_PRESETS["tension"])
+def test_tension_and_boss_do_not_overlap() -> None:
+    """The styles must not all reach for the same instrument. Written against
+    the profile names now that the pools are: the old version tested raw
+    timbre pairs, which is what let `tension` draw `aggressive` in the first
+    place."""
+    from rse.procedural.sound import STYLE_PROFILES
+
+    assert not (set(STYLE_PROFILES["tension"]) & set(STYLE_PROFILES["boss"])
+                & (ASSERTIVE | THIN))
 
 
 def test_voices_are_deterministic_and_per_song() -> None:
@@ -423,3 +427,116 @@ def test_an_unmapped_mood_falls_back_to_the_style() -> None:
     design = choose_voices("boss", seed=1, mood="peckish")
     assert design.reason == "style"
     assert (design.lead_timbre, design.comp_timbre) in VOICE_PRESETS["boss"]
+
+
+# --- style pools must match style character -------------------------------
+
+ASSERTIVE = {"aggressive", "sharp"}
+ROUNDED = {"full", "warm", "mellow"}
+THIN = {"eerie"}
+
+
+def test_pools_are_declared_by_profile_name() -> None:
+    """The first version wrote them as raw timbre pairs, and nothing in a pair
+    of duty indices says what it will sound like. Three styles ended up able
+    to draw a profile that contradicted them."""
+    from rse.procedural.sound import SOUND_PROFILES, STYLE_PROFILES
+
+    for style, names in STYLE_PROFILES.items():
+        assert set(names) <= set(SOUND_PROFILES), style
+        assert len(names) >= 3, style
+
+
+def test_voice_presets_cannot_disagree_with_the_pools() -> None:
+    from rse.procedural.sound import SOUND_PROFILES, STYLE_PROFILES, VOICE_PRESETS
+
+    for style, names in STYLE_PROFILES.items():
+        assert VOICE_PRESETS[style] == tuple(
+            SOUND_PROFILES[name] for name in names
+        ), style
+
+
+def test_the_restrained_styles_can_never_be_aggressive() -> None:
+    """`tension` could draw `aggressive`, which is the opposite of what the
+    style is for, and it would have gone into a style-identity test."""
+    from rse.procedural.sound import STYLE_PROFILES
+
+    for style in ("town", "tension"):
+        assert not (set(STYLE_PROFILES[style]) & ASSERTIVE), style
+
+
+def test_the_assertive_styles_can_actually_be_assertive() -> None:
+    """`boss` could draw `warm` and could never draw `aggressive` at all."""
+    from rse.procedural.sound import STYLE_PROFILES
+
+    for style in ("boss", "action", "victory"):
+        assert set(STYLE_PROFILES[style]) & ASSERTIVE, style
+        assert "warm" not in STYLE_PROFILES[style], style
+        assert "mellow" not in STYLE_PROFILES[style], style
+
+
+def test_tension_keeps_its_signature_profile() -> None:
+    from rse.procedural.sound import STYLE_PROFILES
+
+    assert "eerie" in STYLE_PROFILES["tension"]
+    # And it is the only style that reaches for it, so it stays a signature.
+    others = [
+        style for style, names in STYLE_PROFILES.items()
+        if style != "tension" and "eerie" in names
+    ]
+    assert others == [], others
+
+
+def test_velocity_shaping_reaches_the_isolated_stem() -> None:
+    """The measurement that must precede any listening test on dynamics: a
+    MIDI velocity change does not necessarily become an audible one on this
+    hardware. Checked on the P1 stem, because the full mix masks it -- a
+    whole-mix measure showed almost no change here."""
+    import numpy as np
+
+    from rse.events.convert import composition_to_intake
+    from rse.hardware.constraints import ConstraintEngine
+    from rse.hardware.profile import load_profile
+    from rse.procedural.sound import DRY_DUTY
+    from rse.renderers.base import RenderSettings, notes_from_record
+    from rse.renderers.nes_apu import NesApuRenderer
+
+    profile = load_profile("nes")
+
+    def peaks(composition):
+        playable, _ = ConstraintEngine(profile).apply(composition)
+        notes = notes_from_record(composition_to_intake(playable, profile=profile))
+        rendered = NesApuRenderer(profile, duty_by_channel=DRY_DUTY).render(
+            notes, RenderSettings(tail_sec=0.0)
+        )
+        stem = np.asarray(rendered.stems["P1"], dtype=float)
+        rate = rendered.sample_rate
+        out = []
+        for event in sorted(
+            (e for e in composition.sounding_events() if e.channel_id == "P1"),
+            key=lambda e: e.tick,
+        )[:60]:
+            start = composition.time.seconds(event.tick)
+            end = composition.time.seconds(event.tick + event.duration)
+            segment = stem[int(start * rate) + 20 : int(end * rate) - 20]
+            if segment.size > 50:
+                out.append(float(np.abs(segment).max()))
+        return np.array(out)
+
+    flat = peaks(
+        compose(style_name="boss", seed=6307, target_seconds=60.0, sound_design=None)
+        .composition
+    )
+    shaped = peaks(
+        compose(
+            style_name="boss", seed=6307, target_seconds=60.0,
+            sound_design="expressive",
+        ).composition
+    )
+    # The dry arm is perfectly flat; the shaped arm is not.
+    assert len(set(np.round(flat, 4))) == 1
+    assert len(set(np.round(shaped, 4))) >= 2
+    # And the range is small by construction -- recorded so a future change
+    # that claims to add dynamics can be checked against it.
+    span_db = 20 * np.log10(shaped.max() / shaped.min())
+    assert 0.5 < span_db < 4.0, f"{span_db:.2f} dB"
