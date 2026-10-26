@@ -68,7 +68,9 @@ def read_ratings(path: Path) -> dict[str, tuple[str, str]]:
     return out
 
 
-def score_to_midi(score: Score, *, only_lead: bool = False) -> Any:
+def score_to_midi(
+    score: Score, *, only_lead: bool = False, only_index: int | None = None
+) -> Any:
     """Write Fermata's score as a GM MIDI file, unmodified.
 
     Pitches, onsets, durations, tempo and programs are the score's own. The
@@ -99,9 +101,18 @@ def score_to_midi(score: Score, *, only_lead: bool = False) -> Any:
         ),
         None,
     )
+    if lead_index is None:
+        # No track declared program 80 at all. Falling back to the first
+        # pitched track matches what the rest of the pipeline does, and
+        # without it `only_lead` matched nothing and wrote a silent file.
+        lead_index = next(
+            (i for i, t in enumerate(score.tracks) if t.notes), None
+        )
 
     channel = 0
     for index, track in enumerate(score.tracks):
+        if only_index is not None and index != only_index:
+            continue
         if only_lead and index != lead_index:
             continue
         is_drums = bool(track.percussion) and not track.notes
@@ -238,6 +249,14 @@ def main() -> int:
         lead_path = args.out_dir / f"{stem}.lead.mid"
         score_to_midi(score).save(str(source_path))
         score_to_midi(score, only_lead=True).save(str(lead_path))
+        # The declared lead carries under 17% of the notes in most of these
+        # pieces, so the voice the arranger picked behaviourally is often the
+        # one actually carrying the tune. Export both rather than assuming.
+        chosen = next((i for i, r in roles.items() if r == MELODY), None)
+        busiest_path = None
+        if chosen is not None and chosen != lead_index:
+            busiest_path = args.out_dir / f"{stem}.busiest.mid"
+            score_to_midi(score, only_index=chosen).save(str(busiest_path))
         nes_source = args.nes_dir / pick["file"]
         nes_path = args.out_dir / f"{stem}.nes.wav"
         if nes_source.exists():
@@ -276,6 +295,7 @@ def main() -> int:
                 "files": {
                     "source_midi": source_path.name,
                     "lead_midi": lead_path.name,
+                    "busiest_midi": busiest_path.name if busiest_path else None,
                     "nes_wav": nes_path.name if nes_source.exists() else None,
                 },
             }
@@ -317,9 +337,15 @@ def main() -> int:
     key_path.write_text(json.dumps({"pieces": rows}, indent=2) + "\n")
     # The public record withholds the prior rating and the arrangement
     # figures, so reading it cannot set an expectation either.
+    private_fields = (
+        "rating",
+        "comment",
+        "selected_because",
+        "listening_file",
+        "name",
+    )
     public = [
-        {k: v for k, v in row.items() if k not in ("rating", "comment", "selected_because", "listening_file", "name")}
-        for row in rows
+        {k: v for k, v in row.items() if k not in private_fields} for row in rows
     ]
     args.out.write_text(
         json.dumps(
