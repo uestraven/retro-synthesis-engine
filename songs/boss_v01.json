@@ -260,14 +260,23 @@
     "n_past_end": 0,
     "final_bar_onsets": 5,
     "first_bar_onsets": 31,
-    "first_bar_rms": 4295.5,
-    "final_bar_rms": 4881.8,
-    "energy_ratio": 0.88,
-    "boundary_step": 1421,
+    "first_bar_rms": 4305.1,
+    "final_bar_rms": 1956.9,
+    "energy_ratio": 2.2,
+    "boundary_step": 3706,
     "peak": 23197,
     "notes": [
-      "no timing or level discontinuity found at the boundary"
+      "the first bar is much louder than the last (ratio 2.20); the wrap jumps in level",
+      "sample discontinuity at the boundary is 16% of peak, which may click"
     ]
+  },
+  "render_padding": {
+    "padded": true,
+    "frames_before": 2577525,
+    "frames_after": 2646000,
+    "seconds_before": 58.4473,
+    "seconds_after": 60.0,
+    "loop_seconds": 60.0
   },
   "ogg": {
     "exported": false,

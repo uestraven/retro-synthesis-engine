@@ -54,6 +54,7 @@ from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import load_profile
 from rse.prompt.interpret import Requirement, SongPlan, interpret
 from rse.song.loopcheck import check as loop_check
+from rse.song.loopcheck import pad_to_loop_length
 from rse.tokenizers.frozen import frozen_config
 from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.transfer.arranger import arrange_for_nes, row_seconds
@@ -411,6 +412,9 @@ def main() -> int:
         print(f"  midi export failed: {type(error).__name__}: {error}")
         midi_path = None
 
+    # The rendered file must be exactly one loop long before anything is
+    # measured on it, or the bar boundaries the diagnostic uses are wrong.
+    padding = pad_to_loop_length(wav, loop_seconds=duration)
     diagnostic = loop_check(track, bar_ticks=bar_ticks, wav_path=wav)
     plan.requirements.append(
         Requirement(
@@ -434,6 +438,7 @@ def main() -> int:
         "requested_seconds": plan.target_seconds,
         "loop": {"start_tick": track.loop_start_tick, "end_tick": track.loop_end_tick},
         "loop_diagnostic": diagnostic.to_dict(),
+        "render_padding": padding,
         "ogg": {
             "exported": False,
             "reason": "no Vorbis encoder available: the renderer writes WAV "
@@ -470,6 +475,11 @@ def main() -> int:
         for item in items:
             print(f"    - {item['text']}: {item['detail']}")
     print("\nloop boundary")
+    if padding["padded"]:
+        print(
+            f"  render padded {padding['seconds_before']:.2f}s -> "
+            f"{padding['seconds_after']:.2f}s to match the {duration:.2f}s loop"
+        )
     print(f"  timing continuous: {diagnostic.timing_continuous}")
     for line in diagnostic.notes():
         print(f"  - {line}")

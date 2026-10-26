@@ -185,3 +185,58 @@ def test_nothing_rings_past_the_loop_point(engine: ConstraintEngine) -> None:
     assert all(e.duration > 0 for e in track.sounding_events()), (
         "truncation must not produce a zero-length note"
     )
+
+
+def test_render_is_padded_to_the_loop_length(tmp_path) -> None:
+    """A rendered loop must be exactly one loop long.
+
+    The renderer stops at the last note's release, not at the bar line, so a
+    final bar that ends early produces a file shorter than the loop it claims
+    to be: 58.45 s for a 60.00 s loop, wrapping 0.83 bars early. Every loop
+    claim drawn from `loop_end_tick` was true of the composition and false of
+    the WAV actually delivered.
+    """
+    import wave
+
+    import numpy as np
+
+    from rse.song.loopcheck import pad_to_loop_length
+
+    path = tmp_path / "short.wav"
+    rate = 44100
+    short = np.zeros(int(rate * 58.45), dtype="<i2")
+    short[::1000] = 8000  # non-silent, so padding is distinguishable
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(short.tobytes())
+
+    report = pad_to_loop_length(path, loop_seconds=60.0)
+    assert report["padded"] is True
+    assert report["seconds_before"] == pytest.approx(58.45, abs=0.01)
+    assert report["seconds_after"] == pytest.approx(60.0, abs=0.001)
+
+    with wave.open(str(path), "rb") as handle:
+        assert handle.getnframes() == int(round(60.0 * rate))
+
+
+def test_padding_never_truncates(tmp_path) -> None:
+    """A file already at or over the loop length is left alone."""
+    import wave
+
+    import numpy as np
+
+    from rse.song.loopcheck import pad_to_loop_length
+
+    path = tmp_path / "exact.wav"
+    rate = 44100
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(np.zeros(int(rate * 60.0), dtype="<i2").tobytes())
+    report = pad_to_loop_length(path, loop_seconds=58.0)
+    assert report["padded"] is False
+    with wave.open(str(path), "rb") as handle:
+        assert handle.getnframes() == int(rate * 60.0)

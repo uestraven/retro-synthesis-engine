@@ -165,3 +165,50 @@ def check(
             diagnostic.boundary_step = int(abs(samples[-1] - samples[0]))
             diagnostic.peak = int(np.abs(samples).max())
     return diagnostic
+
+
+def pad_to_loop_length(
+    wav_path: Path, *, loop_seconds: float
+) -> dict[str, Any]:
+    """Extend a rendered WAV with silence so it is exactly one loop long.
+
+    The renderer stops at the last note's release, not at the bar line. When
+    the final bar ends early -- 5 onsets releasing before the boundary -- the
+    file comes out shorter than the loop it represents: 58.45 s for a 60.00 s
+    loop, wrapping 0.83 bars early. Every loop claim made from the symbolic
+    `loop_end_tick` was therefore true of the composition and false of the
+    deliverable.
+
+    Padding rather than trimming the composition, because the silence is real
+    music: a bar that ends early is a rest, and a loop has to include it.
+    """
+    path = Path(wav_path)
+    with wave.open(str(path), "rb") as handle:
+        params = handle.getparams()
+        frames = handle.readframes(handle.getnframes())
+    samples = np.frombuffer(frames, dtype="<i2")
+    target = int(round(loop_seconds * params.framerate))
+    before = samples.size
+    if samples.size >= target:
+        return {
+            "padded": False,
+            "frames_before": before,
+            "frames_after": before,
+            "seconds_before": round(before / params.framerate, 4),
+            "seconds_after": round(before / params.framerate, 4),
+            "loop_seconds": round(loop_seconds, 4),
+        }
+    padded = np.concatenate(
+        [samples, np.zeros(target - samples.size, dtype="<i2")]
+    )
+    with wave.open(str(path), "wb") as handle:
+        handle.setparams(params)
+        handle.writeframes(padded.tobytes())
+    return {
+        "padded": True,
+        "frames_before": before,
+        "frames_after": int(padded.size),
+        "seconds_before": round(before / params.framerate, 4),
+        "seconds_after": round(padded.size / params.framerate, 4),
+        "loop_seconds": round(loop_seconds, 4),
+    }
