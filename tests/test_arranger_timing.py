@@ -20,6 +20,7 @@ from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import load_profile
 from rse.transfer.arranger import ROWS_PER_BEAT, arrange_for_nes, row_seconds
 from rse.transfer.score import (
+    ACCOMPANIMENT,
     BASS,
     MELODY,
     PERCUSSION,
@@ -246,3 +247,72 @@ def test_old_scaling_would_have_failed_bar_invariance() -> None:
     for tempo, expected in zip(TEMPOS, (4.8, 6.4, 8.0, 9.6, 11.2), strict=True):
         old_scale = tempo / 150.0
         assert BARS * old_scale == pytest.approx(expected, rel=1e-9)
+
+
+# -- declared roles, arbitrated by content ---------------------------------
+
+
+def score_with_sparse_declared_lead(*, lead_notes: int, other_notes: int) -> Score:
+    """Program 80 declared as the lead but barely playing.
+
+    The measured pathology: a declared lead holding 21 notes of 326 while
+    another pitched track held 120. Honouring the program number blindly puts
+    a near-silent voice on the melody channel.
+    """
+    lead = Track(role=MELODY, program=80, monophonic=True)
+    other = Track(role=ACCOMPANIMENT, program=81, monophonic=True)
+    bass = Track(role=BASS, program=38, monophonic=True)
+    for i in range(lead_notes):
+        lead.notes.append(ScoreNote(tick=i * SOURCE_TPQ, duration=6, pitch=72))
+    for i in range(other_notes):
+        other.notes.append(ScoreNote(tick=i * 6, duration=6, pitch=60 + i % 12))
+    for i in range(8):
+        bass.notes.append(ScoreNote(tick=i * SOURCE_TPQ * 4, duration=24, pitch=36))
+    return Score(
+        ticks_per_quarter=SOURCE_TPQ,
+        tempo_bpm=128.0,
+        beats_per_bar=4,
+        tracks=[lead, other, bass],
+    )
+
+
+def test_declared_lead_is_honoured_when_it_carries_the_material() -> None:
+    from rse.transfer.arranger import assign_roles
+
+    score = score_with_sparse_declared_lead(lead_notes=64, other_notes=20)
+    roles = assign_roles(score, role_for_program={80: MELODY, 81: ACCOMPANIMENT, 38: BASS})
+    assert roles[0] == MELODY, "the declared lead is the busiest voice; honour it"
+    assert roles[2] == BASS
+
+
+def test_content_overrides_a_declared_lead_that_barely_plays() -> None:
+    """The correction: do not blindly treat program 80 as the lead."""
+    from rse.transfer.arranger import assign_roles
+
+    score = score_with_sparse_declared_lead(lead_notes=21, other_notes=120)
+    roles = assign_roles(score, role_for_program={80: MELODY, 81: ACCOMPANIMENT, 38: BASS})
+    assert roles[1] == MELODY, "the busier voice must take the melody channel"
+    assert roles[0] == ACCOMPANIMENT, "the declared lead takes the other's role"
+    assert roles[2] == BASS, "the bass is unaffected by the swap"
+
+
+def test_declared_bass_is_never_promoted_to_melody() -> None:
+    """A bass line with many notes is still the bass."""
+    from rse.transfer.arranger import assign_roles
+
+    score = score_with_sparse_declared_lead(lead_notes=30, other_notes=10)
+    score.tracks[2].notes = [
+        ScoreNote(tick=i * 6, duration=6, pitch=36) for i in range(200)
+    ]
+    roles = assign_roles(score, role_for_program={80: MELODY, 81: ACCOMPANIMENT, 38: BASS})
+    assert roles[2] == BASS
+    assert roles[0] == MELODY
+
+
+def test_behavioural_assignment_is_unchanged_without_a_plan() -> None:
+    from rse.transfer.arranger import assign_roles
+
+    score = score_with_sparse_declared_lead(lead_notes=21, other_notes=120)
+    roles = assign_roles(score)
+    assert set(roles.values()) <= {MELODY, ACCOMPANIMENT, BASS, PERCUSSION}
+    assert MELODY in roles.values()

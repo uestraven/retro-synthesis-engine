@@ -208,11 +208,75 @@ class Requirement:
         return {"text": self.text, "status": self.status, "detail": self.detail}
 
 
+#: Scenario words to a scenario name. These do not reach the composer -- it
+#: has no scenario input -- but they are what the listener asked for, and
+#: recording them lets the mapping to genre/key/tempo be audited.
+SCENARIO_WORDS: dict[str, str] = {
+    "boss battle": "boss_battle",
+    "boss": "boss_battle",
+    "battle": "battle",
+    "combat": "battle",
+    "fight": "battle",
+    "town": "town",
+    "village": "town",
+    "shop": "town",
+    "dungeon": "dungeon",
+    "cave": "dungeon",
+    "overworld": "overworld",
+    "field": "overworld",
+    "forest": "exploration",
+    "exploration": "exploration",
+    "title": "title",
+    "credits": "credits",
+    "game over": "game_over",
+}
+
+#: Style words to a style name, kept separate from genre for the same reason.
+STYLE_WORDS: dict[str, str] = {
+    "nes": "nes",
+    "jrpg": "nes_jrpg",
+    "rpg": "nes_jrpg",
+    "chiptune": "chiptune",
+    "famicom": "nes",
+    "8-bit": "chiptune",
+    "8 bit": "chiptune",
+}
+
+#: Energy words to a coarse level, alongside the tempo they imply.
+ENERGY_LEVELS: dict[str, str] = {
+    "frantic": "very_high",
+    "frenetic": "very_high",
+    "driving": "high",
+    "energetic": "high",
+    "fast": "high",
+    "upbeat": "medium_high",
+    "lively": "medium_high",
+    "moderate": "medium",
+    "steady": "medium",
+    "relaxed": "low",
+    "calm": "low",
+    "slow": "low",
+    "sparse": "very_low",
+    "mournful": "very_low",
+}
+
+
 @dataclass
 class SongPlan:
-    """A composition plan expressed only in things the pipeline can deliver."""
+    """A composition plan expressed only in things the pipeline can deliver.
+
+    Carries two vocabularies on purpose. `style`, `scenario`, `mood` and
+    `energy` are what the request asked for; `genre`, `ensemble`, `key_mode`
+    and `tempo_bpm` are what the composer can be told. Keeping both means the
+    mapping between them is inspectable rather than implicit.
+    """
 
     prompt: str = ""
+    style: str = ""
+    scenario: str = ""
+    mood: str = ""
+    energy: str = ""
+    loop: bool = False
     genre: str = DEFAULT_GENRE
     ensemble: str = DEFAULT_ENSEMBLE
     tempo_bpm: int = DEFAULT_TEMPO
@@ -255,6 +319,11 @@ class SongPlan:
     def to_dict(self) -> dict[str, Any]:
         return {
             "prompt": self.prompt,
+            "style": self.style,
+            "scenario": self.scenario,
+            "mood": self.mood,
+            "energy": self.energy,
+            "loop": self.loop,
             "genre": self.genre,
             "ensemble": self.ensemble,
             "tempo_bpm": self.tempo_bpm,
@@ -339,6 +408,7 @@ def interpret(prompt: str) -> SongPlan:
         for word, value in ENERGY_TEMPO.items():
             if re.search(rf"\b{re.escape(word)}\b", text):
                 plan.tempo_bpm = value
+                plan.energy = ENERGY_LEVELS.get(word, "")
                 add(
                     Requirement(
                         word, "approximated", f"read as {value} BPM"
@@ -355,7 +425,36 @@ def interpret(prompt: str) -> SongPlan:
     for word, (mode, why) in MOOD_MODES.items():
         if re.search(rf"\b{re.escape(word)}\b", text):
             plan.key_mode = mode
+            plan.mood = word
             add(Requirement(word, "approximated", f"read as {why}"))
+            break
+
+    # Scenario and style are recorded but reach the composer only through the
+    # genre/key/tempo they imply; Fermata has no scenario input.
+    for phrase, scenario in SCENARIO_WORDS.items():
+        if phrase in text:
+            plan.scenario = scenario
+            add(
+                Requirement(
+                    phrase,
+                    "approximated",
+                    f"recorded as scenario {scenario!r}; the composer has no "
+                    "scenario input, so it reaches generation only through "
+                    "genre, key and tempo",
+                )
+            )
+            break
+    for word, style in STYLE_WORDS.items():
+        if word in text:
+            plan.style = style
+            add(
+                Requirement(
+                    word,
+                    "approximated",
+                    f"recorded as style {style!r}; expressed to the composer "
+                    "as a genre token and to the arranger as the NES profile",
+                )
+            )
             break
 
     for word, genre in GENRE_WORDS.items():
@@ -399,6 +498,8 @@ def interpret(prompt: str) -> SongPlan:
         if re.search(rf"\b{re.escape(word)}\b", text):
             if feature not in plan.structure:
                 plan.structure.append(feature)
+            if feature == "loop":
+                plan.loop = True
             add(
                 Requirement(
                     word,

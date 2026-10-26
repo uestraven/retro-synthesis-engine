@@ -53,6 +53,7 @@ from rse.events.schema import Composition, TempoChange, TimeSignatureChange
 from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import load_profile
 from rse.prompt.interpret import Requirement, SongPlan, interpret
+from rse.song.loopcheck import check as loop_check
 from rse.tokenizers.frozen import frozen_config
 from rse.tokenizers.tokenizer import GridFit, RseTokenizer
 from rse.transfer.arranger import arrange_for_nes, row_seconds
@@ -163,6 +164,14 @@ def main() -> int:
     parser.add_argument("--top-k", type=int, default=24)
     parser.add_argument("--repetition-penalty", type=float, default=1.12)
     parser.add_argument("--max-new-tokens", type=int, default=2000)
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        default=None,
+        help="NES composition profile. Its tempo, meter, duration and form "
+        "are hard constraints and override anything inferred from the prompt "
+        "wording; the prompt still supplies mood, key and scenario.",
+    )
     parser.add_argument("--out-dir", type=Path, default=Path("songs"))
     parser.add_argument("--name", default="song_v01")
     args = parser.parse_args()
@@ -175,6 +184,34 @@ def main() -> int:
     from transformers.generation.logits_process import LogitsProcessor
 
     plan = interpret(args.prompt)
+    song_profile = None
+    if args.profile:
+        from rse.prompt.profile import load as load_song_profile
+
+        song_profile = load_song_profile(args.profile)
+        # The profile wins on everything it states. The prompt keeps mood ->
+        # key, which the profile does not fix, and every requirement the
+        # profile overrode is reported rather than quietly replaced.
+        for field_name, before, after in (
+            ("tempo_bpm", plan.tempo_bpm, song_profile.tempo_bpm),
+            ("beats_per_bar", plan.beats_per_bar, song_profile.beats_per_bar),
+            ("target_seconds", plan.target_seconds, song_profile.duration_seconds),
+        ):
+            if before != after:
+                plan.requirements.append(
+                    Requirement(
+                        f"{field_name} from the prompt",
+                        "approximated",
+                        f"overridden by profile {song_profile.name!r}: "
+                        f"{before} -> {after}",
+                    )
+                )
+        plan.tempo_bpm = song_profile.tempo_bpm
+        plan.beats_per_bar = song_profile.beats_per_bar
+        plan.target_seconds = song_profile.duration_seconds
+        plan.programs = song_profile.programs()
+        plan.percussion = song_profile.percussion_requested
+
     total_bars = plan.bars_for_target(section_bars=SECTION_BARS)
     n_sections = max(2, total_bars // SECTION_BARS)
     # A A' B A'' when there is room; the B slot is the second from last.
@@ -182,6 +219,11 @@ def main() -> int:
     roles = roles[:n_sections]
     if n_sections >= 3:
         roles = ["A"] + ["A'"] * (n_sections - 3) + ["B", "A''"]
+
+    if song_profile is not None:
+        roles = [s.label for s in song_profile.sections]
+        n_sections = len(roles)
+        total_bars = song_profile.total_bars()
 
     print(f"prompt: {args.prompt}\n")
     print(f"plan: {plan.genre}/{plan.ensemble}, {plan.tempo_bpm} BPM, key "
@@ -288,7 +330,7 @@ def main() -> int:
     failures: list[dict[str, Any]] = []
 
     for index, role in enumerate(roles):
-        contrast = role == "B"
+        contrast = role.startswith("B")
         header = build_header(
             vocab,
             plan,
@@ -369,6 +411,7 @@ def main() -> int:
         print(f"  midi export failed: {type(error).__name__}: {error}")
         midi_path = None
 
+    diagnostic = loop_check(track, bar_ticks=bar_ticks, wav_path=wav)
     plan.requirements.append(
         Requirement(
             f"{len(sections)} sections, {' '.join(r['role'] for r in records)}",
@@ -381,6 +424,8 @@ def main() -> int:
         "version": "rse-prompt-to-song/0.1",
         "prompt": args.prompt,
         "plan": plan.to_dict(),
+        "composition_profile": song_profile.to_dict() if song_profile else None,
+        "profile_reachability": song_profile.reachability() if song_profile else None,
         "form": [r["role"] for r in records],
         "section_bars": SECTION_BARS,
         "theme_bars": THEME_BARS,
@@ -388,6 +433,12 @@ def main() -> int:
         "duration_sec": round(duration, 3),
         "requested_seconds": plan.target_seconds,
         "loop": {"start_tick": track.loop_start_tick, "end_tick": track.loop_end_tick},
+        "loop_diagnostic": diagnostic.to_dict(),
+        "ogg": {
+            "exported": False,
+            "reason": "no Vorbis encoder available: the renderer writes WAV "
+            "only, and neither ffmpeg nor oggenc is installed",
+        },
         "hardware_violations": len(violations),
         "seam_repairs": n_seam_repairs,
         "seed": args.seed,
@@ -418,6 +469,10 @@ def main() -> int:
         print(f"  {status.upper()} ({len(items)})")
         for item in items:
             print(f"    - {item['text']}: {item['detail']}")
+    print("\nloop boundary")
+    print(f"  timing continuous: {diagnostic.timing_continuous}")
+    for line in diagnostic.notes():
+        print(f"  - {line}")
     print(f"\nwrote {wav}")
     if midi_path:
         print(f"wrote {midi_path}")

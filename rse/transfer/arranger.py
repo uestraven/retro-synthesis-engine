@@ -161,11 +161,14 @@ def assign_roles(
     measured pieces: `_track_movement` is mean absolute interval, so a fast
     arpeggio outscores a stepwise tune and takes the melody slot from it.
 
-    Neither is simply correct. The behavioural rule was *right* on the pieces
-    where the declared lead held 21 notes of 326 -- it picked the voice
-    actually carrying the material. So a declared role is used when the track
-    has notes, and a track declared as melody but left empty falls back to
-    the behavioural choice rather than silently muting the melody channel.
+    Neither is simply correct, so the declared plan decides *placement* while
+    **content decides which voice actually leads**. A track declared as
+    program 80 and then left nearly empty is not the lead whatever the header
+    says: on measured pieces the declared lead held 21 notes of 326 while
+    another track held 120, and the behavioural rule was right to prefer the
+    busier voice. The declared choice therefore stands unless another pitched
+    non-bass track simply carries more notes, which is a comparison rather
+    than a tuned threshold.
     """
     roles: dict[int, str] = {}
     pitched: list[int] = []
@@ -184,11 +187,28 @@ def assign_roles(
             role = role_for_program.get(score.tracks[index].program or -1)
             if role in (MELODY, BASS, ACCOMPANIMENT):
                 declared[index] = role
-        # Only honour the plan if it actually names a melody that has notes.
-        # Otherwise the melody channel would come out empty while a busy
-        # voice sat on accompaniment, which is the failure the behavioural
-        # rule exists to avoid.
-        if MELODY in declared.values():
+
+        declared_lead = next(
+            (i for i, role in declared.items() if role == MELODY), None
+        )
+        if declared_lead is not None:
+            # **Content arbitrates the melody, not the GM program.** The plan
+            # says which voice is *meant* to lead, but a track declared as
+            # program 80 and then left nearly empty is not the lead whatever
+            # the header says -- on measured pieces the declared lead held 21
+            # notes of 326 while another track held 120.
+            #
+            # So the declared choice stands unless some other pitched track
+            # simply carries more notes. That is a comparison, not a tuned
+            # threshold: no density target, no entropy floor, nothing of the
+            # kind that failed to predict enjoyment in blind tests.
+            candidates = [i for i in pitched if declared.get(i) != BASS]
+            busiest = max(candidates, key=lambda i: len(score.tracks[i].notes))
+            if len(score.tracks[busiest].notes) > len(score.tracks[declared_lead].notes):
+                # Swap: the busier voice leads, the declared one takes the
+                # role the busier voice was going to have.
+                declared[declared_lead] = declared.get(busiest, ACCOMPANIMENT)
+                declared[busiest] = MELODY
             roles.update(declared)
             for index in pitched:
                 roles.setdefault(index, ACCOMPANIMENT)
