@@ -68,6 +68,14 @@
   .ends { display: flex; justify-content: space-between;
           font-size: .7rem; color: var(--dim); }
   .val { color: var(--accent); font-weight: 700; }
+  .tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
+  .tab {
+    font: inherit; font-size: .8rem; letter-spacing: .08em; cursor: pointer;
+    text-transform: uppercase; padding: .6rem 1rem; border-radius: 8px 8px 0 0;
+    background: transparent; color: var(--dim);
+    border: 1px solid var(--edge); border-bottom: none;
+  }
+  .tab[aria-selected=true] { background: var(--panel); color: var(--accent); }
   .consoles { display: flex; gap: .6rem; flex-wrap: wrap; }
   .console {
     flex: 1 1 12rem; text-align: left; cursor: pointer; font: inherit;
@@ -121,20 +129,34 @@
   <p class="sub">Describe a soundtrack. Get a complete retro game track.
     No model, no GPU &mdash; a procedural composer writing for real console hardware.</p>
 
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab" id="tabQuick" role="tab"
+            aria-selected="true">Quick Generate</button>
+    <button type="button" class="tab" id="tabPrompt" role="tab"
+            aria-selected="false">Describe a Song</button>
+  </div>
+
   <form id="form">
     <fieldset>
       <legend>Console sound</legend>
       <div class="consoles" id="consoles"></div>
     </fieldset>
 
-    <fieldset>
-      <legend>Concept</legend>
+    <fieldset id="promptPanel" hidden>
+      <legend>Describe a Song</legend>
       <div class="field">
         <label for="prompt">Describe your soundtrack</label>
         <textarea id="prompt" maxlength="600"
           placeholder="A dark and dramatic boss battle theme with an urgent melody and driving percussion."></textarea>
-        <div class="hint">Optional. The controls below work on their own.</div>
+        <div class="hint">Read by a <b>rule-based parser</b>, not a language
+          model. It recognises styles, scenarios, moods, tempos, keys and
+          durations, and the report below says exactly what it could and could
+          not use. Nothing is invented.</div>
       </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Composition</legend>
       <div class="row">
         <div class="field">
           <label for="style">Music style</label>
@@ -144,6 +166,23 @@
           <label for="duration">Duration <span class="val" id="durationVal">60 s</span></label>
           <input type="range" id="duration" min="8" max="180" step="1" value="60">
           <div class="ends"><span id="durMin">8 s</span><span id="durMax">180 s</span></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Sound</legend>
+      <div class="row">
+        <div class="field">
+          <label for="profile">Instrument profile</label>
+          <select id="profile"></select>
+          <div class="hint" id="profileHint"></div>
+        </div>
+        <div class="field">
+          <label for="mood">Mood</label>
+          <select id="mood"></select>
+          <div class="hint">Picks an instrument profile. Only moods the engine
+            maps to a real profile are offered.</div>
         </div>
       </div>
     </fieldset>
@@ -219,6 +258,28 @@ const API_BASE = new URLSearchParams(location.search).get("api") || "";
 const api = (path) => API_BASE.replace(/\/$/, "") + path;
 
 const el = (id) => document.getElementById(id);
+
+// Two ways in, one engine. Quick Generate needs no language processing at all;
+// Describe a Song adds the rule-based parser on top of the same controls. Both
+// drive the procedural composer -- neither routes to a model.
+let promptMode = false;
+function setMode(prompt) {
+  promptMode = prompt;
+  el("tabQuick").setAttribute("aria-selected", String(!prompt));
+  el("tabPrompt").setAttribute("aria-selected", String(prompt));
+  el("promptPanel").hidden = !prompt;
+  if (prompt) {
+    // Hand the description the wheel. Explicit controls outrank an inferred
+    // value, which is right -- but a leftover dropdown from Quick Generate
+    // then silently overrides what the user just typed, so switching mode
+    // returns the inferrable controls to "from the description". The user can
+    // still override any of them deliberately afterwards.
+    for (const id of ["style", "profile", "mood"]) el(id).value = "";
+    el("tempo").value = 0;
+    showTempo();
+    el("profileHint").textContent = "";
+  }
+}
 let chosenConsole = "nes";
 let lastSeed = null;
 
@@ -250,6 +311,31 @@ async function loadCapabilities() {
     ? TEMPO_LADDER[TEMPO_LADDER.length - 1].bpm.toFixed(0) + " BPM"
     : "faster";
   showTempo();
+
+  // Only profiles and moods the engine can actually produce.
+  const profile = el("profile");
+  profile.innerHTML = '<option value="">From the style (varies per song)</option>';
+  for (const item of caps.sound_profiles || []) {
+    const option = document.createElement("option");
+    option.value = item.name;
+    option.textContent = item.label;
+    option.dataset.detail =
+      `lead ${item.lead_duty_percent} pulse, comp ${item.comp_duty_percent}`;
+    profile.append(option);
+  }
+  profile.onchange = () => {
+    const chosen = profile.selectedOptions[0];
+    el("profileHint").textContent = chosen?.dataset.detail || "";
+  };
+
+  const mood = el("mood");
+  mood.innerHTML = '<option value="">No mood</option>';
+  for (const name of caps.moods || []) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    mood.append(option);
+  }
 
   const duration = el("duration");
   duration.min = caps.min_seconds;
@@ -313,13 +399,19 @@ function body() {
   const index = Number(el("tempo").value);
   const seed = el("seed").value.trim();
   const request = {
-    prompt: el("prompt").value.trim() || el("prompt").placeholder.trim(),
+    // Quick Generate sends no prompt at all: the controls are the request,
+    // and the rule-based parser is not involved.
+    prompt: promptMode
+      ? el("prompt").value.trim() || el("prompt").placeholder.trim()
+      : "",
     console: chosenConsole,
     seconds: Number(el("duration").value),
     energy: Number(el("energy").value),
     loop: el("loop").checked,
   };
   if (el("style").value) request.style = el("style").value;
+  if (el("profile").value) request.sound_profile = el("profile").value;
+  if (el("mood").value) request.mood = el("mood").value;
   // Index 0 means "style default", so no tempo is sent at all and the preset
   // keeps its own. Any other position sends a tempo already on the ladder, so
   // the server has nothing to snap.
@@ -352,6 +444,10 @@ function render(song) {
     ["why", song.style_reason],
     ["tempo", `${song.tempo_bpm.toFixed(2)} BPM`],
     ["frames/row", String(song.frames_per_row)],
+    ["sound", song.sound?.profile
+      ? `${song.sound.profile} (${song.sound.reason})`
+      : `${song.sound?.lead_timbre ?? "?"}/${song.sound?.comp_timbre ?? "?"}`],
+    ["pulse duty", `${song.sound?.lead_duty_percent ?? "?"} / ${song.sound?.comp_duty_percent ?? "?"}`],
     ["key", song.mode.replace(/_/g, " ")],
     ["form", song.form.join("-")],
     ["length", song.duration_sec.toFixed(1) + " s / " + song.bars + " bars"],
@@ -416,6 +512,10 @@ async function generate(request) {
     go.disabled = false;
   }
 }
+
+el("tabQuick").onclick = () => setMode(false);
+el("tabPrompt").onclick = () => setMode(true);
+setMode(false);
 
 el("form").onsubmit = (event) => { event.preventDefault(); generate(body()); };
 el("again").onclick = () => {

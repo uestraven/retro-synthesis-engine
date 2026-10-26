@@ -1,0 +1,170 @@
+{
+  "pair_01": {
+    "style": "action",
+    "seed": 6301,
+    "A": "expressive",
+    "B": "dry",
+    "lead_timbre": "classic",
+    "comp_timbre": "bright",
+    "duty": {
+      "P1": 1,
+      "P2": 0
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_02": {
+    "style": "action",
+    "seed": 6303,
+    "A": "expressive",
+    "B": "dry",
+    "lead_timbre": "bright",
+    "comp_timbre": "classic",
+    "duty": {
+      "P1": 0,
+      "P2": 1
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_03": {
+    "style": "adventure",
+    "seed": 6303,
+    "A": "expressive",
+    "B": "dry",
+    "lead_timbre": "classic",
+    "comp_timbre": "bright",
+    "duty": {
+      "P1": 1,
+      "P2": 0
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_04": {
+    "style": "adventure",
+    "seed": 6305,
+    "A": "expressive",
+    "B": "dry",
+    "lead_timbre": "hollow",
+    "comp_timbre": "bright",
+    "duty": {
+      "P1": 2,
+      "P2": 0
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_05": {
+    "style": "boss",
+    "seed": 6305,
+    "A": "dry",
+    "B": "expressive",
+    "lead_timbre": "hollow",
+    "comp_timbre": "bright",
+    "duty": {
+      "P1": 2,
+      "P2": 0
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_06": {
+    "style": "boss",
+    "seed": 6307,
+    "A": "dry",
+    "B": "expressive",
+    "lead_timbre": "hollow",
+    "comp_timbre": "classic",
+    "duty": {
+      "P1": 2,
+      "P2": 1
+    },
+    "timbre_changed": false,
+    "tests": "velocity only"
+  },
+  "pair_07": {
+    "style": "tension",
+    "seed": 6307,
+    "A": "dry",
+    "B": "expressive",
+    "lead_timbre": "bright",
+    "comp_timbre": "hollow",
+    "duty": {
+      "P1": 0,
+      "P2": 2
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_08": {
+    "style": "tension",
+    "seed": 6309,
+    "A": "dry",
+    "B": "expressive",
+    "lead_timbre": "bright",
+    "comp_timbre": "hollow",
+    "duty": {
+      "P1": 0,
+      "P2": 2
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_09": {
+    "style": "town",
+    "seed": 6309,
+    "A": "dry",
+    "B": "expressive",
+    "lead_timbre": "hollow",
+    "comp_timbre": "classic",
+    "duty": {
+      "P1": 2,
+      "P2": 1
+    },
+    "timbre_changed": false,
+    "tests": "velocity only"
+  },
+  "pair_10": {
+    "style": "town",
+    "seed": 6311,
+    "A": "dry",
+    "B": "expressive",
+    "lead_timbre": "classic",
+    "comp_timbre": "hollow",
+    "duty": {
+      "P1": 1,
+      "P2": 2
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  },
+  "pair_11": {
+    "style": "victory",
+    "seed": 6311,
+    "A": "expressive",
+    "B": "dry",
+    "lead_timbre": "hollow",
+    "comp_timbre": "classic",
+    "duty": {
+      "P1": 2,
+      "P2": 1
+    },
+    "timbre_changed": false,
+    "tests": "velocity only"
+  },
+  "pair_12": {
+    "style": "victory",
+    "seed": 6313,
+    "A": "expressive",
+    "B": "dry",
+    "lead_timbre": "classic",
+    "comp_timbre": "hollow",
+    "duty": {
+      "P1": 1,
+      "P2": 2
+    },
+    "timbre_changed": true,
+    "tests": "velocity + timbre"
+  }
+}

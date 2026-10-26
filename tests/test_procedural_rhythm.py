@@ -47,7 +47,14 @@ def signature(result) -> str:
 def test_v1_output_is_unchanged(key: str) -> None:
     """The baseline is the result; expansion must not move it."""
     style, _, seed = key.rpartition("_s")
-    result = compose(style_name=style, seed=int(seed), target_seconds=60.0)
+    # `sound_design=None` on purpose. The baseline's job is to prove the
+    # COMPOSITION has not moved, and the signature includes velocity, which
+    # is now a performance decision rather than a compositional one. Pinning
+    # the expressive render here would make every future sound-design change
+    # look like a composition regression.
+    result = compose(
+        style_name=style, seed=int(seed), target_seconds=60.0, sound_design=None
+    )
     assert signature(result) == BASELINE[key]
 
 

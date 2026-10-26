@@ -66,6 +66,44 @@ class GenerateRequest(BaseModel):
         default=None,
         description="Omit to let the prompt decide; set to force it either way.",
     )
+    mood: str | None = Field(
+        default=None,
+        description="Selects the instrument profile. Only moods the engine "
+        "maps to a real profile are accepted.",
+    )
+    sound_profile: str | None = Field(
+        default=None,
+        description="Named instrument profile. Overrides mood.",
+    )
+
+    @field_validator("mood")
+    @classmethod
+    def _known_mood(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from rse.procedural.sound import MOOD_PROFILES
+
+        key = value.strip().lower()
+        if key and key not in MOOD_PROFILES:
+            raise ValueError(
+                f"mood {value!r} does not map to an instrument profile; "
+                f"have {sorted(MOOD_PROFILES)}"
+            )
+        return key or None
+
+    @field_validator("sound_profile")
+    @classmethod
+    def _known_profile(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from rse.procedural.sound import SOUND_PROFILES
+
+        key = value.strip().lower()
+        if key and key not in SOUND_PROFILES:
+            raise ValueError(
+                f"unknown sound profile {value!r}; have {sorted(SOUND_PROFILES)}"
+            )
+        return key or None
     seed: int | None = Field(
         default=None,
         ge=0,
@@ -136,6 +174,8 @@ class GenerateResponse(BaseModel):
     #: number is a tempo a console could actually produce.
     frames_per_row: int
     mode: str
+    #: What actually played it: the profile, its duty cycles, and why.
+    sound: dict[str, Any] = Field(default_factory=dict)
     bars: int
     form: list[str]
     loopable: bool
@@ -158,6 +198,18 @@ class StyleInfo(BaseModel):
     #: number is a tempo a console could actually produce.
     frames_per_row: int
     mode: str
+
+
+class SoundProfileInfo(BaseModel):
+    """One named instrument profile the engine can actually produce."""
+
+    name: str
+    label: str
+    lead_timbre: str
+    comp_timbre: str
+    lead_duty_percent: str
+    comp_duty_percent: str
+    moods: list[str] = Field(default_factory=list)
 
 
 class TempoStep(BaseModel):
@@ -188,3 +240,8 @@ class CapabilitiesResponse(BaseModel):
     #: Every playable tempo, so the page's slider snaps to the hardware grid
     #: instead of offering BPM values no console could output.
     tempo_ladder: list[TempoStep] = Field(default_factory=list)
+    #: Instrument profiles, so the page offers only profiles that exist.
+    sound_profiles: list[SoundProfileInfo] = Field(default_factory=list)
+    #: Mood words that map to a profile. A mood outside this list is refused
+    #: rather than silently ignored, which is what it used to be.
+    moods: list[str] = Field(default_factory=list)

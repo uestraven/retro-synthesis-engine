@@ -40,6 +40,7 @@ from rse.api.models import (
     GenerateRequest,
     GenerateResponse,
     SongLinks,
+    SoundProfileInfo,
     StyleInfo,
     TempoStep,
     energy_from_percent,
@@ -59,6 +60,16 @@ SERVED_FILES = {
 #: The single-file generator page. Bundled, so `rse-api` serves a working
 #: interface with no build step and no second process.
 PAGE = Path(__file__).resolve().parents[2] / "frontend" / "index.html"
+
+#: Human labels for the instrument profiles.
+PROFILE_LABELS = {
+    "aggressive": "Aggressive — thin cutting lead",
+    "full": "Full — rounded lead",
+    "eerie": "Eerie — thin lead, hollow bed",
+    "warm": "Warm — rounded lead, glassy comp",
+    "sharp": "Sharp — bright without harsh",
+    "mellow": "Mellow — soft lead, hollow bed",
+}
 
 #: Human labels for the composer's presets, for the interface's dropdown.
 STYLE_LABELS = {
@@ -169,6 +180,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Read from the engine, so the frontend cannot drift from it."""
         from rse.hardware.tempo import ladder as tempo_ladder
         from rse.procedural.compose import STYLES
+        from rse.procedural.sound import (
+            MOOD_PROFILES,
+            SOUND_PROFILES,
+            TIMBRES,
+            _percent,
+        )
 
         return CapabilitiesResponse(
             styles=[
@@ -190,6 +207,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # put a dead download button on the page.
             formats=["wav", "mid"],
             tempo_ladder=[TempoStep(**step.to_dict()) for step in tempo_ladder()],
+            sound_profiles=[
+                SoundProfileInfo(
+                    name=name,
+                    label=PROFILE_LABELS.get(name, name.title()),
+                    lead_timbre=lead,
+                    comp_timbre=comp,
+                    lead_duty_percent=_percent(TIMBRES[lead]),
+                    comp_duty_percent=_percent(TIMBRES[comp]),
+                    moods=sorted(
+                        m for m, p in MOOD_PROFILES.items() if p == name
+                    ),
+                )
+                for name, (lead, comp) in SOUND_PROFILES.items()
+            ],
+            moods=sorted(MOOD_PROFILES),
         )
 
     @app.post("/api/generate", response_model=GenerateResponse)
@@ -281,6 +313,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tempo_bpm=meta["tempo_bpm"],
             frames_per_row=meta["frames_per_row"],
             mode=meta["mode"],
+            sound=meta.get("sound") or {},
             bars=meta["total_bars"],
             form=meta["form"],
             loopable=payload["loop_diagnostic"]["timing_continuous"],
@@ -369,6 +402,8 @@ def _generate_sync(
         tempo_bpm=body.tempo_bpm,
         loop=body.loop,
         energy=bucket,
+        sound_profile=body.sound_profile,
+        mood=body.mood,
     )
     if bucket is not None:
         # Say which of the two things it did. Energy is the fallback that picks

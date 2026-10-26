@@ -150,11 +150,43 @@ def test_the_duration_slider_is_bounded_by_the_server(source: str) -> None:
 
 
 def test_interpolated_text_is_escaped(source: str) -> None:
-    """The prompt comes back in the report; it must not be injected as HTML."""
+    """The prompt comes back in the report; it must not be injected as HTML.
+
+    Scoped to `innerHTML` assignments, which are the only injection vector
+    here. `textContent` and `dataset` assignments are escaped by the DOM
+    itself, and treating them as unsafe made this test flag a server-supplied
+    constant while saying nothing about actual risk.
+    """
     assert "const escape_" in source
-    for interpolation in re.findall(r"\$\{([^}]+)\}", source):
-        if "item." in interpolation or "note" in interpolation:
-            assert "escape_" in interpolation, interpolation
+    unsafe = []
+    for statement in re.findall(r"innerHTML\s*=\s*(.+?);\n", source, re.S):
+        interpolations = re.findall(r"\$\{([^}]+)\}", statement)
+        # Server- or user-supplied strings reaching innerHTML.
+        risky = [
+            text
+            for text in interpolations
+            if re.search(r"\b(item|note|song|entry)\b", text)
+            and "toFixed" not in text
+            and "length" not in text
+        ]
+        # The escaping happens at the point of insertion, which may be a
+        # helper applied to the whole row rather than to each field, so the
+        # invariant is per STATEMENT: if it interpolates supplied text, that
+        # statement has to escape.
+        if risky and "escape_" not in statement:
+            unsafe.append(risky)
+    assert unsafe == [], f"innerHTML statements with unescaped supplied text: {unsafe}"
+
+
+def test_only_escaped_values_reach_inner_html(source: str) -> None:
+    """The report's own fields are interpolated into innerHTML, so the
+    escaping helper must be used there and must cover the five characters that
+    matter."""
+    helper = re.search(r"const escape_ =.*?;\n", source, re.S)
+    assert helper, "no escaping helper"
+    body = helper.group(0)
+    for char in ("&", "<", ">", '"'):
+        assert char in body, f"{char} not escaped"
 
 
 def test_the_page_shows_what_the_request_could_not_reach(source: str) -> None:

@@ -1034,7 +1034,9 @@ def compose(
     phrasing: str | None = None,
     isolate_melody_rng: bool = False,
     variety: str | None = None,
-    sound_design: str | None = None,
+    sound_design: str | None = "expressive",
+    sound_profile: str | None = None,
+    mood: str | None = None,
 ) -> ProceduralResult:
     """One complete NES piece from a style preset and a seed.
 
@@ -1056,8 +1058,14 @@ def compose(
     expansions were -- v1 is what the listener approved, and v1 had one
     distinct rhythm across eight bars and no rest at all.
 
-    `sound_design` is `None` for the dry v1 render and `"expressive"` for
-    per-song pulse timbres and position-shaped velocity. It changes NO note:
+    `sound_design` defaults to `"expressive"`: per-song pulse timbres and
+    position-shaped velocity. Promoted from opt-in after a 12-pair listening
+    test accepted it -- the first non-null result after four composition
+    experiments returned none, and the only one that changed how the music is
+    PLAYED rather than what is played. Pass `None` for the dry v1 render, which
+    is kept reproducible because the frozen baselines are expressed in it.
+
+    It changes NO note:
     pitches, onsets, durations, channels and structure are identical, which is
     what makes it testable against the same score. Drawn from its own seeded
     stream so it cannot perturb a composition decision.
@@ -1139,7 +1147,9 @@ def compose(
     if sound_design == "expressive":
         from rse.procedural import sound as S
 
-        voices = S.choose_voices(style_name, seed=seed)
+        voices = S.choose_voices(
+            style_name, seed=seed, profile=sound_profile, mood=mood
+        )
         lead_shaper = S.lead_velocity
         comp_shaper = S.comp_velocity
 

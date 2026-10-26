@@ -79,6 +79,55 @@ VOICE_PRESETS: dict[str, tuple[tuple[str, str], ...]] = {
     "victory": (("classic", "bright"), ("hollow", "classic"), ("classic", "hollow")),
 }
 
+#: Named instrument profiles, as (lead, accompaniment) timbres.
+#:
+#: Named so an interface can offer them and a report can state which was used.
+#: Every one is a real, reachable pair of duty cycles -- there is no profile
+#: here that the engine cannot produce, which is the rule for anything an
+#: interpreter is allowed to put in a validated configuration.
+SOUND_PROFILES: dict[str, tuple[str, str]] = {
+    # A thin, cutting lead over the standard comp. Reads as hard and urgent.
+    "aggressive": ("bright", "classic"),
+    # The classic pairing: rounded lead, standard comp. The old default.
+    "full": ("hollow", "classic"),
+    # Thin lead over a rounded bed. Unsettled, hollow, exposed.
+    "eerie": ("bright", "hollow"),
+    # Rounded lead over a thin comp: warm foreground, glassy background.
+    "warm": ("hollow", "bright"),
+    # Standard lead over a thin comp. Bright without being harsh.
+    "sharp": ("classic", "bright"),
+    # Standard lead over a rounded bed.
+    "mellow": ("classic", "hollow"),
+}
+
+#: Mood words to a profile.
+#:
+#: This exists because `mood` was an inert control. The interpreter read it
+#: into `plan.key_mode`, which `compose` never consults -- it uses the style's
+#: own mode -- so "a dark theme" and "a bright theme" produced byte-identical
+#: output once a style was chosen. Timbre is the dimension a mood can actually
+#: move now that it is proven audible, so mood selects a profile.
+MOOD_PROFILES: dict[str, str] = {
+    "dark": "full",
+    "ominous": "full",
+    "sinister": "aggressive",
+    "evil": "aggressive",
+    "menacing": "aggressive",
+    "tense": "eerie",
+    "haunting": "eerie",
+    "mysterious": "eerie",
+    "sad": "mellow",
+    "melancholy": "mellow",
+    "hopeful": "sharp",
+    "bright": "sharp",
+    "happy": "sharp",
+    "cheerful": "sharp",
+    "peaceful": "warm",
+    "dreamy": "warm",
+    "triumphant": "aggressive",
+    "heroic": "sharp",
+}
+
 #: 4-bit volume register, and the velocity that lands on each value exactly.
 MAX_REGISTER = 15
 
@@ -124,6 +173,10 @@ class SoundDesign:
     lead_timbre: str
     comp_timbre: str
     style: str
+    #: Which named profile this is, when one was asked for or matched.
+    profile: str | None = None
+    #: Why it was chosen: "profile", "mood", or "style".
+    reason: str = "style"
 
     @property
     def duty_by_channel(self) -> dict[str, int]:
@@ -131,6 +184,8 @@ class SoundDesign:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "profile": self.profile,
+            "reason": self.reason,
             "lead_timbre": self.lead_timbre,
             "comp_timbre": self.comp_timbre,
             "duty_by_channel": self.duty_by_channel,
@@ -143,18 +198,58 @@ def _percent(duty: int) -> str:
     return {0: "12.5%", 1: "25%", 2: "50%", 3: "25% inverted"}[duty]
 
 
-def choose_voices(style_name: str, *, seed: int) -> SoundDesign:
+def profile_name_for(lead: str, comp: str) -> str | None:
+    """The named profile matching a timbre pair, if there is one."""
+    for name, pair in SOUND_PROFILES.items():
+        if pair == (lead, comp):
+            return name
+    return None
+
+
+def choose_voices(
+    style_name: str,
+    *,
+    seed: int,
+    profile: str | None = None,
+    mood: str | None = None,
+) -> SoundDesign:
     """Pick a song's lead and accompaniment timbres.
 
-    Per song and from a separately seeded stream, as instructed: the duty must
-    not wander from note to note, and choosing it must not perturb any
-    composition decision. The seed is mixed with a constant unique to this
-    module so the sound design cannot correlate with the arrangement draw.
+    Precedence: an explicitly named `profile` wins, then `mood`, then a draw
+    from the style's own presets. Each records which applied, so a chosen
+    profile and an inferred one stay distinguishable in the report.
+
+    The draw is per song and from a separately seeded stream: the duty must not
+    wander from note to note, and choosing it must not perturb any composition
+    decision. The seed is mixed with a constant unique to this module so the
+    sound design cannot correlate with the arrangement draw.
     """
+    if profile is not None:
+        if profile not in SOUND_PROFILES:
+            raise KeyError(
+                f"unknown sound profile {profile!r}; have {sorted(SOUND_PROFILES)}"
+            )
+        lead, comp = SOUND_PROFILES[profile]
+        return SoundDesign(
+            lead_timbre=lead, comp_timbre=comp, style=style_name,
+            profile=profile, reason="profile",
+        )
+
+    if mood and mood in MOOD_PROFILES:
+        name = MOOD_PROFILES[mood]
+        lead, comp = SOUND_PROFILES[name]
+        return SoundDesign(
+            lead_timbre=lead, comp_timbre=comp, style=style_name,
+            profile=name, reason="mood",
+        )
+
     rng = random.Random(seed ^ 0x50_17D_51)
     presets = VOICE_PRESETS.get(style_name) or (("hollow", "classic"),)
     lead, comp = rng.choice(presets)
-    return SoundDesign(lead_timbre=lead, comp_timbre=comp, style=style_name)
+    return SoundDesign(
+        lead_timbre=lead, comp_timbre=comp, style=style_name,
+        profile=profile_name_for(lead, comp), reason="style",
+    )
 
 
 def lead_velocity(

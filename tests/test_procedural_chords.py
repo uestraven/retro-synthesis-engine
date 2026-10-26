@@ -144,7 +144,14 @@ def test_no_clash_with_a_suppressed_tone_in_generated_music() -> None:
 @pytest.mark.parametrize("key", sorted(BASELINE))
 def test_v1_unchanged_by_the_chord_system(key: str) -> None:
     style, _, seed = key.rpartition("_s")
-    result = compose(style_name=style, seed=int(seed), target_seconds=60.0)
+    # `sound_design=None` on purpose. The baseline's job is to prove the
+    # COMPOSITION has not moved, and the signature includes velocity, which
+    # is now a performance decision rather than a compositional one. Pinning
+    # the expressive render here would make every future sound-design change
+    # look like a composition regression.
+    result = compose(
+        style_name=style, seed=int(seed), target_seconds=60.0, sound_design=None
+    )
     assert signature(result) == BASELINE[key]
     assert result.vocabulary is None
 

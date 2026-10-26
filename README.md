@@ -289,10 +289,44 @@ curl -X POST http://127.0.0.1:8000/api/generate \
        "seconds": 60, "energy": 75, "loop": true}'
 ```
 
-The response carries the song's links, the seed that produced it, and the
-requirement report. `GET /api/capabilities` returns the styles, the duration
-limits and the formats, read from the engine rather than duplicated in the
-frontend.
+The response carries the song's links, the seed that produced it, what
+performed it, and the requirement report. `GET /api/capabilities` returns the
+styles, duration limits, formats, tempo ladder and instrument profiles, read
+from the engine rather than duplicated in the frontend.
+
+**Two ways in, one engine.** *Quick Generate* is settings only and involves no
+language processing at all. *Describe a Song* adds a rule-based parser on top
+of the same controls — it recognises styles, scenarios, moods, tempos, keys and
+durations, and reports exactly what it could not use. Neither mode routes to a
+model: both drive the procedural composer, asserted by test.
+
+**Only connected controls are offered.** A control that changes nothing is
+worse than a missing one. `mood` was exactly that for most of this project --
+the interpreter read it into `key_mode`, which the composer never consults, so
+"a dark theme" and "a bright theme" produced byte-identical output once a style
+was chosen. It now selects the instrument profile. A mood or profile the engine
+cannot produce is refused with a 422 rather than silently ignored.
+
+### Sound design
+
+Composition decides what is played; instrumentation decides which sounds play
+it; expression decides how they behave. Only the first was ever worked on, and
+it showed: four composition experiments in a row returned no audible
+preference, while the first change to the *performance* was accepted
+immediately.
+
+Each song picks a complementary pair of pulse timbres and shapes note velocity
+from musical position. Three hardware facts constrain it:
+
+- **Three pulse timbres, not four.** The fourth duty setting is the 25%
+  waveform inverted — identical in magnitude spectrum, so it is offered
+  nowhere. 50% has no even harmonics (hollow), 25% is the classic lead, 12.5%
+  is bright and nasal.
+- **Volume is a 4-bit register**, so velocity is quantised to fifteen steps and
+  velocities 98–104 all land on the same one. Dynamics are authored in register
+  space, not in velocity.
+- **The triangle has no volume register.** Bass dynamics do not exist on this
+  hardware and are not faked.
 
 **No model, no GPU.** A 60-second song costs about 1.2 s of CPU, 97% of it in
 the audio renderer and 3 ms in composition. That is short enough to answer

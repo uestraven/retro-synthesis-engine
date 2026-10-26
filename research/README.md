@@ -29,6 +29,7 @@ Batches, roughly in order:
 | `listen_tempo-RATINGS.md` | tempo snapped to the NES frame grid — accepted |
 | `listen_phrase-RATINGS.md` | phrase-level melody — dropped, undecided at n=2 |
 | `listen_variety-RATINGS.md` | key/tempo/form/arrangement variety — **null** |
+| `listen_sound-RATINGS.md` | duty + velocity sound design — **accepted** |
 
 A third: tempo on this hardware is a **frame count**, not a BPM. The console
 advances a tracker row every whole video frame, so only a ladder of tempos
@@ -42,6 +43,13 @@ listener heard no difference. The melody had always measured 20 unique out of
 20 while sounding the same, because all 20 are the same five motif shapes
 re-anchored. Counting distinct note sequences counts the anchoring, not the
 idea. Do not use it as a diversity metric again.
+
+**Composition, instrumentation and expression are separable, and only the
+first had ever been worked on.** Four experiments that rearranged material
+returned no preference; the first that changed how the material is *played* --
+per-song pulse duty and position-shaped velocity, with every note identical --
+was accepted immediately. Before reaching for another composition change, ask
+whether the complaint is actually about performance.
 
 **Four arrangement-level experiments have now returned null**: harmonic rhythm
 (24 pairs), harmonic vocabulary (24 pairs), key/tempo/form/arrangement

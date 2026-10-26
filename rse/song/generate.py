@@ -130,6 +130,27 @@ def _no_model_wording(plan: SongPlan) -> None:
         )
 
 
+def _restate_mood_for_procedural(plan: SongPlan, sound: Any) -> None:
+    """Say what the mood actually did.
+
+    The interpreter records a mood as "read as minor key", which was true of
+    nothing: `compose` uses the STYLE's mode, so a haunting dungeon theme came
+    out phrygian from the `tension` preset and the mood changed no note at all.
+    Mood now selects the instrument profile, which is a real and audible
+    effect, so the report says that instead of a key it never set.
+    """
+    if sound is None or sound.reason != "mood":
+        return
+    for requirement in plan.requirements:
+        if "read as" in requirement.detail and "key" in requirement.detail:
+            requirement.status = "satisfied"
+            requirement.detail = (
+                f"selected the {sound.profile!r} instrument profile: "
+                f"{sound.lead_timbre} lead over {sound.comp_timbre} "
+                "accompaniment. The mode comes from the style, not the mood."
+            )
+
+
 def _restate_for_procedural(plan: SongPlan, selection: Any) -> None:
     """Re-explain the requirements whose explanation is Fermata's, not ours.
 
@@ -184,6 +205,7 @@ def compose_song(
     style: str | None = None,
     tempo_bpm: int | None = None,
     tempo_from_prompt: bool = True,
+    sound_profile: str | None = None,
 ) -> SongResult:
     """Interpreted prompt in, complete NES composition out.
 
@@ -282,8 +304,15 @@ def compose_song(
         section_bars=section_bars,
         tempo_bpm=chosen_tempo,
         tonic=selection.tonic,
+        sound_profile=sound_profile,
+        # Mood selects the instrument profile when none was named. It used to
+        # select nothing at all: the interpreter read it into `key_mode`, which
+        # the composer never consults, so "a dark theme" and "a bright theme"
+        # were byte-identical once a style was chosen.
+        mood=plan.mood or None,
     )
     _restate_form_for_procedural(plan, result.sections)
+    _restate_mood_for_procedural(plan, result.sound)
     _no_model_wording(plan)
 
     composition = result.composition
@@ -339,6 +368,8 @@ def generate_song(
     tempo_bpm: int | None = None,
     loop: bool | None = None,
     energy: str | None = None,
+    sound_profile: str | None = None,
+    mood: str | None = None,
 ) -> SongResult:
     """The whole path from English to composition, overrides included.
 
@@ -369,6 +400,7 @@ def generate_song(
         ("target_seconds", plan.target_seconds, target_seconds),
         ("loop", plan.loop, loop),
         ("energy", plan.energy, energy),
+        ("mood", plan.mood, mood),
     ):
         if incoming is None or incoming == value:
             continue
@@ -401,6 +433,7 @@ def generate_song(
         style=style,
         tempo_bpm=tempo_bpm,
         tempo_from_prompt=tempo_from_prompt,
+        sound_profile=sound_profile,
     )
 
 

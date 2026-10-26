@@ -597,3 +597,83 @@ def test_an_undelivered_contrast_is_reported_unmet(client: TestClient) -> None:
     }
     assert "contrasting" in unsupported
     assert "no contrasting section" in unsupported["contrasting"]
+
+
+# --- only connected controls are offered ----------------------------------
+
+
+def test_mood_actually_changes_the_sound(client: TestClient) -> None:
+    """Mood was an inert control: the interpreter read it into `key_mode`,
+    which the composer never consults, so "a dark theme" and "a bright theme"
+    were byte-identical once a style was chosen. It now selects the instrument
+    profile, which is the dimension proven audible."""
+    duties = {}
+    for mood in ("dark", "mysterious", "bright", "peaceful"):
+        body = generate(client, style="boss", mood=mood, seconds=30, seed=7)
+        duties[mood] = tuple(sorted(body["sound"]["duty_by_channel"].items()))
+        assert body["sound"]["reason"] == "mood"
+    assert len(set(duties.values())) >= 3, duties
+
+
+def test_an_unsupported_mood_is_refused(client: TestClient) -> None:
+    """The rule for anything an interpreter may emit: if the engine does not
+    support it, do not pretend it does."""
+    response = client.post(
+        "/api/generate", json={"style": "boss", "mood": "spicy", "seconds": 30}
+    )
+    assert response.status_code == 422
+
+
+def test_an_unsupported_sound_profile_is_refused(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        json={"style": "boss", "sound_profile": "orchestral", "seconds": 30},
+    )
+    assert response.status_code == 422
+
+
+def test_an_explicit_profile_outranks_mood(client: TestClient) -> None:
+    body = generate(
+        client, style="boss", mood="dark", sound_profile="eerie", seconds=30, seed=7
+    )
+    assert body["sound"]["profile"] == "eerie"
+    assert body["sound"]["reason"] == "profile"
+
+
+def test_capabilities_only_lists_profiles_the_engine_has(client: TestClient) -> None:
+    from rse.procedural.sound import MOOD_PROFILES, SOUND_PROFILES
+
+    caps = client.get("/api/capabilities").json()
+    assert {p["name"] for p in caps["sound_profiles"]} == set(SOUND_PROFILES)
+    assert set(caps["moods"]) == set(MOOD_PROFILES)
+    # Every advertised mood maps to an advertised profile.
+    advertised = {p["name"] for p in caps["sound_profiles"]}
+    for profile in caps["sound_profiles"]:
+        for mood in profile["moods"]:
+            assert MOOD_PROFILES[mood] in advertised
+
+
+def test_the_response_says_what_played_it(client: TestClient) -> None:
+    body = generate(client, style="boss", seconds=30, seed=7)
+    sound = body["sound"]
+    for field in ("lead_timbre", "comp_timbre", "duty_by_channel",
+                  "lead_duty_percent", "comp_duty_percent", "reason"):
+        assert field in sound, field
+    assert set(sound["duty_by_channel"]) == {"P1", "P2"}
+
+
+def test_sound_design_is_on_by_default_through_the_api(client: TestClient) -> None:
+    """Promoted after the listening test. A request that names nothing still
+    gets shaped velocities and a chosen timbre pair."""
+    body = generate(client, style="boss", seconds=30, seed=7)
+    assert body["sound"]["lead_timbre"]
+    assert body["sound"]["duty_by_channel"]
+    # And the report on disk records it, so a downloaded song says how it was
+    # performed and not only what was played.
+    report = client.get(body["links"]["report"]).json()
+    assert report["composition"]["sound"]["lead_timbre"] == (
+        body["sound"]["lead_timbre"]
+    )
+    assert report["composition"]["duty_by_channel"] == (
+        body["sound"]["duty_by_channel"]
+    )

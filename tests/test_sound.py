@@ -205,7 +205,7 @@ def test_sound_design_changes_no_note(style: str) -> None:
             for e in result.composition.sounding_events()
         )
 
-    dry = compose(style_name=style, seed=800, target_seconds=60.0)
+    dry = compose(style_name=style, seed=800, target_seconds=60.0, sound_design=None)
     expressive = compose(
         style_name=style, seed=800, target_seconds=60.0, sound_design="expressive"
     )
@@ -216,17 +216,28 @@ def test_sound_design_changes_no_note(style: str) -> None:
 
 
 @pytest.mark.parametrize("style", sorted(STYLES))
-def test_sound_design_off_is_byte_identical(style: str) -> None:
+def test_expressive_is_the_default(style: str) -> None:
+    """Promoted after the listening test accepted it. The dry render stays
+    reachable because the frozen baselines are expressed in it."""
     signature = lambda r: [  # noqa: E731 - local, single use
         (e.channel_id, e.tick, getattr(e, "pitch", getattr(e, "value", 0)),
          e.duration, e.velocity)
         for e in r.composition.sounding_events()
     ]
-    plain = compose(style_name=style, seed=800, target_seconds=60.0)
-    explicit = compose(
-        style_name=style, seed=800, target_seconds=60.0, sound_design=None
+    default = compose(style_name=style, seed=800, target_seconds=60.0)
+    expressive = compose(
+        style_name=style, seed=800, target_seconds=60.0, sound_design="expressive"
     )
-    assert signature(plain) == signature(explicit)
+    dry = compose(style_name=style, seed=800, target_seconds=60.0, sound_design=None)
+    assert signature(default) == signature(expressive)
+    assert signature(default) != signature(dry), "the two arms must differ"
+    # And the dry arm is still exactly v1: one velocity per pitched channel.
+    for channel_id, velocity in (("P1", 100), ("TR", 90)):
+        assert {
+            e.velocity
+            for e in dry.composition.sounding_events()
+            if e.channel_id == channel_id
+        } == {velocity}, channel_id
 
 
 def test_an_unknown_sound_design_is_refused() -> None:
@@ -237,7 +248,7 @@ def test_an_unknown_sound_design_is_refused() -> None:
 def test_sound_design_cannot_perturb_composition() -> None:
     """Its generator is seeded separately, so turning it on must not move a
     single compositional decision."""
-    dry = compose(style_name="boss", seed=5, target_seconds=60.0)
+    dry = compose(style_name="boss", seed=5, target_seconds=60.0, sound_design=None)
     expressive = compose(
         style_name="boss", seed=5, target_seconds=60.0, sound_design="expressive"
     )
@@ -279,7 +290,9 @@ def test_a_duty_change_changes_the_rendered_stem() -> None:
     from rse.renderers.nes_apu import NesApuRenderer
 
     profile = load_profile("nes")
-    result = compose(style_name="boss", seed=800, target_seconds=20.0)
+    result = compose(
+        style_name="boss", seed=800, target_seconds=20.0, sound_design=None
+    )
     playable, _ = ConstraintEngine(profile).apply(result.composition)
     notes = notes_from_record(composition_to_intake(playable, profile=profile))
 
@@ -319,3 +332,94 @@ def test_the_dry_duty_matches_the_renderer_default() -> None:
     from rse.renderers.nes_apu import DEFAULT_DUTY
 
     assert DRY_DUTY == DEFAULT_DUTY
+
+
+# --- mood was an inert control --------------------------------------------
+
+
+def test_mood_was_inert_and_is_not_anymore() -> None:
+    """The defect: the interpreter read a mood into `key_mode`, which
+    `compose` never consults -- it uses the style's own mode -- so "a dark
+    theme" and "a bright theme" were byte-identical once a style was chosen.
+    """
+    from rse.song.generate import generate_song
+
+    def signature(result):
+        return [
+            (e.channel_id, e.tick, getattr(e, "pitch", getattr(e, "value", 0)),
+             e.velocity)
+            for e in result.composition.sounding_events()
+        ]
+
+    duties = set()
+    for mood in ("dark", "mysterious", "bright", "peaceful", "sad"):
+        result = generate_song(
+            "a theme", seed=7, style="boss", mood=mood, target_seconds=30.0
+        )
+        duties.add(tuple(sorted(result.meta["duty_by_channel"].items())))
+    assert len(duties) >= 3, f"mood still barely moves the sound: {duties}"
+
+
+def test_mood_leaves_the_notes_alone() -> None:
+    """It changes instrumentation, not composition. The mode still comes from
+    the style."""
+    from rse.song.generate import generate_song
+
+    def score(result):
+        return sorted(
+            (e.channel_id, e.tick, getattr(e, "pitch", getattr(e, "value", 0)),
+             e.duration)
+            for e in result.composition.sounding_events()
+        )
+
+    dark = generate_song(
+        "a theme", seed=7, style="boss", mood="dark", target_seconds=30.0
+    )
+    bright = generate_song(
+        "a theme", seed=7, style="boss", mood="bright", target_seconds=30.0
+    )
+    assert score(dark) == score(bright)
+    assert dark.meta["mode"] == bright.meta["mode"] == "harmonic_minor"
+
+
+def test_the_report_credits_the_mood_with_what_it_did() -> None:
+    """It used to claim "read as minor key", which was true of nothing: the
+    key came from the preset and the mood changed no note."""
+    from rse.song.generate import finish_report, generate_song
+
+    result = generate_song("a haunting dungeon theme", seed=7, target_seconds=60.0)
+    assert result.meta["mode"] == "phrygian"
+    report = finish_report(result)
+    stated = {
+        item["text"]: item["detail"]
+        for bucket in report.values()
+        for item in bucket
+    }
+    assert "haunting" in stated
+    assert "instrument profile" in stated["haunting"]
+    assert "minor key" not in stated["haunting"]
+
+
+def test_every_mood_maps_to_a_profile_that_exists() -> None:
+    from rse.procedural.sound import MOOD_PROFILES, SOUND_PROFILES
+
+    assert set(MOOD_PROFILES.values()) <= set(SOUND_PROFILES)
+
+
+def test_an_unknown_profile_is_refused() -> None:
+    with pytest.raises(KeyError):
+        choose_voices("boss", seed=1, profile="orchestral")
+
+
+def test_an_explicit_profile_outranks_a_mood() -> None:
+    design = choose_voices("boss", seed=1, profile="eerie", mood="dark")
+    assert design.profile == "eerie"
+    assert design.reason == "profile"
+
+
+def test_an_unmapped_mood_falls_back_to_the_style() -> None:
+    """Rather than erroring deep in the composer: the API validates moods, so
+    anything reaching here unmapped should degrade, not crash."""
+    design = choose_voices("boss", seed=1, mood="peckish")
+    assert design.reason == "style"
+    assert (design.lead_timbre, design.comp_timbre) in VOICE_PRESETS["boss"]
