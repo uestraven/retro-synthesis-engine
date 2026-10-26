@@ -42,6 +42,7 @@ import re
 from typing import Any
 
 from rse.codec.benchmark import enforce_monophony
+from rse.events.schema import Composition
 from rse.hardware.constraints import ConstraintEngine
 from rse.hardware.profile import load_profile
 from rse.tokenizers.frozen import frozen_config
@@ -268,6 +269,23 @@ def main() -> int:
         render_window(theme_final, theme_wav)
         normalise_peak(theme_wav)
 
+        # Drums off. "Does a pitched idea get established" is the question,
+        # and a busy drum part can carry an opening that has no tune in it --
+        # which is how three of the two-bar openings read as having content.
+        pitched_only = Composition(
+            hardware_profile=theme_final.hardware_profile,
+            ticks_per_beat=theme_final.ticks_per_beat,
+            events=[e for e in theme_final.events if e.channel_id != "NO"],
+        )
+        pitched_only.tempo_map = list(theme_final.tempo_map)
+        pitched_only.time_signatures = list(theme_final.time_signatures)
+        pitched_only.normalize()
+        pitched_wav = None
+        if pitched_only.sounding_events():
+            pitched_wav = args.theme_dir / f"theme_{len(rows) + 1:02d}.pitched.wav"
+            render_window(pitched_only, pitched_wav)
+            normalise_peak(pitched_wav)
+
         # Phase 2: does continuation actually work from this prefix?
         prompt = torch.tensor([prefix])
         torch.manual_seed(args.validate_seed)
@@ -300,8 +318,11 @@ def main() -> int:
             target_bars=args.target_bars,
             original=original,
         )
-        theme_events = sum(
-            len(t.notes) + len(t.percussion) for t in theme_score.tracks
+        n_pitched = sum(len(t.notes) for t in theme_score.tracks)
+        n_drums = sum(len(t.percussion) for t in theme_score.tracks)
+        theme_events = n_pitched + n_drums
+        pitched_programs = sorted(
+            {t.program for t in theme_score.tracks if t.notes and t.program is not None}
         )
         row = {
             "theme_id": len(rows) + 1,
@@ -313,6 +334,10 @@ def main() -> int:
             "tempo_bpm": theme_score.tempo_bpm,
             "n_prefix_tokens": len(prefix),
             "n_theme_events": theme_events,
+            "n_pitched_notes": n_pitched,
+            "n_drum_hits": n_drums,
+            "pitched_programs": pitched_programs,
+            "pitched_wav": pitched_wav.name if pitched_wav else None,
             "theme_tracks_with_notes": sum(
                 1 for t in theme_score.tracks if t.notes or t.percussion
             ),
@@ -326,7 +351,7 @@ def main() -> int:
         rows.append(row)
         print(
             f"  theme {row['theme_id']} {name:<24} {entry['rating']:<5} "
-            f"{theme_events:>3} events on {row['theme_tracks_with_notes']} tracks  "
+            f"{n_pitched:>3} pitched + {n_drums:>3} drums  progs {pitched_programs}  "
             f"prefix {len(prefix):>4} tok  "
             f"{'VALID' if checks['all_passed'] else 'FAILED: ' + ','.join(checks['failed'])}",
             flush=True,
@@ -334,17 +359,22 @@ def main() -> int:
 
     sheet = args.theme_dir / "THEMES.md"
     sheet.write_text(
-        "# Opening themes -- do these two bars contain a musical idea?\n\n"
-        "Five two-bar openings, taken from the five pieces you rated Best or\n"
-        "Good in the corrected baseline. Each is about two to three seconds.\n\n"
-        "A piece can turn good after a weak opening, so being cut from a good\n"
-        "piece does not make an opening a strong theme. That is what this\n"
-        "asks.\n\n"
+        f"# Opening themes -- do these {args.theme_bars} bars establish an idea?\n\n"
+        f"Five {args.theme_bars}-bar openings from the five pieces you rated\n"
+        "Best or Good in the corrected baseline.\n\n"
+        "**The question is whether a PITCHED idea gets established** -- a\n"
+        "melody, a bass riff, any pitched figure. Drums alone do not count:\n"
+        "this experiment is about melodic development, and a busy drum part\n"
+        "can make an opening sound like it has content when it has no tune in\n"
+        "it. That is what happened at two bars.\n\n"
+        "Each theme has two files. Play `theme_NN.wav` first; if the drums\n"
+        "make it hard to tell, play `theme_NN.pitched.wav`, which is the same\n"
+        "music with the drum channel muted.\n\n"
         "For each: **is there a musical idea here?** Write `YES`, `WEAK`, or\n"
         "`NO`.\n\n"
-        "`YES` -- a figure you could recognise again if it came back.\n"
-        "`WEAK` -- something is there but it is not distinctive.\n"
-        "`NO` -- just notes starting.\n\n"
+        "`YES` -- a pitched figure you could recognise again if it came back.\n"
+        "`WEAK` -- something pitched is there but it is not distinctive.\n"
+        "`NO` -- no pitched idea. Drums only, or just notes starting.\n\n"
         "| theme | idea? YES / WEAK / NO | notes |\n|---|---|---|\n"
         + "".join(f"| theme_{row['theme_id']:02d} |  |  |\n" for row in rows)
         + "\nWeak or absent openings stay in the experiment as diagnostic\n"
