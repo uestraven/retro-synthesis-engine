@@ -1,0 +1,1107 @@
+{
+  "renderer": "snes_sampler",
+  "mode": "SNES-INSPIRED PREVIEW",
+  "hardware_exact": false,
+  "caveats": [
+    "PCM with linear interpolation, not BRR with the S-DSP's 4-tap Gaussian filter.",
+    "Floating-point ADSR, not the DSP's envelope rate tables.",
+    "No 64 KiB ARAM enforcement; the memory figures are estimates.",
+    "No SPC export and no emulator verification."
+  ],
+  "seed": 4242,
+  "style": "boss",
+  "config": {
+    "style": "boss",
+    "seed": 4242,
+    "seconds": 60.0,
+    "reserved_voices": 0
+  },
+  "music": {
+    "tempo_bpm": 150.25,
+    "mode": "harmonic_minor",
+    "tonic": 57,
+    "form": [
+      "A",
+      "A'1",
+      "A'2",
+      "B",
+      "A''"
+    ],
+    "bars": 40,
+    "seconds": 64.54
+  },
+  "arrangement": {
+    "parts": 765,
+    "by_role": {
+      "lead": 224,
+      "harmony": 86,
+      "bass": 120,
+      "pad": 8,
+      "percussion": 327
+    },
+    "chords": [
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am9",
+      "Abdim",
+      "Fmaj9",
+      "E9",
+      "Am9",
+      "Abdim",
+      "Fmaj9",
+      "E9",
+      "Am",
+      "Dm",
+      "E",
+      "Am",
+      "Am",
+      "Dm",
+      "E",
+      "Am"
+    ],
+    "extended_chord_bars": [
+      24,
+      26,
+      27,
+      28,
+      30,
+      31
+    ],
+    "voicings": [
+      {
+        "symbol": "Am",
+        "pitches": [
+          60,
+          64
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          33
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          57,
+          65
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          38
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          40
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          53,
+          57
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          53,
+          57
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          53,
+          57
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          53,
+          57
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          53,
+          57
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am9",
+        "pitches": [
+          55,
+          59,
+          60
+        ],
+        "tones": [
+          "seventh",
+          "ninth",
+          "third"
+        ],
+        "omitted": [
+          "fifth"
+        ],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 3,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Abdim",
+        "pitches": [
+          59,
+          62
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          44
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Fmaj9",
+        "pitches": [
+          57,
+          64,
+          67
+        ],
+        "tones": [
+          "third",
+          "seventh",
+          "ninth"
+        ],
+        "omitted": [
+          "fifth"
+        ],
+        "bass_pitches": [
+          41
+        ],
+        "voice_count": 3,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E9",
+        "pitches": [
+          56,
+          62,
+          66
+        ],
+        "tones": [
+          "third",
+          "seventh",
+          "ninth"
+        ],
+        "omitted": [
+          "fifth"
+        ],
+        "bass_pitches": [
+          40
+        ],
+        "voice_count": 3,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am9",
+        "pitches": [
+          55,
+          60,
+          71
+        ],
+        "tones": [
+          "seventh",
+          "third",
+          "ninth"
+        ],
+        "omitted": [
+          "fifth"
+        ],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 3,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Abdim",
+        "pitches": [
+          62,
+          71
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          44
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Fmaj9",
+        "pitches": [
+          64,
+          69,
+          79
+        ],
+        "tones": [
+          "seventh",
+          "third",
+          "ninth"
+        ],
+        "omitted": [
+          "fifth"
+        ],
+        "bass_pitches": [
+          41
+        ],
+        "voice_count": 3,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E9",
+        "pitches": [
+          62,
+          68,
+          78
+        ],
+        "tones": [
+          "seventh",
+          "third",
+          "ninth"
+        ],
+        "omitted": [
+          "fifth"
+        ],
+        "bass_pitches": [
+          40
+        ],
+        "voice_count": 3,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          60,
+          64
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          57,
+          65
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Dm",
+        "pitches": [
+          53,
+          57
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          50
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "E",
+        "pitches": [
+          56,
+          59
+        ],
+        "tones": [
+          "third",
+          "fifth"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          52
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      },
+      {
+        "symbol": "Am",
+        "pitches": [
+          52,
+          60
+        ],
+        "tones": [
+          "fifth",
+          "third"
+        ],
+        "omitted": [],
+        "bass_pitches": [
+          45
+        ],
+        "voice_count": 2,
+        "keeps_identity": true
+      }
+    ]
+  },
+  "voice_plan": {
+    "lead": {
+      "instrument": "brass",
+      "pan": 0.0,
+      "gain": 1.0,
+      "echo_send": 0.25
+    },
+    "harmony": {
+      "instrument": "strings",
+      "pan": -0.62,
+      "gain": 0.68,
+      "echo_send": 0.35
+    },
+    "pad": {
+      "instrument": "choir",
+      "pan": 0.58,
+      "gain": 0.56,
+      "echo_send": 0.45
+    },
+    "bass": {
+      "instrument": "bass",
+      "pan": 0.0,
+      "gain": 0.8,
+      "echo_send": 0.1
+    },
+    "percussion": {
+      "instrument": "snare",
+      "pan": 0.22,
+      "gain": 0.7,
+      "echo_send": 0.0
+    },
+    "countermelody": {
+      "instrument": "choir",
+      "pan": 0.55,
+      "gain": 0.45,
+      "echo_send": 0.3
+    }
+  },
+  "allocation": {
+    "voice_count": 8,
+    "peak_voices": 8,
+    "assigned": 765,
+    "dropped": 0,
+    "stolen": 0,
+    "displacements": []
+  },
+  "peak_concurrency_by_role": {
+    "lead": 2,
+    "harmony": 3,
+    "pad": 1,
+    "bass": 1,
+    "percussion": 1
+  },
+  "audio": {
+    "renderer": "snes_sampler (SNES-INSPIRED PREVIEW, not hardware)",
+    "sample_rate": 44100,
+    "channels": 2,
+    "seconds": 64.545,
+    "notes_rendered": 1092,
+    "peak_voices": 8,
+    "clipped_frames": 0,
+    "peak_left": 0.89,
+    "peak_right": 0.8321,
+    "rms_left": 0.16861,
+    "rms_right": 0.14301,
+    "stereo_correlation": 0.9085,
+    "allocation": {
+      "voice_count": 8,
+      "peak_voices": 8,
+      "assigned": 765,
+      "dropped": 0,
+      "stolen": 0,
+      "displacements": []
+    },
+    "warnings": [
+      "the raw mix exceeded full scale on 10129 samples and was scaled to 0.89; no clipping reached the output"
+    ]
+  },
+  "instrument_bank": {
+    "bank_id": "rse-snes-prototype/0.1",
+    "provenance": "Original synthesised prototype instruments, generated from the additive recipes in rse/snes/samples.py. No commercial or third-party sample data.",
+    "rate": 32000,
+    "instrument_count": 7,
+    "instruments": {
+      "brass": {
+        "name": "brass",
+        "root_note": 60,
+        "looping": true,
+        "harmonics": [
+          1.0,
+          0.76,
+          0.61,
+          0.44,
+          0.21,
+          0.09,
+          0.04,
+          0.02
+        ],
+        "envelope": {
+          "attack": 0.035,
+          "decay": 0.12,
+          "sustain": 0.78,
+          "release": 0.14
+        },
+        "gain": 1.0,
+        "pan": 0.0,
+        "noise": 0.0,
+        "spread_cents": 3.0,
+        "rate": 32000,
+        "frames": 2202,
+        "loop_start": 245,
+        "loop_end": 2202,
+        "pcm_bytes": 4404,
+        "brr_estimate_bytes": 1242
+      },
+      "strings": {
+        "name": "strings",
+        "root_note": 60,
+        "looping": true,
+        "harmonics": [
+          1.0,
+          0.36,
+          0.54,
+          0.31,
+          0.42,
+          0.27,
+          0.32,
+          0.21,
+          0.24,
+          0.16,
+          0.13,
+          0.09
+        ],
+        "envelope": {
+          "attack": 0.16,
+          "decay": 0.22,
+          "sustain": 0.85,
+          "release": 0.42
+        },
+        "gain": 1.1626,
+        "pan": -0.35,
+        "noise": 0.0,
+        "spread_cents": 11.0,
+        "rate": 32000,
+        "frames": 2202,
+        "loop_start": 245,
+        "loop_end": 2202,
+        "pcm_bytes": 4404,
+        "brr_estimate_bytes": 1242
+      },
+      "choir": {
+        "name": "choir",
+        "root_note": 60,
+        "looping": true,
+        "harmonics": [
+          1.0,
+          0.3,
+          0.18,
+          0.12,
+          0.46,
+          0.2,
+          0.34,
+          0.11,
+          0.06,
+          0.03
+        ],
+        "envelope": {
+          "attack": 0.26,
+          "decay": 0.3,
+          "sustain": 0.88,
+          "release": 0.55
+        },
+        "gain": 1.1827,
+        "pan": 0.3,
+        "noise": 0.0,
+        "spread_cents": 7.0,
+        "rate": 32000,
+        "frames": 2202,
+        "loop_start": 245,
+        "loop_end": 2202,
+        "pcm_bytes": 4404,
+        "brr_estimate_bytes": 1242
+      },
+      "bass": {
+        "name": "bass",
+        "root_note": 36,
+        "looping": true,
+        "harmonics": [
+          1.0,
+          0.34,
+          0.16,
+          0.09,
+          0.05,
+          0.03
+        ],
+        "envelope": {
+          "attack": 0.006,
+          "decay": 0.18,
+          "sustain": 0.62,
+          "release": 0.1
+        },
+        "gain": 0.7182,
+        "pan": 0.0,
+        "noise": 0.0,
+        "spread_cents": 0.0,
+        "rate": 32000,
+        "frames": 8806,
+        "loop_start": 978,
+        "loop_end": 8806,
+        "pcm_bytes": 17612,
+        "brr_estimate_bytes": 4959
+      },
+      "kick": {
+        "name": "kick",
+        "root_note": 36,
+        "looping": false,
+        "harmonics": [
+          1.0,
+          0.14,
+          0.04
+        ],
+        "envelope": {
+          "attack": 0.001,
+          "decay": 0.11,
+          "sustain": 0.0,
+          "release": 0.03
+        },
+        "gain": 1.0,
+        "pan": 0.0,
+        "noise": 0.02,
+        "spread_cents": 0.0,
+        "rate": 32000,
+        "frames": 7040,
+        "loop_start": 0,
+        "loop_end": 0,
+        "pcm_bytes": 14080,
+        "brr_estimate_bytes": 3960
+      },
+      "snare": {
+        "name": "snare",
+        "root_note": 48,
+        "looping": false,
+        "harmonics": [
+          1.0,
+          0.55,
+          0.4
+        ],
+        "envelope": {
+          "attack": 0.001,
+          "decay": 0.09,
+          "sustain": 0.0,
+          "release": 0.04
+        },
+        "gain": 1.0,
+        "pan": 0.12,
+        "noise": 0.8,
+        "spread_cents": 0.0,
+        "rate": 32000,
+        "frames": 5760,
+        "loop_start": 0,
+        "loop_end": 0,
+        "pcm_bytes": 11520,
+        "brr_estimate_bytes": 3240
+      },
+      "hat": {
+        "name": "hat",
+        "root_note": 84,
+        "looping": false,
+        "harmonics": [
+          1.0,
+          0.9,
+          0.85
+        ],
+        "envelope": {
+          "attack": 0.0005,
+          "decay": 0.035,
+          "sustain": 0.0,
+          "release": 0.02
+        },
+        "gain": 1.0,
+        "pan": -0.22,
+        "noise": 0.97,
+        "spread_cents": 0.0,
+        "rate": 32000,
+        "frames": 2240,
+        "loop_start": 0,
+        "loop_end": 0,
+        "pcm_bytes": 4480,
+        "brr_estimate_bytes": 1260
+      }
+    },
+    "pcm_bytes": 60904,
+    "brr_estimate_bytes": 17145,
+    "aram_total_bytes": 65536,
+    "brr_estimate_fraction_of_aram": 0.2616,
+    "caveat": "brr_estimate_bytes is computed from the format's geometry, 9 bytes per 16 samples. Nothing in this bank is BRR-encoded and no ARAM compliance is claimed."
+  },
+  "memory_estimate": {
+    "pcm_bytes": 60904,
+    "brr_estimate_bytes": 17145,
+    "aram_total_bytes": 65536,
+    "fraction_of_aram": 0.2616,
+    "note": "Estimate from BRR's geometry. Nothing is encoded and no ARAM compliance is claimed."
+  },
+  "files": {
+    "wav": "listen_snes/snes_boss.wav",
+    "score": "listen_snes/snes_boss.mid"
+  }
+}

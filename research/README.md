@@ -30,6 +30,7 @@ Batches, roughly in order:
 | `listen_phrase-RATINGS.md` | phrase-level melody — dropped, undecided at n=2 |
 | `listen_variety-RATINGS.md` | key/tempo/form/arrangement variety — **null** |
 | `listen_sound-RATINGS.md` | duty + velocity sound design — **accepted** |
+| `listen_snes-RATINGS.md` | first SNES sampled stereo boss theme — **accepted** |
 
 A third: tempo on this hardware is a **frame count**, not a BPM. The console
 advances a tracker row every whole video frame, so only a ladder of tempos
@@ -43,6 +44,15 @@ listener heard no difference. The melody had always measured 20 unique out of
 20 while sounding the same, because all 20 are the same five motif shapes
 re-anchored. Counting distinct note sequences counts the anchoring, not the
 idea. Do not use it as a diversity metric again.
+
+**Trace a rendered artifact to the SCORE before the synthesiser.** A buzz in
+the first SNES track took three diagnoses. The first two -- a loop
+discontinuity at 32.7 Hz and a bass approach note with no harmonic target --
+were real defects found by examining the renderer, and fixing them did not
+remove what the listener was hearing. The cause was a one-row grace note on an
+odd row in the MELODY, from `vary_motif` ornamenting a note too short to
+subdivide: an NES defect in 54 of 240 songs. The MIDI is cheaper to read than
+the audio and it is unambiguous.
 
 **Composition, instrumentation and expression are separable, and only the
 first had ever been worked on.** Four experiments that rearranged material
