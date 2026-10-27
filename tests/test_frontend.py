@@ -53,6 +53,41 @@ def test_the_api_serves_the_page(client: TestClient) -> None:
     assert "Retro Synthesis Engine" in response.text
 
 
+def test_the_unbuilt_page_falls_back_to_its_own_origin(
+    client: TestClient, source: str
+) -> None:
+    """The same file has to work served by the API and built for Pages.
+
+    `%VITE_API_BASE%` is substituted by `vite.config.js` at build time. When
+    the API serves this file there is no build step, so the placeholder
+    reaches the browser verbatim -- and a truthiness test on it would send
+    every local request to a literal "%VITE_API_BASE%/api/generate". Hence
+    the leading-% check, which this test pins, since the failure is a page
+    that looks fine and cannot generate anything.
+    """
+    assert "%VITE_API_BASE%" in source
+    assert 'BUILT_API_BASE.startsWith("%")' in source
+    # `?api=` must still win, so a local page can be aimed at a deployed API.
+    index = source.index("const API_BASE")
+    resolution = source[index : index + 400]
+    assert resolution.index('get("api")') < resolution.index("BUILT_API_BASE.startsWith")
+
+    # And the served page must be the unbuilt one: if a dist build ever ends
+    # up behind this route, the placeholder would already be gone.
+    assert "%VITE_API_BASE%" in client.get("/").text
+
+
+def test_an_unreachable_api_is_not_blamed_on_localhost(source: str) -> None:
+    """A blocked cross-origin fetch and a dead host are indistinguishable from
+    JavaScript, so the message names both and prints the origin it tried.
+
+    The previous message assumed local development and told a hosted visitor
+    to go looking for a server on their own machine.
+    """
+    assert "RSE_API_ALLOWED_ORIGINS must name this origin" in source
+    assert "${API_BASE}" in source
+
+
 def test_the_page_is_self_contained(source: str) -> None:
     """No build step and no third-party fetch: one file, offline-capable."""
     remote = re.findall(r'(?:src|href)="(https?://[^"]+)"', source)

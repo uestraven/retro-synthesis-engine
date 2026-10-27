@@ -26,7 +26,9 @@ from rse.snes.brr import (
     SAMPLES_PER_BLOCK,
     bytes_for,
     decode,
+    decode_looping,
     encode,
+    predict,
     round_trip_error,
 )
 from rse.snes.samples import build_bank
@@ -175,6 +177,225 @@ def test_loops_still_wrap_seamlessly_after_encoding() -> None:
         assert wrap <= largest * 1.05, name
 
 
+# --- BRR loop playback ----------------------------------------------------
+#
+# The filter-0-at-the-loop-point rule was documented here as a hardware
+# requirement, on the reasoning that the predictor has no history across a
+# wrap. That was wrong: the S-DSP carries its two decoded-sample registers
+# straight through the loop. What filter 0 actually buys is REPEATABILITY --
+# the loop block decodes from its own nibbles alone, so pass 2 and pass 5 are
+# identical. These tests measure that property rather than asserting the
+# incorrect justification.
+
+
+def _looping_assets() -> list[str]:
+    return ["brass", "strings", "choir", "bass"]
+
+
+def test_every_repetition_decodes_identically() -> None:
+    """The point of the filter-0 policy, measured over five passes.
+
+    `decode_looping` deliberately carries the predictor registers across the
+    wrap, as the hardware does. If the loop block used a predictive filter it
+    would decode differently on pass 1 (preceded by the attack) than on pass 2
+    (preceded by the end of the loop), and filters 2 and 3 have poles close
+    enough to the unit circle that the difference need not decay.
+    """
+    bank = build_bank(brr=False)
+    for name in _looping_assets():
+        asset = bank[name]
+        encoded = encode(asset.data, loop_start=asset.loop_start)
+        assert encoded.loop_block is not None
+        start = encoded.loop_block * SAMPLES_PER_BLOCK
+        period = encoded.frames - start
+        played = decode_looping(encoded, frames=start + period * 5)
+        passes = [played[start + i * period : start + (i + 1) * period] for i in range(5)]
+        for index, repetition in enumerate(passes[1:], start=1):
+            drift = float(np.abs(repetition - passes[0]).max())
+            assert drift == 0.0, f"{name} pass {index + 1} drifted by {drift}"
+
+
+def test_the_wrap_is_no_louder_a_step_than_the_loop_itself() -> None:
+    """A discontinuity test that is relative, because an absolute threshold
+    would pass a bass and fail a hat for reasons that have nothing to do with
+    the loop. The step across the boundary is compared to the distribution of
+    steps inside the loop; a click shows up as a wrap step far outside it.
+    """
+    bank = build_bank(brr=False)
+    for name in _looping_assets():
+        asset = bank[name]
+        encoded = encode(asset.data, loop_start=asset.loop_start)
+        assert encoded.loop_block is not None
+        start = encoded.loop_block * SAMPLES_PER_BLOCK
+        period = encoded.frames - start
+        played = decode_looping(encoded, frames=start + period * 3)
+        inside = np.abs(np.diff(played[start : start + period]))
+        for repeat in (1, 2):
+            boundary = start + period * repeat
+            wrap = abs(float(played[boundary] - played[boundary - 1]))
+            assert wrap <= float(inside.max()) * 1.5, (
+                f"{name}: wrap step {wrap:.5f} against a largest in-loop step "
+                f"of {inside.max():.5f}"
+            )
+
+
+def test_rounding_the_loop_point_down_costs_at_most_a_block() -> None:
+    """Rounding down can only ever replay up to fifteen extra samples, and on
+    this bank it is at most two -- so the periodicity the samples were built
+    for survives the block quantisation.
+    """
+    bank = build_bank(brr=False)
+    for name in _looping_assets():
+        asset = bank[name]
+        encoded = encode(asset.data, loop_start=asset.loop_start)
+        assert encoded.loop_block is not None
+        aligned = encoded.loop_block * SAMPLES_PER_BLOCK
+        assert aligned <= asset.loop_start
+        assert asset.loop_start - aligned < SAMPLES_PER_BLOCK
+        raw = np.asarray(asset.data, dtype=np.float64)
+        intended = abs(float(raw[asset.loop_start] - raw[asset.loop_end - 1]))
+        actual = abs(float(raw[aligned] - raw[-1]))
+        # Rounding must not make the source discontinuity meaningfully worse.
+        assert actual <= intended + 0.002, name
+
+
+def test_the_loop_block_is_not_a_worse_approximation_than_the_rest() -> None:
+    """The cost of the policy, measured rather than assumed.
+
+    Forcing filter 0 means the loop block spends its 4-bit residual on an
+    absolute value instead of a prediction error, which could in principle
+    make it the noisiest block in the sample. It does not: its peak error is
+    within the range the predictive blocks already produce.
+    """
+    bank = build_bank(brr=False)
+    for name in _looping_assets():
+        asset = bank[name]
+        encoded = encode(asset.data, loop_start=asset.loop_start)
+        assert encoded.loop_block is not None
+        decoded = decode(encoded, frames=len(asset.data))
+        error = np.abs(decoded - np.asarray(asset.data, dtype=np.float64))
+        block = np.arange(
+            encoded.loop_block * SAMPLES_PER_BLOCK,
+            (encoded.loop_block + 1) * SAMPLES_PER_BLOCK,
+        )
+        elsewhere = np.delete(np.arange(error.size), block)
+        assert float(error[block].max()) <= float(error[elsewhere].max()) * 1.1, name
+
+
+def test_a_one_shot_stops_instead_of_looping() -> None:
+    """Percussion has no loop, so END without LOOP must end the voice. A
+    decoder that wrapped anyway would turn a kick into a drone -- which is
+    the shape of a bug this project has already shipped once, when a hat was
+    stretched 88x by being treated as pitched.
+    """
+    bank = build_bank(brr=False)
+    for name in ("kick", "snare", "hat"):
+        asset = bank[name]
+        assert asset.loop_end <= asset.loop_start, f"{name} should be a one-shot"
+        encoded = encode(asset.data)
+        assert encoded.loop_block is None
+        last = encoded.data[(encoded.blocks - 1) * BYTES_PER_BLOCK]
+        assert last & 0x01, f"{name} has no END flag"
+        assert not last & 0x02, f"{name} should not set LOOP"
+        played = decode_looping(encoded, frames=encoded.frames * 3)
+        tail = played[encoded.frames :]
+        assert float(np.abs(tail).max()) == 0.0, f"{name} kept playing past END"
+
+
+def test_the_integer_shift_forms_are_the_documented_fractions() -> None:
+    """The coefficients, checked algebraically against the shift forms.
+
+    `predict` runs the shifts; `FILTERS` records the fractions. They must be
+    the same algebra, or one of them is wrong about what the S-DSP computes:
+      filter 1   p1 - p1/16                  = 15/16 p1
+      filter 2   2p1 - 3p1/32 - p2 + p2/16   = 61/32 p1 - 15/16 p2
+      filter 3   2p1 - 13p1/64 - p2 + 3p2/16 = 115/64 p1 - 13/16 p2
+    """
+    assert FILTERS[1] == (1 - 1 / 16, 0.0)
+    assert FILTERS[2] == (2 - 3 / 32, -(1 - 1 / 16))
+    assert FILTERS[3] == (2 - 13 / 64, -(1 - 3 / 16))
+    assert predict(0, 1000, -2000) == 0
+    # On values divisible by the shift denominators the two forms must agree
+    # exactly, since there is nothing left to truncate.
+    for p1, p2 in ((64, 64), (-1024, 512), (4096, -4096)):
+        for index in (1, 2, 3):
+            c1, c2 = FILTERS[index]
+            assert predict(index, p1, p2) == int(c1 * p1 + c2 * p2), (index, p1, p2)
+
+
+def _decode_with_float_fractions(sample: object) -> np.ndarray:
+    """The decoder RSE used to have: the fractions, multiplied in float.
+
+    Kept as a measurement instrument rather than a reference. It is the
+    approximation, not the authority -- the hardware truncates each shift,
+    float multiplication rounds to nearest, and the result feeds back.
+    """
+    data = sample.data  # type: ignore[attr-defined]
+    frames = sample.frames  # type: ignore[attr-defined]
+    out = np.zeros(frames, dtype=np.float64)
+    p1 = p2 = 0
+    position = 0
+    for index in range(len(data) // BYTES_PER_BLOCK):
+        offset = index * BYTES_PER_BLOCK
+        header = data[offset]
+        shift = (header >> 4) & 0xF
+        c1, c2 = FILTERS[(header >> 2) & 0x3]
+        for byte in data[offset + 1 : offset + BYTES_PER_BLOCK]:
+            for nibble in ((byte >> 4) & 0xF, byte & 0xF):
+                if position >= frames:
+                    return out / 32767.0
+                value = nibble - 16 if nibble >= 8 else nibble
+                decoded = int(
+                    max(-32768, min(32767, round(c1 * p1 + c2 * p2 + (value << shift))))
+                )
+                out[position] = decoded
+                p2, p1 = p1, decoded
+                position += 1
+    return out / 32767.0
+
+
+def test_float_fractions_are_not_a_substitute_for_the_integer_arithmetic() -> None:
+    """Why `predict` exists, measured.
+
+    A half-unit rounding difference per sample would be inaudible if it stayed
+    a half-unit. It does not: the prediction feeds back, and filters 2 and 3
+    have poles near the unit circle, so the float decoder drifts far past its
+    own rounding error. This test records that the gap is real and large
+    enough to matter -- if a future change replaced `predict` with the float
+    multiply again, the tests above would still pass and this one would be the
+    only thing left saying it was wrong.
+    """
+    bank = build_bank(brr=False)
+    worst_overall = 0.0
+    for name, asset in bank.items():
+        loop = asset.loop_start if asset.loop_end > asset.loop_start else None
+        encoded = encode(asset.data, loop_start=loop)
+        gap = float(np.abs(decode(encoded) - _decode_with_float_fractions(encoded)).max())
+        worst_overall = max(worst_overall, gap)
+        # A single sample's rounding difference is at most 1/32767 of full
+        # scale. Anything beyond that is accumulation through the feedback.
+        assert gap >= 0.0, name
+    assert worst_overall > 10 / 32767, (
+        "the float decoder no longer drifts, which means either predict() or "
+        f"the float reference changed: worst gap {worst_overall}"
+    )
+
+
+def test_filters_used_across_the_bank_are_not_all_filter_zero() -> None:
+    """If the encoder only ever chose filter 0, the predictor -- and so most
+    of the compression story -- would be untested by everything above.
+    """
+    bank = build_bank(brr=False)
+    seen: set[int] = set()
+    for asset in bank.values():
+        loop = asset.loop_start if asset.loop_end > asset.loop_start else None
+        encoded = encode(asset.data, loop_start=loop)
+        for index in range(encoded.blocks):
+            header = encoded.data[index * BYTES_PER_BLOCK]
+            seen.add((header >> 2) & 0x3)
+    assert len(seen) > 1, f"only filter(s) {sorted(seen)} were ever chosen"
+
+
 # --- interpolation --------------------------------------------------------
 
 
@@ -225,6 +446,111 @@ def test_four_point_interpolation_beats_linear() -> None:
         for pitch in (60, 72, 84, 88)
     )
     assert better >= 3, "the 4-point kernel should not be worse than linear"
+
+
+def test_the_bank_is_in_tune_after_block_alignment() -> None:
+    """The regression the alignment fix caused, and the check that caught it.
+
+    Making the loop length a whole number of BRR blocks removed a dropout,
+    but it also moved the loop length, and `loop_partials` derives the
+    fundamental FROM that length -- so rounding 1957 samples to 1952 put
+    every sustained instrument 4.4 cents sharp. `align_loop` searches block
+    counts instead of rounding to the nearest, which brings it under a cent.
+
+    Asserted as absolute pitch rather than as agreement between instruments,
+    because a uniform offset would be inaudible and still wrong: the melody
+    has to line up with the NES rendering of the same composition.
+    """
+    from rse.snes.samples import BANK_RATE, midi_to_hz
+
+    bank = build_bank(brr=False)
+    for name in ("brass", "strings", "choir", "bass"):
+        asset = bank[name]
+        region = asset.data[asset.loop_start :]
+        wanted = midi_to_hz(asset.instrument.root_note)
+        # The loop plays `cycles` whole cycles in `len(region)` samples, so
+        # this IS the pitch, not an approximation of it.
+        cycles = round(wanted * len(region) / BANK_RATE)
+        actual = cycles * BANK_RATE / len(region)
+        cents = abs(1200 * np.log2(actual / wanted))
+        assert cents < 1.0, f"{name} is {cents:.2f} cents out"
+
+
+def test_aligning_the_loop_leaves_nothing_for_the_encoder_to_round() -> None:
+    """The two conditions together, since either alone is insufficient.
+
+    Length a multiple of 16 means no zero padding lands inside the loop;
+    loop start a multiple of 16 means the encoder's round-down is a no-op.
+    The bank had the first and not the second, and the result was six zeros
+    and a five-sample skip per repetition.
+    """
+    bank = build_bank(brr=False)
+    for name, asset in bank.items():
+        looping = asset.loop_end > asset.loop_start
+        encoded = encode(
+            asset.data, loop_start=asset.loop_start if looping else None
+        )
+        assert encoded.frames == len(asset.data), f"{name} was padded"
+        assert len(asset.data) % SAMPLES_PER_BLOCK == 0, name
+        if looping:
+            assert asset.loop_start % SAMPLES_PER_BLOCK == 0, name
+            assert encoded.loop_block == asset.loop_start // SAMPLES_PER_BLOCK
+
+
+def test_catmull_rom_overshoot_is_bounded_and_measured() -> None:
+    """Catmull-Rom is not interpolation-with-no-downside.
+
+    Its kernel has negative lobes, so it can exceed the range of the samples
+    it interpolates between -- the price of reproducing them exactly at
+    integer positions, which the earlier Gaussian-shaped low-pass avoided by
+    not being an interpolator at all. The S-DSP's own 4-tap Gaussian
+    deliberately attenuates instead, so this is a difference in CHARACTER as
+    well as accuracy, and it belongs in the preview label rather than being
+    presented as closer-to-hardware.
+
+    Measured here rather than bounded by theory because the magnitude depends
+    entirely on the material: overshoot is small on the pitched instruments
+    and largest on the snare, whose spectrum is mostly noise.
+    """
+    from rse.snes.sampler import _resample
+
+    bank = build_bank(brr=True)
+    worst_name, worst = "", 0.0
+    for name, asset in bank.items():
+        source = float(np.abs(np.asarray(asset.data)).max())
+        for semitones in (-12, -5, 0, 3, 7, 12, 19):
+            pitch = asset.instrument.root_note + semitones
+            peak = float(np.abs(_resample(asset, pitch, 40000)).max())
+            if peak / source - 1.0 > worst:
+                worst_name, worst = name, peak / source - 1.0
+
+    # Real, so it must not be asserted away to zero...
+    assert worst > 0.0, "no overshoot at all would mean this is not Catmull-Rom"
+    # ...but bounded well inside the headroom the mix leaves.
+    assert worst < 0.10, f"{worst_name} overshot by {worst * 100:.2f}%"
+    assert worst_name == "snare", (
+        f"expected the noisiest sample to overshoot most, got {worst_name}"
+    )
+
+
+def test_overshoot_cannot_clip_the_output() -> None:
+    """Why the overshoot above is a curiosity rather than a defect.
+
+    Per-voice overshoot would matter if voices were written straight to the
+    file. They are not: the mix is scaled by one scalar after summing, so the
+    output peak is set by the normaliser and not by the interpolator. This
+    test exists because the previous clipping report counted PRE-normalisation
+    overshoot and was therefore measuring something the listener never hears.
+    """
+    from rse.song.snes_generate import generate_snes
+
+    song = generate_snes(style="boss", seed=803, target_seconds=20.0)
+    peak = float(np.abs(song.samples).max())
+    assert peak <= 1.0, f"output peak {peak} exceeds full scale"
+    assert song.audio["clipped_frames"] == 0
+    # The normaliser's target, so a change to it shows up here rather than as
+    # a quiet or clipped download.
+    assert 0.85 <= peak <= 0.9, peak
 
 
 def test_the_gaussian_table_is_not_claimed() -> None:
@@ -284,7 +610,84 @@ def test_the_budget_says_which_figures_are_assumed() -> None:
     assert "driver_bytes" in report["assumed"]
     assert "runtime_bytes" in report["assumed"]
     assert "no SPC700 driver" in report["caveat"]
-    assert "no hardware compatibility" in report["caveat"].lower()
+    # Asserting the substance, not the sentence: the caveat was reworded when
+    # the evidence classes went in, and a test pinned to its old phrasing
+    # failed without anything being wrong.
+    assert report["hardware_budgeted"] is False
+    assert "no emulator has run any of this" in report["caveat"].lower()
+
+
+def test_every_line_of_the_budget_declares_its_evidence_class() -> None:
+    """The review question that prompted this: is "measured" load-bearing?
+
+    It was being applied to the whole total when it is only true of three of
+    the six lines. A caller reading `total_bytes` has no way to know which,
+    so every line now carries measured / modelled / assumed and the breakdown
+    and the evidence map must agree on the key set.
+    """
+    budget = budget_for({"x": encode(np.zeros(64))}, sequence_bytes=120)
+    report = budget.to_dict()
+    assert set(report["evidence"]) == set(report["breakdown"])
+    assert report["evidence"]["samples"] == "measured"
+    assert report["evidence"]["echo"] == "measured"
+    assert report["evidence"]["directory"] == "measured"
+    # RSE emits no sequence bytes at all, so this one is arithmetic about a
+    # driver format it does not implement.
+    assert report["evidence"]["sequence"] == "modelled"
+    assert report["evidence"]["driver"] == "assumed"
+    assert report["evidence"]["runtime"] == "assumed"
+
+
+def test_measured_bytes_are_a_strict_subset_of_the_total() -> None:
+    bank = build_bank(brr=False)
+    encoded = {name: encode(asset.data) for name, asset in bank.items()}
+    budget = budget_for(encoded, sequence_bytes=3000, echo_delay_ms=64)
+    assert budget.measured_bytes < budget.total
+    assert (
+        budget.measured_bytes
+        == budget.sample_bytes + budget.directory_bytes + budget.echo_bytes
+    )
+    assert budget.to_dict()["measured_bytes"] == budget.measured_bytes
+
+
+def test_hardware_budgeting_is_not_claimed_while_anything_is_unmodelled() -> None:
+    """The flag that must not drift into True by accident.
+
+    `fits` and `hardware_budgeted` answer different questions, and the easy
+    mistake is to let the first imply the second: a track can fit comfortably
+    inside the represented allocations while the representation is missing an
+    instrument table, pattern data, page alignment, the SPC700's stack and a
+    DSP register shadow -- all of which a real image needs.
+    """
+    from rse.snes.aram import UNMODELLED
+
+    assert UNMODELLED, "if this is empty the claim below needs re-examining"
+    budget = budget_for({"x": encode(np.zeros(64))})
+    assert budget.fits
+    assert not budget.hardware_budgeted
+    report = budget.to_dict()
+    assert report["hardware_budgeted"] is False
+    assert len(report["unmodelled"]) == len(UNMODELLED)
+    for entry in report["unmodelled"]:
+        assert entry["name"] and entry["why_it_matters"]
+    # The text report has to say it too, since that is what a human reads.
+    assert "UNMODELLED" in budget.report()
+    assert "hardware_budgeted: False" in budget.report()
+
+
+def test_the_caveat_tells_a_caller_not_to_add_the_echo_twice() -> None:
+    """A reviewer read the 47% figure as excluding echo and worked out what
+    enabling a 240 ms buffer would cost on top: 61,705 bytes, leaving almost
+    nothing. The echo was already inside the total, so the real figure for
+    cavern is lower -- but the report gave no way to tell, which is the
+    defect. It says so now.
+    """
+    encoded = {"x": encode(np.zeros(64))}
+    dry = budget_for(encoded, echo_delay_ms=0)
+    cavern = budget_for(encoded, echo_delay_ms=240)
+    assert cavern.total == dry.total + echo_bytes_for(240)
+    assert cavern.echo_bytes == 30720
+    assert "do not add it again" in cavern.to_dict()["caveat"]
 
 
 def test_an_oversized_budget_is_reported_not_hidden() -> None:

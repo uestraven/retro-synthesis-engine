@@ -11,14 +11,19 @@ string sample with a different name: brass has strong low harmonics and a
 slightly slow attack, strings have a dense upper spectrum and a soft one,
 percussion is shaped noise with no loop at all.
 
-Loop points matter as much as the spectrum. A sustained instrument has to loop
-cleanly or every held note clicks, so the loop region is placed on a whole
-number of cycles of the fundamental and crossfaded. Percussion is one-shot and
-declares no loop.
+Loop points matter as much as the spectrum, and they have been wrong here
+twice. A sustained instrument has to loop cleanly or every held note buzzes at
+the loop rate. The first version detuned its partials, which makes periodicity
+impossible by construction; `loop_partials` fixed that. The second version was
+periodic but not BLOCK-ALIGNED, so BRR's padding put six zero samples inside
+the loop region and the loop point rounded down five samples -- a 16.3 Hz
+dropout on every sustained note, found by the release validation and fixed by
+`_align`. Percussion is one-shot and declares no loop.
 
-What this is NOT: BRR-encoded, 64 KiB-budgeted, or S-DSP-accurate. The sizes
-reported here are the PCM prototype's, and `brr_estimate_bytes` is an estimate
-of what the data would cost after encoding, not a measurement of encoded data.
+What this is and is not: the bank IS BRR-encoded (see `rse.snes.brr`) and the
+byte counts ARE measurements of encoded data, so an earlier version of this
+docstring disclaiming both is out of date. What is still not claimed is S-DSP
+accuracy -- no emulator has played any of it.
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+
+from rse.snes.brr import SAMPLES_PER_BLOCK
 
 #: Sample rate the prototype bank is generated and played at.
 #:
@@ -224,6 +231,65 @@ BANK: dict[str, Instrument] = {
 }
 
 
+def _align(count: float) -> int:
+    """Round a sample count to a whole BRR block, never below one block.
+
+    The second loop defect this bank had, and the subtler one. Periodic
+    partials make the WAVEFORM seamless, but BRR works in 16-sample blocks: a
+    sample whose length is not a multiple of 16 gets zero-padded, and a loop
+    point that is not a multiple of 16 rounds down to one. For the sustained
+    instruments that meant six zeros sitting inside the loop region and the
+    loop restarting five samples early -- a dropout on every repeat, at 16.3 Hz
+    for a 61.5 ms loop.
+
+    Aligning here rather than in the encoder is deliberate. The encoder cannot
+    fix it: by the time it sees the data the audio has already been generated
+    at the wrong length, and padding or truncating is all it can do. The
+    generator knows the loop length is free to move, so it moves it.
+
+    Nearest-block rounding is enough for the attack lead-in, whose length
+    carries no pitch. It is NOT enough for the loop itself -- see
+    `align_loop`, which has to weigh tuning against length.
+    """
+    blocks = max(1, int(round(count / SAMPLES_PER_BLOCK)))
+    return blocks * SAMPLES_PER_BLOCK
+
+
+def align_loop(cycle: float, loop_cycles: float, *, tolerance: float = 0.25) -> int:
+    """Pick a BLOCK-ALIGNED loop length that keeps the instrument in tune.
+
+    `_align` alone is not enough, and the tuning check in release validation
+    is what showed it. Rounding the brass loop from 1957 samples to the
+    nearest block, 1952, left room for exactly 16 cycles of the fundamental
+    -- but 16 cycles in 1952 samples is 262.295 Hz against a wanted 261.626,
+    so every sustained instrument came out 4.4 cents sharp. The dropout the
+    alignment fixed was far worse than 4.4 cents, so the trade was right;
+    taking the trade at all was unnecessary.
+
+    `loop_partials` then quantises the partials to whatever length comes out
+    of here, so the fundamental this function lands on IS the instrument's
+    pitch. Searching block counts within `tolerance` of the requested length
+    and keeping the one whose quantised fundamental is closest costs nothing
+    and brings the error down to hundredths of a cent.
+
+    Ties go to the shorter loop, which is the cheaper one in ARAM.
+    """
+    target = cycle * loop_cycles
+    lowest = max(1, int(round(target * (1 - tolerance) / SAMPLES_PER_BLOCK)))
+    highest = max(lowest, int(round(target * (1 + tolerance) / SAMPLES_PER_BLOCK)))
+
+    best: tuple[float, int] | None = None
+    for blocks in range(lowest, highest + 1):
+        length = blocks * SAMPLES_PER_BLOCK
+        # How many whole cycles fit, and what fundamental that implies.
+        cycles = max(1, round(length / cycle))
+        error = abs(length / cycles - cycle) / cycle
+        if best is None or error < best[0]:
+            best = (error, length)
+    assert best is not None
+    return best[1]
+
+
 def loop_partials(
     loop_len: int, count: int, *, rate: int, f0: float
 ) -> list[float]:
@@ -269,7 +335,11 @@ def render_sample(
     f0 = midi_to_hz(instrument.root_note)
 
     if not instrument.looping:
-        count = int(instrument.oneshot_sec * rate)
+        # Aligned too, though it matters far less: padding at the END of a
+        # one-shot is appended after the decay has already reached silence, so
+        # it is inaudible. Aligning just stops the encoder spending a block on
+        # mostly-zeros.
+        count = _align(instrument.oneshot_sec * rate)
         t = np.arange(count, dtype=np.float64) / rate
         wave = np.zeros(count, dtype=np.float64)
         # A falling pitch, integrated so the phase stays continuous: stepping
@@ -298,11 +368,15 @@ def render_sample(
         return (wave / peak).astype(np.float32), 0, 0
 
     # Looping. The loop is generated as an exactly periodic waveform, so the
-    # wrap is seamless without any crossfade.
+    # wrap is seamless without any crossfade -- but periodic is not enough on
+    # its own. Both the lead-in and the loop length are aligned to a BRR block
+    # so that the encoder pads nothing and rounds nothing; see `_align`.
     cycle = rate / f0
-    loop_len = int(round(cycle * instrument.loop_cycles))
-    lead = int(round(cycle * 2))
+    loop_len = align_loop(cycle, instrument.loop_cycles)
+    lead = _align(cycle * 2)
 
+    # Quantise the partials to the ALIGNED loop length, not the ideal one, or
+    # the alignment reintroduces exactly the inharmonicity this is avoiding.
     frequencies = loop_partials(
         loop_len, len(instrument.harmonics), rate=rate, f0=f0
     )

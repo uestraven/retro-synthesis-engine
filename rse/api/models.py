@@ -77,8 +77,13 @@ class GenerateRequest(BaseModel):
     )
     echo: str | None = Field(
         default=None,
-        description="SNES only. Echo preset; costs audio RAM, so a long "
-        "reverb is paid for in instrument memory.",
+        description="SNES only. BUDGET ONLY -- DOES NOT AFFECT THE AUDIO. "
+        "Reserves the S-DSP echo buffer, so it changes the audio-RAM "
+        "account and nothing you can hear: the preview renderer has no echo "
+        "processor, and the per-voice echo sends in the voice plan are "
+        "recorded but not applied. Useful for seeing how much instrument "
+        "memory a given reverb would cost; useless for making a song "
+        "sound wet.",
     )
     reserved_voices: int = Field(
         default=0, ge=0, le=6,
@@ -228,11 +233,23 @@ class StyleInfo(BaseModel):
 
 
 class EchoPreset(BaseModel):
-    """One SNES echo setting and what it costs in audio RAM."""
+    """One SNES echo setting and what it costs in audio RAM.
+
+    `affects_audio` is False for every preset and is sent to the client so a
+    settings panel can label the control honestly. Release validation
+    generated the same song at dry, room, hall and cavern and got four
+    byte-identical WAVs: the setting reserves the DSP's echo buffer in the
+    memory account, but the preview renderer has no echo processor, so
+    nothing downstream reads it. Shipping it as a reverb knob would be
+    exactly the "metadata exists, therefore the capability exists" mistake.
+    """
 
     name: str
     delay_ms: int
     aram_bytes: int
+    #: Always False today. If an echo processor is ever added, this flips and
+    #: the tests that assert silence-of-effect will fail, which is the point.
+    affects_audio: bool = False
 
 
 class SoundProfileInfo(BaseModel):

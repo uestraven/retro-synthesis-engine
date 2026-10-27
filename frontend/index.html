@@ -191,11 +191,14 @@
       <legend>16-bit depth</legend>
       <div class="row">
         <div class="field">
-          <label for="echo">Echo</label>
+          <label for="echo">Echo buffer <span class="val">memory only</span></label>
           <select id="echo"></select>
-          <div class="hint" id="echoHint">Echo is charged against the same
-            64 KiB of audio RAM as the instruments, so a longer reverb is
-            memory the samples do not get.</div>
+          <div class="hint" id="echoHint"><b>This will not change how the
+            song sounds.</b> It reserves the SNES echo buffer, which is
+            charged against the same 64 KiB of audio RAM as the instruments
+            &mdash; so it shows you what a given reverb would cost in sample
+            memory. The preview renderer has no echo processor yet, so every
+            setting produces identical audio.</div>
         </div>
         <div class="field">
           <label for="reserved">Voices reserved for sound effects
@@ -273,9 +276,26 @@
 </main>
 
 <script>
-// Same-origin when the API serves this page, which is the local default.
-// Hosted separately, pass ?api=https://your-api.example or set this constant.
-const API_BASE = new URLSearchParams(location.search).get("api") || "";
+// Where the API lives. Three sources, in precedence order, because this one
+// file has to work in three places without being edited:
+//
+//   1. `?api=` in the URL. Highest priority so a local page can be pointed at
+//      a deployed API for a one-off test.
+//   2. `%VITE_API_BASE%`, substituted by Vite at build time. This is the
+//      Cloudflare Pages path: the page is static there, so it cannot
+//      same-origin its way to a Python service on Render.
+//   3. Same origin. The local default, where `rse-api` serves this very file.
+//
+// The placeholder matters. When the API serves this file there is no build
+// step, so `%VITE_API_BASE%` arrives in the browser verbatim -- hence the
+// leading-% check rather than a truthiness test, which would otherwise send
+// every local request to a literal "%VITE_API_BASE%/api/generate". Vite also
+// leaves the placeholder intact if the variable is unset at build time, so the
+// same check covers a Pages build with a missing environment variable.
+const BUILT_API_BASE = "%VITE_API_BASE%";
+const API_BASE =
+  new URLSearchParams(location.search).get("api") ||
+  (BUILT_API_BASE.startsWith("%") ? "" : BUILT_API_BASE);
 const api = (path) => API_BASE.replace(/\/$/, "") + path;
 
 const el = (id) => document.getElementById(id);
@@ -519,9 +539,13 @@ function render(song) {
       ["voices", `${s.peak_voices} of 8 peak`],
       ["dropped", `${s.allocation.dropped}`],
       ["stolen", `${s.allocation.stolen}`],
-      ["audio RAM", `${(aram.total_bytes / 1024).toFixed(1)} of 64 KiB` +
+      // "accounted" rather than "used": the figure includes assumed driver
+      // and runtime allowances and excludes allocations a real SPC needs,
+      // so it is not a statement that this would load on a SNES.
+      ["audio RAM accounted", `${(aram.total_bytes / 1024).toFixed(1)} of 64 KiB` +
         ` (${(aram.used_fraction * 100).toFixed(0)}%)`],
-      ["echo", `${s.echo.preset_ms} ms`],
+      ["of which measured", `${(aram.measured_bytes / 1024).toFixed(1)} KiB`],
+      ["echo buffer", `${s.echo.preset_ms} ms (memory only, not audible)`],
       ["extended chords", s.extended_chords.join(" ") || "none"],
     ].map(([k, v]) => `<span>${k}: <b>${escape_(v)}</b></span>`).join("");
   }
@@ -573,10 +597,19 @@ async function generate(request) {
     const took = ((performance.now() - started) / 1000).toFixed(1);
     status.textContent = `Done in ${took}s.`;
   } catch (error) {
+    // A blocked fetch and an unreachable host are deliberately
+    // indistinguishable from JavaScript, so this cannot say which happened --
+    // but it can name both causes and show which origin it tried, which is
+    // the one fact needed to tell them apart. The old message assumed local
+    // development and would have sent a Pages visitor to look for a server on
+    // their own machine.
     status.className = "bad";
-    status.textContent =
-      "Could not reach the generator. Is it running? (`rse-api`, then open " +
-      "http://127.0.0.1:8000)";
+    status.textContent = API_BASE
+      ? `Could not reach the generator at ${API_BASE}. Either it is down, or ` +
+        `it is not allowing requests from ${location.origin} ` +
+        `(RSE_API_ALLOWED_ORIGINS must name this origin).`
+      : "Could not reach the generator. Is it running? (`rse-api`, then open " +
+        "http://127.0.0.1:8000)";
   } finally {
     go.disabled = false;
   }

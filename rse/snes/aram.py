@@ -12,10 +12,31 @@ which is most of the budget. Composers chose between a big instrument set and
 a big room, and could not have both.
 
 Previous reports here said "BRR estimate" and carried a caveat that nothing
-was encoded. That is no longer true: `rse.snes.brr` encodes for real, so these
-figures are measured sizes of actual encoded data. What is still NOT claimed
-is hardware compatibility -- a correct byte count is not an SPC file, and no
-emulator has run any of this.
+was encoded. That is no longer true: `rse.snes.brr` encodes for real, so the
+sample figures are measured sizes of actual encoded data.
+
+But "measured" is a word worth spending care on, because only some of these
+numbers earn it. Four classes, and the report labels every line with one:
+
+**MEASURED** -- the number is the size of something that exists. Sample bytes
+are `len()` of real encoded data. The echo buffer follows exactly from the
+DSP's delay register, 2 KiB per 16 ms step, with no freedom in it. Directory
+entries are 4 bytes by the format's definition.
+
+**MODELLED** -- a defensible number for something RSE does not actually
+produce. Sequence data is 4 bytes per note event: a reasonable driver
+encoding, but RSE emits no sequence bytes, so this is arithmetic about a
+hypothetical.
+
+**ASSUMED** -- a stated allowance. Driver code and runtime state. RSE has no
+SPC700 driver, so these are the space one would need.
+
+**UNMODELLED** -- named, counted as zero, and the reason this module must not
+claim hardware-compatible budgeting. See `UNMODELLED`.
+
+Fitting inside 65,536 bytes here means the represented allocations fit. It
+does not mean a real SPC would load. `hardware_budgeted` is False and stays
+False until the unmodelled list is empty.
 """
 
 from __future__ import annotations
@@ -42,6 +63,49 @@ ECHO_STEP_MS = 16
 ASSUMED_DRIVER_BYTES = 2048
 ASSUMED_RUNTIME_BYTES = 512
 
+#: The sample directory and the echo buffer are both located by a PAGE number
+#: (the DIR and ESA registers), so each must start on a 256-byte boundary.
+#: Real layouts therefore waste some padding, bounded by this per aligned
+#: region. Reported as a worst case rather than computed, because computing it
+#: needs a real address map and RSE has none.
+ALIGNMENT_BYTES = 256
+
+#: What a working SPC image needs that this budget does NOT represent. Every
+#: entry is a reason `hardware_budgeted` is False. Counted as zero -- not
+#: because it is free, but because inventing a number for it would make the
+#: total look authoritative when it is not.
+#:
+#: Note that several of these are small. That is not reassuring: being short
+#: by 200 bytes and being short by 2,000 both fail to load, and the point of
+#: naming them is that the total is not yet a load test.
+UNMODELLED: tuple[tuple[str, str], ...] = (
+    (
+        "instrument table",
+        "per-instrument ADSR/GAIN settings, base pitch and directory index; "
+        "a few bytes per instrument that the driver reads at key-on",
+    ),
+    (
+        "pattern and order tables",
+        "the sequence's own structure -- pattern pointers, order list, loop "
+        "points -- as distinct from the note events counted above",
+    ),
+    (
+        "page alignment padding",
+        f"up to {ALIGNMENT_BYTES} bytes before each of the directory and the "
+        "echo buffer, since both are addressed by page number",
+    ),
+    (
+        "SPC700 stack and direct page",
+        "the CPU's own working memory, which a driver's code size does not "
+        "include",
+    ),
+    (
+        "DSP register shadow",
+        "most drivers keep a RAM copy of the 128 DSP registers to write them "
+        "coherently",
+    ),
+)
+
 
 @dataclass
 class AramBudget:
@@ -57,6 +121,37 @@ class AramBudget:
     per_sample: dict[str, int] = field(default_factory=dict)
     #: Which figures are measured and which are assumed.
     assumed: tuple[str, ...] = ("driver_bytes", "runtime_bytes")
+
+    #: Every line's evidence class, so no caller has to guess which numbers
+    #: are real. Keyed by the breakdown's own names.
+    EVIDENCE: dict[str, str] = field(
+        default_factory=lambda: {
+            "samples": "measured",
+            "directory": "measured",
+            "echo": "measured",
+            "sequence": "modelled",
+            "driver": "assumed",
+            "runtime": "assumed",
+        },
+        init=False,
+        repr=False,
+    )
+
+    @property
+    def hardware_budgeted(self) -> bool:
+        """False while anything in `UNMODELLED` is still unmodelled.
+
+        Deliberately not a function of whether the total fits. Fitting means
+        the represented allocations fit; this means the representation is
+        complete. Only the second licenses the phrase "hardware-compatible
+        memory budgeting", and it is not true yet.
+        """
+        return not UNMODELLED
+
+    @property
+    def measured_bytes(self) -> int:
+        """The part of the total that is the size of something real."""
+        return self.sample_bytes + self.directory_bytes + self.echo_bytes
 
     @property
     def total(self) -> int:
@@ -93,32 +188,53 @@ class AramBudget:
                 "runtime": self.runtime_bytes,
             },
             "per_sample": dict(self.per_sample),
+            "evidence": dict(self.EVIDENCE),
             "assumed": list(self.assumed),
             "measured": [
                 "samples (real BRR encoding)",
                 "directory",
                 "echo (from the delay setting)",
             ],
+            "measured_bytes": self.measured_bytes,
+            "modelled": ["sequence (4 bytes per note event, not RSE's own format)"],
+            "unmodelled": [
+                {"name": name, "why_it_matters": why} for name, why in UNMODELLED
+            ],
+            "hardware_budgeted": self.hardware_budgeted,
             "caveat": (
-                "Byte counts are real: the samples are BRR-encoded by "
-                "rse.snes.brr. Driver and runtime figures are ASSUMPTIONS -- "
-                "RSE has no SPC700 driver. A correct byte count is not an SPC "
-                "file and no emulator has run any of this, so no hardware "
-                "compatibility is claimed."
+                "Of this total, "
+                f"{self.measured_bytes} bytes are MEASURED (BRR sample data, "
+                "the directory, and the echo buffer, which follows exactly "
+                f"from the delay register); {self.sequence_bytes} are "
+                "MODELLED (RSE emits no sequence bytes); and "
+                f"{self.driver_bytes + self.runtime_bytes} are ASSUMED (RSE "
+                "has no SPC700 driver). The echo buffer IS included in the "
+                "total -- do not add it again. Several allocations a working "
+                "SPC image needs are UNMODELLED and counted as zero, so "
+                "fitting means the represented allocations fit, NOT that a "
+                "real SPC would load. hardware_budgeted is False and no "
+                "emulator has run any of this."
             ),
         }
 
     def report(self) -> str:
+        def line(name: str, value: int) -> str:
+            return f"  {name:<10}{value:>6}  ({self.EVIDENCE[name]})"
+
         lines = [
             f"ARAM {self.total} / {ARAM_BYTES} bytes "
             f"({self.total / ARAM_BYTES * 100:.1f}%), "
             f"{self.remaining} free" + ("" if self.fits else "  OVER BUDGET"),
-            f"  samples   {self.sample_bytes:>6}  (BRR, measured)",
-            f"  directory {self.directory_bytes:>6}",
-            f"  sequence  {self.sequence_bytes:>6}",
-            f"  echo      {self.echo_bytes:>6}",
-            f"  driver    {self.driver_bytes:>6}  (assumed)",
-            f"  runtime   {self.runtime_bytes:>6}  (assumed)",
+            line("samples", self.sample_bytes),
+            line("directory", self.directory_bytes),
+            line("sequence", self.sequence_bytes),
+            line("echo", self.echo_bytes),
+            line("driver", self.driver_bytes),
+            line("runtime", self.runtime_bytes),
+            f"  {'-- of which measured':<10} {self.measured_bytes} bytes",
+            f"  UNMODELLED, counted as zero: "
+            f"{', '.join(name for name, _ in UNMODELLED)}",
+            "  hardware_budgeted: False (the list above is not empty)",
         ]
         return "\n".join(lines)
 

@@ -1,0 +1,33 @@
+# Cloudflare Pages response headers.
+#
+# Pages reads this file from the root of the build output. It lives in
+# `frontend/public/` because Vite copies that directory verbatim into
+# `frontend/dist/`, so it needs no build step of its own.
+#
+# What is deliberately NOT here: a Content-Security-Policy. The generator page
+# is one file with an inline <script> and inline styles, so any CSP strict
+# enough to be worth having would need 'unsafe-inline', and a CSP with
+# 'unsafe-inline' on script-src is decoration. The honest options are to leave
+# it off or to extract the script to its own file and set a real policy; the
+# second is worth doing when the page is ported to React and the script is
+# external anyway. A `connect-src` restriction would be genuinely useful even
+# with inline scripts, but it has to name the API origin, which differs per
+# deployment -- so it belongs with VITE_API_BASE and not in a committed file.
+
+/*
+  # No MIME sniffing: this site serves HTML and audio, and a browser guessing
+  # otherwise is never what we want.
+  X-Content-Type-Options: nosniff
+  # Nothing here benefits from being framed, and clickjacking a generator into
+  # a page that looks like something else is a cheap trick to shut off.
+  X-Frame-Options: DENY
+  # Send the origin to the API but never the full path or query -- the query
+  # can carry ?api=, and there is no reason to leak it to third parties.
+  Referrer-Policy: strict-origin-when-cross-origin
+  # The page uses none of these.
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# The page is generated per deploy and is tiny; revalidating it is cheap and
+# means a redeploy is visible immediately rather than after a cache expiry.
+/index.html
+  Cache-Control: no-cache

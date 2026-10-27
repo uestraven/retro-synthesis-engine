@@ -99,11 +99,21 @@ class SnesSong:
             "mode": "SNES-INSPIRED PREVIEW",
             "hardware_exact": False,
             "caveats": [
-                "Samples ARE BRR-encoded and the ARAM figures are measured.",
+                "Samples ARE BRR-encoded. Sample, directory and echo bytes "
+                "are measured; sequence bytes are modelled; driver and "
+                "runtime bytes are assumed; and several allocations a real "
+                "SPC image needs are UNMODELLED and counted as zero. Fitting "
+                "in 64 KiB means the represented allocations fit, not that a "
+                "SNES would load it.",
                 "Interpolation is a 4-point Catmull-Rom kernel plus a "
                 "documented low-pass, NOT the S-DSP's own 4-tap Gaussian "
                 "table.",
                 "Envelopes are floating point, not the DSP's rate tables.",
+                "The echo setting is BUDGET ONLY: it reserves the DSP's echo "
+                "buffer in the memory account, but there is no echo "
+                "processor, so dry/room/hall/cavern render byte-identical "
+                "audio. The per-voice echo sends below are recorded and not "
+                "applied.",
                 "Driver and runtime memory are assumptions: RSE has no "
                 "SPC700 driver.",
                 "No SPC export and no emulator verification. A correct byte "
@@ -136,6 +146,8 @@ class SnesSong:
                 "preset_ms": self.echo_ms,
                 "aram_bytes": self.budget.echo_bytes,
                 "longest_that_fits_ms": largest_echo_that_fits(self.budget),
+                # The honest field. Everything else here is about memory.
+                "affects_audio": False,
             },
             "aram": self.budget.to_dict(),
             "brr": {n: e.to_dict() for n, e in self.encoded.items()},

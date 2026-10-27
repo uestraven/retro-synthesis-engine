@@ -54,6 +54,28 @@ odd row in the MELODY, from `vary_motif` ornamenting a note too short to
 subdivide: an NES defect in 54 of 240 songs. The MIDI is cheaper to read than
 the audio and it is unambiguous.
 
+**A test can measure the data and miss what the hardware would play.** SNES V1
+release validation found a six-sample dropout under every sustained note, at
+16.3 Hz, in a bank whose loop tests were green. The tests measured the
+discontinuity across the *asset's declared* loop region, where the waveform
+really was seamless; the encoded sample that the player actually loops was
+zero-padded to a block boundary and its loop point rounded down. The question
+a loop test has to ask is not "is this data periodic" but "what comes out of
+the decoder on pass two".
+
+**A fix is a change, so measure what else it moved.** Block-aligning those
+loops removed the dropout and detuned the whole bank by 4.4 cents, because
+`loop_partials` derives the fundamental from the loop length. It was caught
+only because the same milestone independently checked tuning. Two defects in
+this project have now been introduced by the fix for a previous one.
+
+**Advertising a setting is a claim that it does something.** The SNES echo
+control reserved the right number of ARAM bytes and produced byte-identical
+audio at every preset, because nothing reads the per-voice echo sends. Metadata
+existing is not the capability existing — which was already written down as a
+rule here, and still shipped. For a user-facing control the check is cheap:
+generate at two settings and diff the bytes.
+
 **Composition, instrumentation and expression are separable, and only the
 first had ever been worked on.** Four experiments that rearranged material
 returned no preference; the first that changed how the material is *played* --

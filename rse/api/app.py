@@ -98,10 +98,13 @@ CONSOLES = [
         "preview": True,
         "detail": "SNES-INSPIRED PREVIEW. Sampled instruments across eight "
         "DSP voices, stereo with per-voice panning, hardware-informed "
-        "envelopes, real BRR encoding and a measured 64 KiB audio-RAM "
-        "budget. NOT hardware-exact: interpolation is a 4-point kernel plus "
-        "a documented low-pass rather than the S-DSP's own table, envelopes "
-        "are floating point, and there is no SPC export or emulator "
+        "envelopes, real BRR encoding, and a 64 KiB audio-RAM account whose "
+        "sample, directory and echo figures are measured. NOT hardware-exact "
+        "and NOT hardware-budgeted: interpolation is a 4-point Catmull-Rom "
+        "kernel plus a documented low-pass rather than the S-DSP's own "
+        "Gaussian table, envelopes are floating point, the driver and "
+        "runtime allowances are assumptions, several allocations a real SPC "
+        "image needs are unmodelled, and there is no SPC export or emulator "
         "verification.",
     },
 ]
@@ -235,6 +238,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     name=name,
                     delay_ms=delay,
                     aram_bytes=echo_bytes_for(delay),
+                    # Not a placeholder: the renderer has no echo processor,
+                    # so every preset sounds identical. The client needs to
+                    # know in order to label the control truthfully.
+                    affects_audio=False,
                 )
                 for name, delay in sorted(
                     ECHO_PRESETS.items(), key=lambda kv: kv[1]
@@ -486,6 +493,12 @@ def _generate_snes_sync(
         "snes": {
             "mode": report["mode"],
             "hardware_exact": False,
+            # Separate from hardware_exact on purpose. The samples really are
+            # BRR and the byte counts really are measured, so a caller could
+            # reasonably read "measured ARAM" as "this would load on a SNES".
+            # It would not: several allocations a working SPC image needs are
+            # named in rse.snes.aram.UNMODELLED and counted as zero.
+            "hardware_budgeted": report["aram"]["hardware_budgeted"],
             "caveats": report["caveats"],
             "allocation": report["allocation"],
             "peak_voices": report["allocation"]["peak_voices"],

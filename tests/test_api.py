@@ -740,6 +740,15 @@ def test_snes_reports_a_measured_aram_budget(client: TestClient) -> None:
     # And it says which figures are assumed rather than measured.
     assert "driver_bytes" in aram["assumed"]
     assert body["snes"]["instrument_bank"]["brr_measured"] is True
+    # "Measured" applies to part of the total, not all of it, and the
+    # response has to let a caller tell which part.
+    assert 0 < aram["measured_bytes"] < aram["total_bytes"]
+    assert aram["evidence"]["samples"] == "measured"
+    assert aram["evidence"]["driver"] == "assumed"
+    # Fitting in 64 KiB is not a claim that a SNES would load it.
+    assert body["snes"]["hardware_exact"] is False
+    assert body["snes"]["hardware_budgeted"] is False
+    assert aram["unmodelled"], "the unmodelled allocations must be named"
 
 
 def test_echo_costs_audio_ram(client: TestClient) -> None:
@@ -753,6 +762,44 @@ def test_echo_costs_audio_ram(client: TestClient) -> None:
         budgets[preset] = body["snes"]["aram"]["total_bytes"]
     assert budgets["dry"] < budgets["room"] < budgets["cavern"]
     assert budgets["cavern"] - budgets["dry"] > 25_000
+
+
+def test_the_echo_control_is_declared_inaudible_because_it_is(
+    client: TestClient,
+) -> None:
+    """Release validation generated one song at every echo preset and got
+    four byte-identical WAVs.
+
+    The setting reserves the S-DSP's echo buffer in the memory account, and
+    `VoiceSettings.echo` records a per-voice send, but no code reads either
+    when rendering -- there is no echo processor. Advertising it as a reverb
+    would be the "the metadata exists, so the capability exists" mistake.
+
+    So this test asserts the control does NOT change the audio, which looks
+    backwards and is the point: when an echo processor is written, this test
+    fails, and whoever writes it has to come here and update the label in the
+    request model, the capabilities payload, the page and the report
+    caveats. A test that merely allowed silence would let the labels rot.
+    """
+    presets = client.get("/api/capabilities").json()["echo_presets"]
+    assert presets
+    for preset in presets:
+        assert preset["affects_audio"] is False, preset["name"]
+
+    audio = {}
+    for name in ("dry", "room", "hall", "cavern"):
+        body = generate(
+            client, console="snes", style="boss", seconds=20, seed=9, echo=name
+        )
+        assert body["snes"]["echo"]["affects_audio"] is False
+        wav = client.get(body["links"]["wav"])
+        assert wav.status_code == 200
+        audio[name] = hashlib.sha256(wav.content).hexdigest()
+
+    assert len(set(audio.values())) == 1, (
+        "an echo preset changed the audio -- if that is intentional, the "
+        f"'budget only' labels are now wrong: {audio}"
+    )
 
 
 def test_capabilities_prices_every_echo_preset(client: TestClient) -> None:
