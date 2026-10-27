@@ -245,7 +245,11 @@ class ChordIntent:
             text += self.quality.value
         top = max(self.extensions) if self.extensions else None
         if self.seventh is Seventh.MAJOR:
-            text += f"maj{top or 7}"
+            # A minor triad with a major seventh is mMaj7, and writing it
+            # "mmaj7" reads as a typo for the far commoner m7.
+            text += f"Maj{top or 7}" if self.quality is Quality.MINOR else (
+                f"maj{top or 7}"
+            )
         elif self.seventh is Seventh.MINOR:
             text += str(top or 7)
         elif self.seventh is Seventh.DIMINISHED:
