@@ -105,6 +105,7 @@ def main() -> int:
         # request pays for the wake-up; the user should know that is what
         # they are seeing rather than a slow renderer.
         print(f"         note: {elapsed:.0f}s suggests a cold start, not slow rendering")
+    serving: set[str] = set()
     if ok:
         health = json.loads(body)
         check.record(
@@ -112,10 +113,19 @@ def main() -> int:
             "no model required",
             f"model_required={health.get('model_required')}",
         )
-        consoles = health.get("consoles_available", [])
-        check.record(
-            {"nes", "snes"} <= set(consoles), "both consoles", f"{consoles}"
-        )
+        serving = set(health.get("consoles_available", []))
+        # NES is the engine's floor -- a deployment serving nothing is broken
+        # however it is configured. SNES being absent is a plan decision, so
+        # it is reported and not failed.
+        check.record("nes" in serving, "serves NES", f"{sorted(serving)}")
+        if "snes" not in serving:
+            print(
+                "         note: SNES is not enabled here. That is a "
+                "deployment setting (RSE_API_CONSOLES), not a fault --\n"
+                "         the 16-bit renderer needs ~32x the CPU per second "
+                "of audio and cannot finish inside\n"
+                "         the request timeout on a free instance."
+            )
 
     status, _, body = fetch(f"{api}/api/capabilities")
     if check.record(status == 200, "capabilities", f"HTTP {status}"):
@@ -186,6 +196,13 @@ def main() -> int:
         )
 
     # --- it can actually render ------------------------------------------
+    #
+    # Driven by what the deployment SAYS it serves, not by a hard-coded list.
+    # A host that gates SNES off is correctly configured, not broken, so
+    # asserting both consoles generate would report a false failure -- and a
+    # checker that cries wolf gets ignored, which costs more than the check
+    # is worth. What is still asserted for a gated console is that it is
+    # refused rather than quietly served by the other renderer.
     if not args.skip_generate:
         print("\nGENERATION")
         for console, expect_stereo in (("nes", False), ("snes", True)):
@@ -195,6 +212,22 @@ def main() -> int:
             started = time.monotonic()
             status, _, body = fetch(f"{api}/api/generate", method="POST", data=request)
             elapsed = time.monotonic() - started
+
+            if console not in serving:
+                # 503 is the contract for "this host does not serve it".
+                # Anything else -- especially a 200 -- is a real failure.
+                check.record(
+                    status == 503,
+                    f"{console} is gated off and refused",
+                    f"HTTP {status}"
+                    + (
+                        "  <- a gated console must not generate"
+                        if status == 200
+                        else " (not enabled on this deployment)"
+                    ),
+                )
+                continue
+
             if not check.record(
                 status == 200, f"{console} generates", f"HTTP {status} in {elapsed:.1f}s"
             ):
