@@ -496,7 +496,11 @@ async function loadCapabilities() {
     button.disabled = !console_.available;
     button.setAttribute("aria-pressed", String(console_.id === chosenConsole));
     button.innerHTML =
-      `${console_.label}${console_.available ? "" : " — not available yet"}` +
+      // "unavailable here" rather than "not available yet": a console can be
+      // unavailable because the engine lacks it OR because this deployment
+      // does not serve it, and "yet" promises a roadmap for the second case
+      // that does not exist. The detail below carries the actual reason.
+      `${console_.label}${console_.available ? "" : " — unavailable here"}` +
       `<small>${console_.detail}</small>`;
     button.onclick = () => {
       chosenConsole = console_.id;

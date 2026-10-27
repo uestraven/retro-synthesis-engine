@@ -82,11 +82,28 @@ class Settings:
     #: deploy configuration rather than guessed here, and `*` is never a
     #: default we ship.
     allowed_origins: tuple[str, ...] = ()
+    #: Consoles this deployment will serve. Empty means every console the
+    #: build supports, which is the right default for local use.
+    #:
+    #: This exists because cost and render speed differ by an order of
+    #: magnitude between them, so which consoles a given host can afford to
+    #: serve is a deployment decision rather than a property of the code. NES
+    #: renders at 0.022x realtime and SNES at 0.7x -- a 32x gap -- so a small
+    #: instance can serve one and not the other. Gating by configuration
+    #: keeps SNES fully working in development and in the tests while a
+    #: deployment that cannot afford it turns it off with one variable, and
+    #: turns it back on the same way.
+    consoles: tuple[str, ...] = ()
+
+    def serves(self, console: str) -> bool:
+        """Whether this deployment will generate for `console`."""
+        return not self.consoles or console in self.consoles
 
     @classmethod
     def from_env(cls) -> Settings:
         storage = os.environ.get("RSE_API_STORAGE_DIR")
         origins = os.environ.get("RSE_API_ALLOWED_ORIGINS", "")
+        consoles = os.environ.get("RSE_API_CONSOLES", "")
         return cls(
             host=os.environ.get("RSE_API_HOST", DEFAULT_HOST),
             # Render and most platforms inject PORT; honour it, since the
@@ -110,5 +127,10 @@ class Settings:
                 origin.strip()
                 for origin in origins.split(",")
                 if origin.strip()
+            ),
+            consoles=tuple(
+                name.strip().lower()
+                for name in consoles.split(",")
+                if name.strip()
             ),
         )

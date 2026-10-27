@@ -1,0 +1,128 @@
+# Render blueprint for the generation API.
+#
+# At the repository ROOT because that is the only place Render looks for a
+# blueprint. It lived in deploy/ and would never have been found.
+#
+# The wildcard bind lives HERE, not in the application's defaults. The service
+# runs inside a container whose only published port is the one Render routes
+# to, so binding every interface inside that container is how the platform
+# reaches it -- but it is a deployment decision, visible in the deployment
+# file, rather than a default that ships in the repository and silently
+# exposes anyone who runs the service on a laptop or a shared host.
+#
+# CONFIGURED FOR THE FREE PLAN, 8-BIT ONLY. The 16-bit renderer is turned off
+# here, not removed -- see RSE_API_CONSOLES below, which is the one variable to
+# change when a paid plan is in place.
+#
+# The reason is a 32x gap in render cost, measured rather than assumed:
+#
+#   NES    0.022x realtime   64 s of audio in 1.39 s on one core
+#   SNES   0.70x  realtime   115 s of audio in 82 s on one core
+#
+# Generation is synchronous inside the HTTP request, so render time IS request
+# time, and Render closes a request at 100 s. Scaling by each plan's share of
+# a core (a model, not a measurement -- time a real request before trusting
+# it):
+#
+#            CPU    NES 180 s audio      SNES 60 s audio
+#   free     0.1    ~40 s   fine         ~420 s  TIMES OUT
+#   starter  0.5    ~8 s    fine         ~84 s   16 s of margin. tight.
+#   standard 1.0    ~4 s    fine         ~42 s   comfortable
+#
+# So free serves NES with room to spare and cannot serve SNES at all. The
+# free plan also sleeps after inactivity, which costs the first visitor a
+# cold start of roughly half a minute -- an annoyance for a free preview, and
+# the main reason to move up a tier even for NES alone.
+#
+# To enable SNES later: move to starter or above, set RSE_API_CONSOLES to
+# "nes,snes", and lower RSE_API_MAX_SECONDS to 45 on starter (60 on standard)
+# so SNES requests finish inside the request timeout.
+services:
+  - type: web
+    name: rse-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -e ".[api]"
+    # PORT is injected by Render; rse.api.settings honours it.
+    startCommand: uvicorn rse.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # Pinned, not left to the platform default. pyproject declares
+      # requires-python = ">=3.11,<3.13", so a runner defaulting to 3.13
+      # fails the install outright with "package requires a different
+      # Python" -- a build failure with nothing wrong in the code. 3.12 is
+      # the newest version the constraint allows.
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: RSE_API_HOST
+        value: 0.0.0.0
+      # Sized by the PLATFORM REQUEST TIMEOUT, which is the binding
+      # constraint and was not when this file was written.
+      #
+      # The old comment here said 180 s of music is ~3.6 s of CPU. That was
+      # the NES renderer. The SNES sampler is three orders of magnitude more
+      # expensive -- measured at 0.67-0.77x realtime, so 115 s of audio takes
+      # 82 s to render on a build host with a full core. Generation is
+      # synchronous inside the HTTP request, so render time IS request time,
+      # and Render's load balancer closes a request at 100 s.
+      #
+      # Consoles this deployment serves. "nes" only, which is what makes the
+      # free plan viable: see the 32x cost gap at the top of this file.
+      #
+      # SNES is disabled by CONFIGURATION, not removed from the build. The
+      # engine, the tests and local development are untouched, and the
+      # capabilities endpoint reports the 16-bit option as unavailable with
+      # the reason attached rather than hiding it -- so the page greys it out
+      # and says why. Set this to "nes,snes" on a paid plan to turn it back
+      # on, and adjust RSE_API_MAX_SECONDS at the same time.
+      - key: RSE_API_CONSOLES
+        value: nes
+      # 180 s because NES is cheap: at 0.022x realtime it is ~40 s of render
+      # even on the free plan's tenth of a core, comfortably inside the 100 s
+      # request timeout.
+      #
+      # This number is coupled to RSE_API_CONSOLES above. If SNES is enabled,
+      # 180 s of 16-bit audio needs ~126 s on a full core and will exceed the
+      # timeout on any plan -- drop this to 45 on starter or 60 on standard.
+      # The real fix is asynchronous generation returning a job id so render
+      # time stops being request time, which is a feature and not a setting.
+      - key: RSE_API_MAX_SECONDS
+        value: "180"
+      - key: RSE_API_MIN_SECONDS
+        value: "8"
+      # The free plan is a tenth of a core, so concurrent renders contend for
+      # it and each one slows down. Two is affordable for NES, where a render
+      # is seconds; it would be reckless with SNES enabled, where two
+      # concurrent renders could push both past the request timeout. A queued
+      # request that succeeds beats two that 502.
+      - key: RSE_API_MAX_CONCURRENT
+        value: "2"
+      - key: RSE_API_RATE_PER_MINUTE
+        value: "20"
+      - key: RSE_API_RATE_BURST
+        value: "5"
+      # Long enough to find the tab again and download; short enough that the
+      # disk arithmetic below stays small.
+      - key: RSE_API_RETENTION_SECONDS
+        value: "900"
+      # Sized by DISK, not by traffic. Measured: NES mono audio is
+      # 0.088 MB/s, so a song at the 180 s cap is 15.8 MB and 40 of them is
+      # 0.63 GB of ephemeral disk.
+      #
+      # The old value of 200 was set before the duration cap rose and before
+      # stereo existed. With SNES enabled at a 180 s cap it would have
+      # allowed 6.35 GB -- enough to fill the instance and take the service
+      # down. Re-do this arithmetic whenever either the cap or the enabled
+      # consoles change, because the product of the two is what lands on
+      # disk.
+      #
+      # The cost of a smaller number is that a download link can be evicted
+      # early under load. That is the better failure: a dead link is an
+      # annoyance, a full disk is an outage.
+      - key: RSE_API_MAX_STORED_SONGS
+        value: "40"
+      # The public site's origin. Set this to the real frontend origin before
+      # the site goes live; empty means same-origin only, and the API refuses
+      # to guess. Never "*".
+      - key: RSE_API_ALLOWED_ORIGINS
+        sync: false

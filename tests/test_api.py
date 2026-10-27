@@ -887,3 +887,97 @@ def test_the_snes_preview_caveats_reach_the_response(client: TestClient) -> None
         "no SPC export" in caveats
     )
     assert body["snes"]["hardware_exact"] is False
+
+
+# --- per-deployment console gating ----------------------------------------
+#
+# Render cost differs by 32x between the consoles: NES measures 0.022x
+# realtime and SNES 0.70x. Generation is synchronous inside the request, so
+# which consoles a host can serve is a property of that host's CPU, not of
+# the code -- hence a deployment setting rather than a build flag. SNES stays
+# fully working everywhere else, including in every other test in this file.
+
+
+def _gated(tmp_path: Path, consoles: tuple[str, ...]) -> TestClient:
+    from rse.api.app import create_app
+
+    return TestClient(
+        create_app(
+            Settings(
+                storage_dir=tmp_path / "songs",
+                rate_per_minute=100000,
+                rate_burst=1000,
+                consoles=consoles,
+            )
+        )
+    )
+
+
+def test_an_empty_console_list_serves_everything(tmp_path: Path) -> None:
+    """The default has to stay permissive: local development and the test
+    suite must not need a variable set to reach the full engine."""
+    assert Settings().consoles == ()
+    assert Settings().serves("nes") and Settings().serves("snes")
+    client = _gated(tmp_path, ())
+    available = {
+        c["id"] for c in client.get("/api/capabilities").json()["consoles"]
+        if c["available"]
+    }
+    assert available == {"nes", "snes"}
+
+
+def test_a_disabled_console_is_refused_before_any_work(tmp_path: Path) -> None:
+    """503, not 422: the request is well-formed and would succeed on a
+    differently configured host, so the shortfall is the deployment's rather
+    than the caller's. And it must be refused rather than quietly served by
+    the other engine -- the mistake this project already made once was
+    letting a console label travel with audio from the wrong renderer.
+    """
+    client = _gated(tmp_path, ("nes",))
+    response = client.post(
+        "/api/generate", json={"console": "snes", "style": "boss", "seconds": 20}
+    )
+    assert response.status_code == 503
+    # Flattened, not nested under "detail": the app's exception handler lifts
+    # it so the page can read payload.message like every other error.
+    body = response.json()
+    assert body["error"] == "console_not_enabled"
+    assert body["console"] == "snes"
+    assert body["consoles_available"] == ["nes"]
+    assert "not enabled" in body["message"]
+
+
+def test_the_enabled_console_still_works_when_another_is_gated(
+    tmp_path: Path,
+) -> None:
+    client = _gated(tmp_path, ("nes",))
+    body = generate(client, console="nes", style="boss", seconds=20, seed=7)
+    assert body["console"] == "nes"
+    assert body["snes"] is None
+    assert client.get(body["links"]["wav"]).status_code == 200
+
+
+def test_a_withheld_console_is_disclosed_not_hidden(tmp_path: Path) -> None:
+    """Hiding it would leave a user wondering where the 16-bit option went.
+    It stays listed, marked unavailable, with the reason attached, which is
+    what lets the page grey it out and explain itself."""
+    client = _gated(tmp_path, ("nes",))
+    consoles = {c["id"]: c for c in client.get("/api/capabilities").json()["consoles"]}
+    assert set(consoles) == {"nes", "snes"}, "the console must not disappear"
+    assert consoles["nes"]["available"] is True
+    assert consoles["snes"]["available"] is False
+    assert "not enabled on this deployment" in consoles["snes"]["detail"].lower()
+    # And health agrees, so a monitor and the page cannot disagree.
+    assert client.get("/api/health").json()["consoles_available"] == ["nes"]
+
+
+def test_gating_is_case_and_whitespace_insensitive(monkeypatch) -> None:
+    """It is typed into a dashboard field by a human."""
+    monkeypatch.setenv("RSE_API_CONSOLES", " NES , SNES ")
+    assert Settings.from_env().consoles == ("nes", "snes")
+    monkeypatch.setenv("RSE_API_CONSOLES", "nes")
+    assert Settings.from_env().consoles == ("nes",)
+    # Unset must mean "everything", not "nothing".
+    monkeypatch.delenv("RSE_API_CONSOLES")
+    assert Settings.from_env().consoles == ()
+    assert Settings.from_env().serves("snes")

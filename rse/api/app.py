@@ -259,13 +259,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             shutil.rmtree(target, ignore_errors=True)
         store.forget(song_id)
 
+    def served_consoles() -> list[dict[str, Any]]:
+        """CONSOLES with this deployment's gating applied.
+
+        A console the build supports but the deployment will not serve is
+        reported as unavailable WITH A REASON, rather than being hidden. The
+        page already greys out an unavailable console, so one filtered list
+        drives the interface, the health check and the request validator --
+        and a user who wonders where the 16-bit option went gets an answer
+        instead of silence.
+        """
+        out: list[dict[str, Any]] = []
+        for console in CONSOLES:
+            if config.serves(console["id"]):
+                out.append(console)
+                continue
+            withheld = dict(console)
+            withheld["available"] = False
+            withheld["detail"] = (
+                "Not enabled on this deployment. The 16-bit renderer costs "
+                "about 32 times more CPU per second of audio than the 8-bit "
+                "one, so a small instance can serve NES and not SNES. The "
+                "engine supports it; this host is not configured for it."
+            )
+            out.append(withheld)
+        return out
+
     @app.get("/api/health")
     def health() -> dict[str, Any]:
         return {
             "status": "ok",
             "engine": "procedural",
             "model_required": False,
-            "consoles_available": [c["id"] for c in CONSOLES if c["available"]],
+            "consoles_available": [
+                c["id"] for c in served_consoles() if c["available"]
+            ],
         }
 
     @app.get("/api/capabilities", response_model=CapabilitiesResponse)
@@ -293,7 +321,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
                 for name, style in sorted(STYLES.items())
             ],
-            consoles=CONSOLES,
+            consoles=served_consoles(),
             min_seconds=config.min_seconds,
             max_seconds=config.max_seconds,
             default_seconds=60.0,
@@ -346,6 +374,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "retry_after_seconds": round(wait, 1),
                 },
                 headers={"Retry-After": str(max(1, int(wait) + 1))},
+            )
+
+        # Checked before any work is done, and with a distinct status. 503
+        # rather than 422 because the request is well-formed and would be
+        # honoured on a differently configured host -- the shortfall is this
+        # deployment's, not the caller's. A stale page that still offers the
+        # option gets a clear answer instead of audio from the wrong engine.
+        if not config.serves(body.console):
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "console_not_enabled",
+                    "message": f"{body.console.upper()} generation is not "
+                    "enabled on this deployment.",
+                    "console": body.console,
+                    "consoles_available": [
+                        c["id"] for c in served_consoles() if c["available"]
+                    ],
+                },
             )
 
         requested = body.seconds if body.seconds is not None else 60.0

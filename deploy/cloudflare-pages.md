@@ -114,6 +114,47 @@ It makes real generation requests, which costs CPU on whatever plan is
 running. That is deliberate — a health endpoint returning 200 proves the
 process is up, not that it can render a song.
 
+## The API: free plan, 8-bit only
+
+`render.yaml` (at the repo root, which is the only place Render looks for a
+blueprint) is configured for the **free** plan with **SNES disabled**. The
+reason is a 32× gap in render cost, measured rather than assumed:
+
+| console | render rate | 180 s of audio, one core |
+|---|---|---|
+| NES | 0.022× realtime | 3.9 s |
+| SNES | 0.70× realtime | 126 s |
+
+Generation is synchronous inside the HTTP request, so render time *is*
+request time and Render closes a request at 100 s. Scaling by each plan's
+share of a core:
+
+| plan | CPU | NES at 180 s | SNES at 60 s |
+|---|---|---|---|
+| free | 0.1 | ~40 s — fine | ~420 s — **times out** |
+| starter | 0.5 | ~8 s — fine | ~84 s — 16 s margin, tight |
+| standard | 1.0 | ~4 s — fine | ~42 s — comfortable |
+
+So free serves NES with room to spare and cannot serve SNES at all.
+Confirmed end-to-end against a server configured this way: a 180-second NES
+track generated in 4.2 s with a valid 15.8 MB WAV, and a SNES request was
+refused with HTTP 503.
+
+**SNES is off by configuration, not removed.** `RSE_API_CONSOLES=nes` gates
+it; the engine, the tests and local development are untouched. The
+capabilities endpoint still lists the 16-bit console, marked unavailable with
+the reason attached, so the page greys it out and explains itself rather than
+silently dropping the option.
+
+To enable it later: move to starter or above, set `RSE_API_CONSOLES=nes,snes`,
+and lower `RSE_API_MAX_SECONDS` to 45 (starter) or 60 (standard) in the same
+change — those two settings are coupled, and raising one without lowering the
+other is how the 16-bit option starts returning 502s.
+
+**The free plan sleeps after inactivity.** The first visitor after a quiet
+period waits roughly half a minute for the container before their request is
+served. That is the main reason to move up a tier even for NES alone.
+
 ## Three settings that changed for this deploy
 
 All three were sized when NES mono was the only output, and stereo SNES
@@ -121,16 +162,17 @@ invalidated the arithmetic. Fixed in `render.yaml`:
 
 | Setting | Was | Now | Why |
 |---|---|---|---|
+| *(file location)* | `deploy/render.yaml` | `render.yaml` | Render only looks for a blueprint at the repo root. In `deploy/` it would never have been found |
+| `plan` | `starter` | `free` | Paid, and committed silently. Free serves NES fine |
 | `PYTHON_VERSION` | *(unset)* | `3.12` | `pyproject` declares `>=3.11,<3.13`, so a runner defaulting to 3.13 fails the install outright — a build failure with nothing wrong in the code |
-| `RSE_API_MAX_SECONDS` | `180` | `60` | Generation is synchronous in the request, and the SNES sampler renders at **0.67–0.77× realtime** (measured: 115 s of audio → 82 s). Render closes a request at 100 s, so the longest SNES songs would 502 |
-| `RSE_API_MAX_STORED_SONGS` | `200` | `40` | Stereo SNES is 0.176 MB/s, so 200 songs at the old cap was **6.35 GB** of ephemeral disk — enough to fill the instance. Now 0.42 GB |
+| `RSE_API_CONSOLES` | *(new)* | `nes` | SNES cannot render inside the request timeout on any plan the project is on yet |
+| `RSE_API_MAX_STORED_SONGS` | `200` | `40` | NES mono is 0.088 MB/s, so 40 songs at the 180 s cap is 0.63 GB of ephemeral disk. At 200 with stereo SNES enabled it would have been **6.35 GB** — enough to fill the instance and take the service down |
+| `RSE_API_RETENTION_SECONDS` | `1800` | `900` | Long enough to find the tab and download; keeps the disk arithmetic small |
 
-**The render-rate limit is the one to re-check.** The 60-second cap assumes
-the starter plan is within ~2× of a full core, which is an assumption and not
-a measurement. Generate a 60-second SNES track on the real instance and time
-it: comfortably inside 100 s means the cap can rise, a timeout means it
-should fall. The structural fix is asynchronous generation with a job id,
-which is a feature rather than a deployment setting.
+`RSE_API_MAX_SECONDS` stays at 180, because NES is cheap enough for it. It is
+**coupled to `RSE_API_CONSOLES`** — re-do the arithmetic whenever either
+changes, since their product is what lands on disk and what the request
+timeout has to absorb.
 
 ## What to expect in production
 
