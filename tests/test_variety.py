@@ -81,8 +81,18 @@ def test_v1_backing_barely_moves(style: str) -> None:
     """Pinned so the defect cannot silently return. Harmony and bass are pure
     functions of the progression, so they have at most as many variants as
     there are progressions."""
-    harmonies = {channel(compose(style_name=style, seed=s, target_seconds=60.0), "P2")
-                 for s in SEEDS}
+    # `sound_design=None`: this pins a COMPOSITION defect, and the expressive
+    # default varies velocity per profile, which would be counted as backing
+    # variety it is not.
+    harmonies = {
+        channel(
+            compose(
+                style_name=style, seed=s, target_seconds=60.0, sound_design=None
+            ),
+            "P2",
+        )
+        for s in SEEDS
+    }
     assert len(harmonies) <= 6, style
 
 

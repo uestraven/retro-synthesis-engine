@@ -147,23 +147,68 @@ def velocity_for_register(register: int) -> int:
     return max(1, round(register * 127 / MAX_REGISTER))
 
 
-#: Lead dynamics, in register values. The span is deliberately narrow: this is
-#: a 4-bit register and the lead has to stay above the comp at every point, so
-#: three steps of range is the whole budget before the balance breaks.
-LEAD_REGISTERS: dict[str, int] = {
-    "accent": 14,  # phrase opening, cadential arrival, section start
-    "strong": 12,  # on the beat
-    "normal": 11,  # off the beat
-    "weak": 10,  # between eighths
+#: RMS of each duty sequence, relative to full scale.
+#:
+#: The number that broke the balance. A pulse is only high for its duty
+#: fraction, so at the SAME volume register a 12.5% wave is 3.51 dB quieter
+#: than a 50% one and a 25% wave is 1.22 dB quieter. The lead/comp balance was
+#: budgeted purely in register space -- lead at 10-14, comp at 7-9, about 2-3
+#: dB of headroom -- and the duty change silently overrode it. Measured on the
+#: rendered stems, the profiles spanned -0.58 dB (`eerie`: the accompaniment
+#: LOUDER than the melody) to +11.53 dB (`warm`: the accompaniment nearly
+#: gone), against the dry default's healthy +8.50 dB. That is what "the
+#: expressive songs have a strange sound" was.
+DUTY_RMS: dict[int, float] = {0: 0.3536, 1: 0.5000, 2: 0.7071}
+
+#: Lead dynamics as fractions of the lead's reference level, not as registers.
+#: Registers are derived per duty so the rendered loudness is what was meant.
+LEAD_LEVELS: dict[str, float] = {
+    "accent": 1.00,  # phrase opening, cadential arrival, section start
+    "strong": 0.86,  # on the beat
+    "normal": 0.79,  # off the beat
+    "weak": 0.71,  # between eighths
 }
 
-#: Accompaniment dynamics. Kept under the lead at every level, so the existing
-#: balance -- lead register 12 against comp register 8 -- is preserved.
-COMP_REGISTERS: dict[str, int] = {
-    "strong": 9,
-    "normal": 8,
-    "weak": 7,
+#: Accompaniment levels, as fractions of the COMP reference.
+COMP_LEVELS: dict[str, float] = {
+    "strong": 1.00,
+    "normal": 0.89,
+    "weak": 0.78,
 }
+
+#: The lead's reference register at 50% duty, and the balance to hold.
+#:
+#: 5.5 dB is the dry default's lead-over-comp level measured as median
+#: PER-NOTE RMS -- duty-weighted, so it reflects loudness rather than register,
+#: and density-independent, so a sparse accompaniment is not scored as quiet.
+#: Getting the statistic right mattered: whole-stem RMS put the dry reference
+#: at 8.50 dB because the comp has more silence in it, and per-note PEAK put it
+#: at 2.50 dB because a pulse's peak equals its register no matter the duty --
+#: that one ignores the exact effect being corrected.
+#:
+#: Measured pre-fix with the correct statistic, the profiles spanned 12.15 dB
+#: and THREE of six put the melody behind the accompaniment: eerie -3.64,
+#: aggressive -0.63, mellow -0.57.
+LEAD_REFERENCE_REGISTER = 14
+TARGET_BALANCE_DB = 5.5
+
+
+def _registers_for(lead_duty: int, comp_duty: int) -> tuple[int, int]:
+    """Reference registers for a duty pair, holding the balance constant.
+
+    The lead is pushed toward the level a 50% duty reaches at
+    `LEAD_REFERENCE_REGISTER`, clamped at 15 -- a 12.5% lead cannot get there,
+    because +3.5 dB of make-up gain is not available in four bits. So the comp
+    is then derived from the lead's ACTUALLY achieved level rather than from
+    its own fixed register, which is what keeps the ratio right even when the
+    lead could not be fully compensated.
+    """
+    reference = LEAD_REFERENCE_REGISTER * DUTY_RMS[2]
+    lead = min(MAX_REGISTER, max(1, round(reference / DUTY_RMS[lead_duty])))
+    lead_level = lead * DUTY_RMS[lead_duty]
+    comp_level = lead_level / (10 ** (TARGET_BALANCE_DB / 20))
+    comp = min(MAX_REGISTER, max(1, round(comp_level / DUTY_RMS[comp_duty])))
+    return lead, comp
 
 #: The triangle's velocity is ignored by the hardware. Held at the v1 value so
 #: the channel is unchanged rather than given meaningless dynamics.
@@ -270,6 +315,8 @@ def lead_velocity(
     phrase_start: bool = False,
     cadence: bool = False,
     section_start: bool = False,
+    lead_duty: int = 2,
+    comp_duty: int = 1,
 ) -> int:
     """Velocity for one lead note, from its musical position.
 
@@ -278,27 +325,39 @@ def lead_velocity(
     then the beat hierarchy. Everything resolves to a register first, so each
     distinction is one the hardware can actually represent.
     """
+    top, _comp = _registers_for(lead_duty, comp_duty)
     if section_start or cadence or phrase_start:
-        return velocity_for_register(LEAD_REGISTERS["accent"])
-    if row_in_bar % rows_per_beat == 0:
-        return velocity_for_register(LEAD_REGISTERS["strong"])
-    if row_in_bar % (rows_per_beat // 2 or 1) == 0:
-        return velocity_for_register(LEAD_REGISTERS["normal"])
-    return velocity_for_register(LEAD_REGISTERS["weak"])
+        level = LEAD_LEVELS["accent"]
+    elif row_in_bar % rows_per_beat == 0:
+        level = LEAD_LEVELS["strong"]
+    elif row_in_bar % (rows_per_beat // 2 or 1) == 0:
+        level = LEAD_LEVELS["normal"]
+    else:
+        level = LEAD_LEVELS["weak"]
+    return velocity_for_register(max(1, round(top * level)))
 
 
-def comp_velocity(*, row_in_bar: int, rows_per_beat: int = 4) -> int:
+def comp_velocity(
+    *,
+    row_in_bar: int,
+    rows_per_beat: int = 4,
+    lead_duty: int = 2,
+    comp_duty: int = 1,
+) -> int:
     """Velocity for one accompaniment note. Follows the beat only.
 
     The comp does not take phrase or cadence accents: its job is to state the
     harmony steadily, and accenting it competes with the lead for the one thing
     a 4-bit register has little of, which is range.
     """
+    _lead, top = _registers_for(lead_duty, comp_duty)
     if row_in_bar % rows_per_beat == 0:
-        return velocity_for_register(COMP_REGISTERS["strong"])
-    if row_in_bar % (rows_per_beat // 2 or 1) == 0:
-        return velocity_for_register(COMP_REGISTERS["normal"])
-    return velocity_for_register(COMP_REGISTERS["weak"])
+        level = COMP_LEVELS["strong"]
+    elif row_in_bar % (rows_per_beat // 2 or 1) == 0:
+        level = COMP_LEVELS["normal"]
+    else:
+        level = COMP_LEVELS["weak"]
+    return velocity_for_register(max(1, round(top * level)))
 
 
 def registers_are_distinct(velocities: list[int]) -> bool:

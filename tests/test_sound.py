@@ -24,12 +24,13 @@ import pytest
 from rse.procedural.compose import STYLES, compose
 from rse.procedural.sound import (
     BASS_VELOCITY,
-    COMP_REGISTERS,
     DRY_DUTY,
-    LEAD_REGISTERS,
+    DUTY_RMS,
     MAX_REGISTER,
+    TARGET_BALANCE_DB,
     TIMBRES,
     VOICE_PRESETS,
+    _registers_for,
     choose_voices,
     comp_velocity,
     lead_velocity,
@@ -38,6 +39,24 @@ from rse.procedural.sound import (
 from rse.renderers.nes_apu import DUTY_SEQUENCES, _velocity_to_volume
 
 # --- the hardware facts ---------------------------------------------------
+
+
+def test_duty_rms_matches_the_sequences() -> None:
+    """The number the balance fix rests on."""
+    import numpy as np
+
+    for duty, expected in DUTY_RMS.items():
+        actual = float(np.sqrt((DUTY_SEQUENCES[duty] ** 2).mean()))
+        assert abs(actual - expected) < 0.002, (duty, actual, expected)
+
+
+def test_a_quieter_duty_gets_a_higher_register() -> None:
+    """Compensation in the right direction: 12.5% is 3.5 dB down, so it needs
+    more register to reach the same loudness."""
+    for comp_duty in (1, 2):
+        thin, _ = _registers_for(0, comp_duty)
+        fat, _ = _registers_for(2, comp_duty)
+        assert thin > fat, comp_duty
 
 
 def test_duty_three_is_duty_one_inverted() -> None:
@@ -95,31 +114,58 @@ def test_the_triangle_has_no_dynamics() -> None:
 
 def test_every_lead_level_is_its_own_register() -> None:
     """A plan whose levels collapse onto one register is inaudible."""
-    registers = {_velocity_to_volume(velocity_for_register(r))
-                 for r in LEAD_REGISTERS.values()}
-    assert len(registers) == len(set(LEAD_REGISTERS.values()))
-
-
-def test_every_comp_level_is_its_own_register() -> None:
-    registers = {_velocity_to_volume(velocity_for_register(r))
-                 for r in COMP_REGISTERS.values()}
-    assert len(registers) == len(set(COMP_REGISTERS.values()))
+    for lead_duty in (0, 1, 2):
+        velocities = {
+            lead_velocity(row_in_bar=row, lead_duty=lead_duty)
+            for row in (0, 1, 2)
+        }
+        registers = {_velocity_to_volume(v) for v in velocities}
+        assert len(registers) == len(velocities), lead_duty
 
 
 def test_the_lead_stays_above_the_accompaniment() -> None:
-    """A 4-bit register has little range; spending it on comp accents would
-    put the comp over the lead."""
-    assert min(LEAD_REGISTERS.values()) > max(COMP_REGISTERS.values())
+    """Checked for every duty pair, because the duty is what broke it: at the
+    same register a 12.5% pulse is 3.51 dB quieter than a 50% one."""
+    for lead_duty in (0, 1, 2):
+        for comp_duty in (0, 1, 2):
+            lead, comp = _registers_for(lead_duty, comp_duty)
+            lead_level = lead * DUTY_RMS[lead_duty]
+            comp_level = comp * DUTY_RMS[comp_duty]
+            assert lead_level > comp_level, (lead_duty, comp_duty)
+
+
+def test_the_balance_holds_across_every_duty_pair() -> None:
+    """The defect: the balance was budgeted in register space, so the timbre
+    choice silently overrode it. Measured on the rendered stems, profiles
+    spanned 12.15 dB and three of six put the melody BEHIND the
+    accompaniment."""
+    import numpy as np
+
+    achieved = []
+    for lead_duty in (0, 1, 2):
+        for comp_duty in (0, 1, 2):
+            if lead_duty == comp_duty:
+                continue  # profiles are always complementary
+            lead, comp = _registers_for(lead_duty, comp_duty)
+            ratio = (lead * DUTY_RMS[lead_duty]) / (comp * DUTY_RMS[comp_duty])
+            achieved.append(20 * np.log10(ratio))
+    spread = max(achieved) - min(achieved)
+    assert spread < 4.0, f"balance spread {spread:.2f} dB across duty pairs"
+    for value in achieved:
+        assert abs(value - TARGET_BALANCE_DB) < 3.0, value
 
 
 def test_accents_land_on_the_strongest_level() -> None:
-    accent = velocity_for_register(LEAD_REGISTERS["accent"])
-    for kwargs in (
-        {"section_start": True},
-        {"cadence": True},
-        {"phrase_start": True},
-    ):
-        assert lead_velocity(row_in_bar=7, **kwargs) == accent
+    for lead_duty in (0, 1, 2):
+        accent = lead_velocity(row_in_bar=7, section_start=True, lead_duty=lead_duty)
+        for kwargs in ({"cadence": True}, {"phrase_start": True}):
+            assert lead_velocity(
+                row_in_bar=7, lead_duty=lead_duty, **kwargs
+            ) == accent
+        # And an accent is the loudest thing in the bar.
+        assert accent >= max(
+            lead_velocity(row_in_bar=r, lead_duty=lead_duty) for r in range(16)
+        )
 
 
 def test_the_beat_hierarchy_descends() -> None:
@@ -135,9 +181,10 @@ def test_the_comp_follows_the_beat_only() -> None:
     lead for the register range."""
     assert comp_velocity(row_in_bar=0) > comp_velocity(row_in_bar=2)
     assert comp_velocity(row_in_bar=2) > comp_velocity(row_in_bar=1)
-    assert max(
-        comp_velocity(row_in_bar=r) for r in range(16)
-    ) < min(lead_velocity(row_in_bar=r) for r in range(16))
+    # Compared in rendered level, not in velocity: the duty is what decides.
+    for lead_duty, comp_duty in ((2, 1), (0, 2), (1, 0)):
+        lead, comp = _registers_for(lead_duty, comp_duty)
+        assert lead * DUTY_RMS[lead_duty] > comp * DUTY_RMS[comp_duty]
 
 
 def test_bass_velocity_is_unchanged_from_v1() -> None:

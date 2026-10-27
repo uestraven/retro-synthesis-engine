@@ -1145,13 +1145,23 @@ def compose(
     voices = None
     lead_shaper = comp_shaper = None
     if sound_design == "expressive":
+        import functools
+
         from rse.procedural import sound as S
 
         voices = S.choose_voices(
             style_name, seed=seed, profile=sound_profile, mood=mood
         )
-        lead_shaper = S.lead_velocity
-        comp_shaper = S.comp_velocity
+        # The shapers need the duty pair: at the same register a 12.5% pulse
+        # is 3.51 dB quieter than a 50% one, so registers chosen without it
+        # let the timbre choice override the lead/comp balance.
+        duties = voices.duty_by_channel
+        lead_shaper = functools.partial(
+            S.lead_velocity, lead_duty=duties["P1"], comp_duty=duties["P2"]
+        )
+        comp_shaper = functools.partial(
+            S.comp_velocity, lead_duty=duties["P1"], comp_duty=duties["P2"]
+        )
 
     arrangement = None
     if variety == "full":
