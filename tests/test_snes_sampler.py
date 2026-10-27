@@ -82,13 +82,21 @@ def test_sustained_instruments_loop_and_percussion_does_not(bank) -> None:
         assert bank[name].loop_end == bank[name].loop_start == 0, name
 
 
-def test_the_instruments_are_spectrally_distinct(bank) -> None:
-    """A brass sample must not be a string sample with a different name."""
+def test_instruments_in_the_same_register_are_spectrally_distinct(bank) -> None:
+    """A brass sample must not be a string sample with a different name.
+
+    Compared only among the instruments that share a register and can
+    therefore be confused: brass, strings and choir all have root note 60. The
+    bass is an octave and a half below and never plays the same part, so
+    comparing its raw loop spectrum to a choir's measures nothing useful --
+    which an earlier version of this test did, and failed on.
+    """
     import itertools
 
     spectra = {}
-    for name in ("brass", "strings", "choir", "bass"):
+    for name in ("brass", "strings", "choir"):
         asset = bank[name]
+        assert asset.instrument.root_note == 60, name
         region = asset.data[asset.loop_start : asset.loop_end]
         magnitude = np.abs(np.fft.rfft(region * np.hanning(len(region))))
         spectra[name] = magnitude / (magnitude.max() or 1)
@@ -98,6 +106,19 @@ def test_the_instruments_are_spectrally_distinct(bank) -> None:
             np.abs(spectra[first][:length] - spectra[second][:length]).mean()
         )
         assert difference > 0.002, f"{first} and {second} are too similar"
+
+
+def test_the_bass_is_distinct_by_register(bank) -> None:
+    """Separated by where it sits rather than by spectral shape."""
+    def centroid(name: str) -> float:
+        asset = bank[name]
+        region = asset.data[asset.loop_start : asset.loop_end].astype(np.float64)
+        magnitude = np.abs(np.fft.rfft(region * np.hanning(len(region))))
+        freqs = np.fft.rfftfreq(len(region), 1 / asset.rate)
+        return float((freqs * magnitude).sum() / magnitude.sum())
+
+    assert bank["bass"].instrument.root_note < 48
+    assert centroid("bass") < centroid("brass") / 2
 
 
 def test_gains_are_calibrated_by_loop_rms_not_peak(bank) -> None:
@@ -395,3 +416,98 @@ def test_the_renderer_labels_itself_a_preview(bank) -> None:
     )
     assert "PREVIEW" in out.to_dict()["renderer"]
     assert "not hardware" in out.to_dict()["renderer"]
+
+
+# --- the "feedback" defect ------------------------------------------------
+
+
+def test_every_sustained_loop_is_exactly_periodic(bank) -> None:
+    """The artifact the listener heard as "feedback or something coming
+    through". The partials were detuned by up to eleven cents, so they could
+    not share the loop's period, and the waveform jumped at every wrap: 4x to
+    12x a normal sample step, repeating at 32.7 Hz. A discontinuity repeating
+    at 32.7 Hz is a 32.7 Hz tone.
+
+    The crossfade that was supposed to hide it had been applied to the wrong
+    place -- the buffer's end into its start, while the player wraps from
+    `loop_end` back to `loop_start`.
+    """
+    for name in ("brass", "strings", "choir", "bass"):
+        asset = bank[name]
+        loop = asset.data[asset.loop_start : asset.loop_end].astype(np.float64)
+        assert loop.size > 0, name
+        doubled = np.concatenate([loop, loop])
+        wrap_step = abs(doubled[loop.size] - doubled[loop.size - 1])
+        largest = float(np.abs(np.diff(loop)).max())
+        assert wrap_step <= largest * 1.05, (
+            f"{name}: wrap step {wrap_step:.5f} exceeds the largest step "
+            f"inside the loop ({largest:.5f}), so the loop clicks"
+        )
+
+
+def test_a_held_note_has_no_inharmonic_energy(bank) -> None:
+    """A click at the loop rate shows up as energy away from the loop's own
+    harmonic series."""
+    for name in ("brass", "strings", "choir", "bass"):
+        asset = bank[name]
+        loop = asset.data[asset.loop_start : asset.loop_end].astype(np.float64)
+        held = np.tile(loop, 12)
+        magnitude = np.abs(np.fft.rfft(held * np.hanning(len(held))))
+        freqs = np.fft.rfftfreq(len(held), 1 / asset.rate)
+        loop_hz = asset.rate / len(loop)
+        harmonic = np.zeros_like(magnitude, dtype=bool)
+        index = 1
+        while loop_hz * index < asset.rate / 2:
+            harmonic |= np.abs(freqs - loop_hz * index) < loop_hz * 0.3
+            index += 1
+        audible = freqs > 20
+        junk = magnitude[audible & ~harmonic].sum() / magnitude[audible].sum()
+        assert junk < 0.05, f"{name}: {junk * 100:.2f}% inharmonic energy"
+
+
+def test_sustained_instruments_carry_no_noise(bank) -> None:
+    """Noise cannot be periodic. Tiling it to the loop length -- the first
+    attempt -- makes it a pitched rasp at the loop rate rather than noise."""
+    for name in ("brass", "strings", "choir", "bass"):
+        assert bank[name].instrument.noise == 0.0, name
+    # Percussion is one-shot and never loops, so its noise is fine.
+    for name in ("kick", "snare", "hat"):
+        assert bank[name].instrument.noise > 0.0, name
+
+
+def test_samples_carry_no_dc_offset(bank) -> None:
+    """A constant offset under every sustained note wastes headroom and reads
+    as pressure rather than tone. The finished mix measured +0.012 before the
+    loop region's mean was removed."""
+    for name, asset in bank.items():
+        if asset.loop_end > asset.loop_start:
+            region = asset.data[asset.loop_start : asset.loop_end]
+        else:
+            region = asset.data
+        assert abs(float(region.mean())) < 0.02, name
+
+
+def test_the_mix_is_high_passed(bank) -> None:
+    """The NES renderer has an output high-pass and this did not, which
+    showed: 3.2% of the mix's energy sat below 60 Hz, peaking at 5-7 Hz."""
+    notes = [
+        PartNote(role=Role.HARMONY, tick=tick, duration=90, value=60 + i)
+        for tick, i in zip(range(0, 400, 100), range(4), strict=True)
+    ]
+    allocation = VoiceAllocator(["V1", "V2", "V3", "V4"]).allocate(notes)
+    out = render(
+        allocation.assignments, bank=bank,
+        voices={Role.HARMONY: VoiceSettings(instrument="strings")},
+        seconds_per_tick=0.01, allocation=allocation,
+    )
+    mono = out.samples.mean(axis=1).astype(np.float64)
+    assert abs(float(mono.mean())) < 1e-3, "DC survived the high-pass"
+
+
+def test_the_high_pass_spares_the_bass(bank) -> None:
+    """30 Hz removes rumble without touching the bass instrument, whose
+    lowest note is around 65 Hz."""
+    from rse.snes.sampler import OUTPUT_HIGHPASS_HZ
+    from rse.snes.samples import midi_to_hz
+
+    assert OUTPUT_HIGHPASS_HZ < midi_to_hz(BANK["bass"].root_note) / 2

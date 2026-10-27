@@ -40,6 +40,35 @@ OUTPUT_RATE = 44100
 #: Headroom before the mix is normalised, so eight voices summing do not clip.
 MIX_PEAK = 0.89
 
+#: Output high-pass, in Hz.
+#:
+#: The NES renderer has one and this did not, which showed: the finished mix
+#: carried +0.012 of DC and 3.2% of its energy below 60 Hz, peaking at 5-7 Hz.
+#: That is sub-audible rumble from envelope and summing offsets, and it reads
+#: as muddiness rather than as a tone. Real SNES output is high-passed too.
+OUTPUT_HIGHPASS_HZ = 30.0
+
+
+def _highpass(signal: np.ndarray, cutoff_hz: float, rate: int) -> np.ndarray:
+    """One-pole high-pass, applied per channel.
+
+    Deliberately gentle: 30 Hz removes DC and the sub-audible rumble without
+    touching the bass instrument, whose lowest note is around 65 Hz.
+    """
+    if cutoff_hz <= 0 or signal.shape[0] < 2:
+        return signal
+    alpha = 1.0 / (1.0 + 2.0 * math.pi * cutoff_hz / rate)
+    out = np.empty_like(signal)
+    previous_in = signal[0].copy()
+    previous_out = np.zeros(signal.shape[1], dtype=signal.dtype)
+    out[0] = previous_out
+    for index in range(1, signal.shape[0]):
+        current = signal[index]
+        previous_out = alpha * (previous_out + current - previous_in)
+        out[index] = previous_out
+        previous_in = current
+    return out
+
 
 @dataclass(frozen=True)
 class VoiceSettings:
@@ -264,6 +293,8 @@ def render(
     mix = np.zeros((frames, 2), dtype=np.float64)
     for stem in stems.values():
         mix += stem
+
+    mix = _highpass(mix, OUTPUT_HIGHPASS_HZ, rate)
 
     overshoot = int(np.count_nonzero(np.abs(mix) > 1.0))
     if peak is not None:

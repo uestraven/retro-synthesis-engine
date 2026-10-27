@@ -89,7 +89,7 @@ class Instrument:
     #: Inharmonic noise mixed in, for percussion and breathy attacks.
     noise: float = 0.0
     #: Cycles of the fundamental held in the loop region.
-    loop_cycles: int = 8
+    loop_cycles: int = 16
     #: Seconds of one-shot material for a non-looping instrument.
     oneshot_sec: float = 0.35
     #: Slight detune between partials, which is most of what makes an
@@ -121,35 +121,52 @@ BANK: dict[str, Instrument] = {
     # that makes it read as a horn rather than a saw wave.
     "brass": Instrument(
         name="brass",
-        harmonics=(1.0, 0.52, 0.78, 0.44, 0.30, 0.20, 0.12, 0.07),
+        # Strong low harmonics and a FAST rolloff above the fourth: dark and
+        # punchy, which is what makes a horn read as a horn.
+        #
+        # Smoothing this and the string recipe the same way made the two
+        # spectrally indistinguishable -- 0.0008 apart, against a 0.002 floor.
+        # Fixing "sounds strange" by making every instrument the same shape is
+        # not a fix, and the distinctness test caught it.
+        harmonics=(1.0, 0.76, 0.61, 0.44, 0.21, 0.09, 0.04, 0.02),
         envelope=Envelope(attack=0.035, decay=0.12, sustain=0.78, release=0.14),
         root_note=60,
         looping=True,
         pan=0.0,
-        noise=0.015,
+        noise=0.0,
         spread_cents=3.0,
     ),
     # Dense, slowly-decaying upper spectrum and a soft attack. The detune is
     # what turns one violin into a section.
     "strings": Instrument(
         name="strings",
-        harmonics=(1.0, 0.70, 0.50, 0.38, 0.30, 0.24, 0.19, 0.15, 0.12, 0.09),
+        # A weaker second harmonic and energy extending much higher than the
+        # brass: bowed strings are airy rather than punchy, and the contrast
+        # with the brass lead is what lets the melody sit on top of them.
+        harmonics=(
+            1.0, 0.36, 0.54, 0.31, 0.42, 0.27, 0.32, 0.21, 0.24, 0.16,
+            0.13, 0.09,
+        ),
         envelope=Envelope(attack=0.16, decay=0.22, sustain=0.85, release=0.42),
         root_note=60,
         looping=True,
         pan=-0.35,
-        noise=0.01,
+        noise=0.0,
         spread_cents=11.0,
     ),
     # Odd harmonics only, very soft attack: hollow and vocal.
     "choir": Instrument(
         name="choir",
-        harmonics=(1.0, 0.08, 0.46, 0.06, 0.26, 0.04, 0.14, 0.03),
+        # A clear vowel formant -- a peak at the fifth and seventh partials
+        # over a weak middle -- rather than odd harmonics only. The first
+        # recipe suppressed every even harmonic, which is the recipe for a
+        # square wave: it sounded like a synth pad, not a choir.
+        harmonics=(1.0, 0.30, 0.18, 0.12, 0.46, 0.20, 0.34, 0.11, 0.06, 0.03),
         envelope=Envelope(attack=0.26, decay=0.30, sustain=0.88, release=0.55),
         root_note=60,
         looping=True,
         pan=0.30,
-        noise=0.02,
+        noise=0.0,
         spread_cents=7.0,
     ),
     # Fundamental-dominant with a fast decay: a plucked electric bass.
@@ -197,23 +214,32 @@ BANK: dict[str, Instrument] = {
 }
 
 
-def _crossfade_loop(wave: np.ndarray, loop_len: int) -> np.ndarray:
-    """Blend the end of the loop region into its start.
+def loop_partials(
+    loop_len: int, count: int, *, rate: int, f0: float
+) -> list[float]:
+    """Partial frequencies that complete a WHOLE number of cycles in the loop.
 
-    Without this, a held note clicks once per loop: the waveform is periodic
-    but the loop boundary is not, because the partials are detuned and no
-    longer share a common period.
+    The fix for a buzzing sustain. A looping sample is only seamless if every
+    partial it contains is periodic over the loop length, and the first
+    version of this bank detuned its partials by up to eleven cents, which
+    makes that impossible by construction: the partials no longer share the
+    loop's period, so the waveform jumps at every wrap.
+
+    Measured, that jump was 4x to 12x a normal sample-to-sample step, once per
+    loop -- 32.7 Hz for the sustained instruments. A discontinuity repeating at
+    32.7 Hz is a 32.7 Hz tone, which is what "feedback or something coming
+    through" was.
+
+    Crossfading the boundary is the usual patch and it was attempted, but it
+    was applied to the wrong place: the buffer's end was blended into its
+    start, while the player wraps from `loop_end` back to `loop_start`. Making
+    the partials exactly periodic removes the discontinuity instead of
+    smearing it, and needs no crossfade at all.
     """
-    if loop_len < 8 or loop_len > wave.size:
-        return wave
-    fade = min(loop_len // 4, 256)
-    if fade < 2:
-        return wave
-    out = wave.copy()
-    ramp = np.linspace(0.0, 1.0, fade, dtype=np.float64)
-    tail = out[loop_len - fade : loop_len]
-    head = out[:fade]
-    out[loop_len - fade : loop_len] = tail * (1.0 - ramp) + head * ramp
+    out: list[float] = []
+    for index in range(1, count + 1):
+        cycles = max(1, round(f0 * index * loop_len / rate))
+        out.append(cycles * rate / loop_len)
     return out
 
 
@@ -249,31 +275,52 @@ def render_sample(
         # the shape has to be in the data.
         decay = np.exp(-t / max(1e-4, instrument.envelope.decay))
         wave *= decay
+        wave -= wave.mean()
         peak = np.abs(wave).max() or 1.0
         return (wave / peak).astype(np.float32), 0, 0
 
-    # Looping: generate a whole number of cycles so the period divides evenly.
+    # Looping. The loop is generated as an exactly periodic waveform, so the
+    # wrap is seamless without any crossfade.
     cycle = rate / f0
     loop_len = int(round(cycle * instrument.loop_cycles))
-    # Lead-in before the loop, which is where the attack transient lives.
     lead = int(round(cycle * 2))
-    count = lead + loop_len
-    t = np.arange(count, dtype=np.float64) / rate
 
-    wave = np.zeros(count, dtype=np.float64)
-    for index, amplitude in enumerate(instrument.harmonics, start=1):
-        detune = 0.0
-        if instrument.spread_cents:
-            detune = rng.uniform(-instrument.spread_cents, instrument.spread_cents)
-        hz = f0 * index * (2.0 ** (detune / 1200.0))
-        phase = rng.uniform(0, 2 * math.pi) if instrument.spread_cents else 0.0
+    frequencies = loop_partials(
+        loop_len, len(instrument.harmonics), rate=rate, f0=f0
+    )
+    # Phase offsets are loop-safe -- a phase shift of a periodic wave is still
+    # periodic -- so the ensemble character comes from phase and from the
+    # harmonic recipe rather than from detuning, which is not.
+    phases = [
+        rng.uniform(0, 2 * math.pi) if instrument.spread_cents else 0.0
+        for _ in instrument.harmonics
+    ]
+
+    # The loop body first, then the attack lead-in built from the same
+    # waveform, so the lead-in runs continuously into the loop.
+    total = lead + loop_len
+    t = np.arange(total, dtype=np.float64) / rate
+    wave = np.zeros(total, dtype=np.float64)
+    for amplitude, hz, phase in zip(
+        instrument.harmonics, frequencies, phases, strict=True
+    ):
         wave += amplitude * np.sin(2 * math.pi * hz * t + phase)
-    if instrument.noise:
-        wave += rng.standard_normal(count) * instrument.noise
 
-    wave = _crossfade_loop(wave, count)
+    # No noise in a looping instrument. Noise cannot be periodic, so it either
+    # clicks at the wrap or -- if tiled to the loop length, which was the first
+    # attempt -- becomes a pitched rasp at the loop rate rather than noise. It
+    # was only 1-2% of the signal and it was audible as an artifact, so
+    # sustained instruments are purely harmonic and percussion keeps its noise,
+    # which is fine because percussion is one-shot and never loops.
+
+    # Remove DC over the LOOP region, which is what a held note repeats. An
+    # additive stack with random partial phases has a non-zero mean, and a
+    # constant offset under every sustained note wastes headroom and reads as
+    # pressure rather than tone. The finished mix measured +0.012 DC before
+    # this.
+    wave -= wave[lead:total].mean()
     peak = np.abs(wave).max() or 1.0
-    return (wave / peak).astype(np.float32), lead, count
+    return (wave / peak).astype(np.float32), lead, total
 
 
 @dataclass
