@@ -172,6 +172,7 @@ def generate_snes(
     reserved_voices: int = 0,
     brr: bool = True,
     section_bars: int = 8,
+    tempo_bpm: int | None = None,
 ) -> SnesSong:
     """Compose, arrange for eight voices, and render in stereo.
 
@@ -189,12 +190,25 @@ def generate_snes(
     Short does not mean the composer understands stings. It still writes a
     motif with accompaniment, bass and drums across a form; it has no notion
     of a gesture like "one hit, then a rising fanfare, then a held chord".
+
+    `tempo_bpm` overrides the style's preset. It is SNAPPED to the frame grid,
+    because a console advances a tracker row every whole number of video
+    frames and only a discrete ladder of tempos exists -- 180.30, 150.25,
+    128.78 and so on. Two nearby requests can therefore land on the same
+    playable tempo: 200 and 192 both snap to 180.30. Check the result rather
+    than assuming a requested number survived.
+
+    Omitting it was a silent failure before this parameter existed: the NES
+    path has taken a tempo override for a long time, so a caller could
+    reasonably assume this one did too, and instead got the style's preset
+    with nothing said about it.
     """
     result = compose(
         style_name=style,
         seed=seed,
         target_seconds=target_seconds,
         section_bars=section_bars,
+        tempo_bpm=tempo_bpm,
     )
     song = arrange(result)
     allocation = allocate(song, reserved=reserved_voices)

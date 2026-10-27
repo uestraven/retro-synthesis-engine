@@ -579,3 +579,43 @@ def test_short_pieces_need_section_bars_not_target_seconds() -> None:
     # The default must be unchanged, since every other caller relies on it.
     default = generate_snes(style="boss", seed=1, target_seconds=60.0, echo="dry")
     assert sum(s.bars for s in default.result.sections) == 40
+
+
+def test_the_tempo_override_reaches_the_snes_composer() -> None:
+    """It did not, and the failure was silent.
+
+    `compose()` has taken a tempo override for a long time and the NES path
+    passes it through, so a caller could reasonably assume the SNES path did
+    too. It did not: `generate_snes` never forwarded it, so every SNES track
+    ran at its style's preset tempo and said nothing about having ignored the
+    request. A "phase 2" asked for at 192 BPM came out identical in tempo to
+    the 160 BPM phase 1.
+    """
+    from rse.song.snes_generate import generate_snes
+
+    preset = generate_snes(style="boss", seed=101, target_seconds=20.0, echo="dry")
+    faster = generate_snes(
+        style="boss", seed=101, target_seconds=20.0, echo="dry", tempo_bpm=192
+    )
+    assert preset.result.style.tempo_bpm != faster.result.style.tempo_bpm
+    assert faster.result.style.tempo_bpm > preset.result.style.tempo_bpm
+
+
+def test_a_requested_tempo_is_snapped_to_the_frame_grid() -> None:
+    """Only a discrete ladder of tempos exists, so nearby requests collapse.
+
+    200 and 192 BPM both land on 180.30 (five frames per row). A caller
+    distinguishing two tracks by those two numbers gets one tempo, so the
+    result has to be read rather than assumed.
+    """
+    from rse.song.snes_generate import generate_snes
+
+    rendered = {}
+    for asked in (192, 200):
+        song = generate_snes(
+            style="boss", seed=5, target_seconds=20.0, echo="dry", tempo_bpm=asked
+        )
+        rendered[asked] = round(song.result.style.tempo_bpm, 2)
+    assert rendered[192] == rendered[200] == 180.3, rendered
+    # And the snapped value must be a real ladder entry, not a rounded label.
+    assert song.result.style.frames_per_row == 5
