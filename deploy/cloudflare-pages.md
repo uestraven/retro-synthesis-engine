@@ -14,11 +14,21 @@ origins, which means the only real work is telling each one about the other.
 | Root directory | *(repo root — leave blank)* |
 | Node version | 20 or newer |
 
-Build-time environment variable:
+Build-time environment variables:
 
 | Name | Value |
 |---|---|
 | `VITE_API_BASE` | `https://rse-api.onrender.com` — the API's origin, scheme included, no trailing path |
+| `NODE_VERSION` | `20` |
+
+`NODE_VERSION` is worth setting explicitly even though `package.json` declares
+`engines.node >= 18`. Vite 5 needs Node 18 or newer, and Cloudflare Pages'
+default version depends on when the project was created — older projects were
+given Node 12, which fails in a way that looks nothing like a version
+problem. Declaring it in both places costs nothing.
+
+The live project is **`retro-synth`**, so the page is at
+`https://retro-synth.pages.dev` and that is the origin the API must allow.
 
 `vite.config.js` substitutes it into the page and **fails the build** if it is
 not an absolute `http(s)` origin, because a relative value here can never be
@@ -31,19 +41,19 @@ its own origin — correct locally, useless on Pages.
 On Render, set:
 
 ```
-RSE_API_ALLOWED_ORIGINS = https://rse.pages.dev
+RSE_API_ALLOWED_ORIGINS = https://retro-synth.pages.dev
 ```
 
-Exactly the Pages origin, comma-separated if there is more than one, and
-never `*`. It is `sync: false` in `render.yaml` — deliberately unset, because
-the API refuses to guess an origin rather than defaulting to permissive CORS.
-Until it is set, every request from Pages fails.
+Exactly the Pages origin, no trailing slash, comma-separated if there is more
+than one, and never `*`. It is `sync: false` in `render.yaml` — deliberately
+unset, because the API refuses to guess an origin rather than defaulting to
+permissive CORS. Until it is set, every request from Pages fails.
 
 **Preview deployments will not work against production.** Pages gives each
-branch its own subdomain (`abc123.rse.pages.dev`), which will not be in the
-allowlist. That is the correct behaviour, not a bug — don't go debugging it.
-If previews need to work, point them at a separate preview API rather than
-widening the production allowlist.
+branch its own subdomain (`<hash>.retro-synth.pages.dev`), which will not be
+in the allowlist. That is the correct behaviour, not a bug — don't go
+debugging it. If previews need to work, point them at a separate preview API
+rather than widening the production allowlist.
 
 ## Verifying the deploy
 
@@ -71,10 +81,18 @@ build time, and the API needs the page's origin in its CORS allowlist. Break
 it by predicting the Pages URL, which is `<project-name>.pages.dev` and known
 as soon as you name the project.
 
-1. **Name the Pages project.** That fixes `https://<name>.pages.dev`.
+1. **Name the Pages project.** Done: `retro-synth`, so the page lands at
+   `https://retro-synth.pages.dev`.
 2. **On Render, set `RSE_API_ALLOWED_ORIGINS`** to that URL and deploy the
-   API. Note its URL.
-3. **On Pages, set `VITE_API_BASE`** to the API's URL and deploy the page.
+   API. Note the URL Render actually assigns.
+3. **On Pages, set `VITE_API_BASE`** to that URL and deploy the page.
+
+   `render.yaml` names the service `rse-api`, which normally gives
+   `https://rse-api.onrender.com` — but Render appends a suffix when the name
+   is taken, so the predicted value needs confirming against the real one. If
+   it differs, correct the variable and retry the Pages deployment; the API
+   origin is baked in at build time, so changing it requires a rebuild rather
+   than just a refresh.
 4. **Verify**, with the script below rather than by clicking around.
 
 ## Verifying
