@@ -172,14 +172,25 @@ class NesApuRenderer:
                 continue
             self._render_note(note, buffers, internal_rate, warnings, envelopes, settings)
 
-        mixed = self._mix(buffers)
+        # Stems first when they are wanted, because mixing with `consume` is
+        # destructive. When they are not, the channel buffers are handed to
+        # the mixer and freed as it goes -- 45 MB per channel per minute of
+        # audio at 4x oversampling, which is the difference between fitting
+        # on a 512 MB instance and being OOM-killed.
+        stems: dict[str, np.ndarray] = {}
+        if settings.keep_stems:
+            stems = {
+                cid: _decimate(buf, settings.oversample)
+                for cid, buf in buffers.items()
+                if np.any(buf)
+            }
+
+        mixed = self._mix(buffers, consume=not settings.keep_stems)
         if settings.apply_output_filters:
             mixed = _highpass(mixed, OUTPUT_HIGHPASS_HZ, internal_rate)
 
         samples = _decimate(mixed, settings.oversample)
-        stems = {
-            cid: _decimate(buf, settings.oversample) for cid, buf in buffers.items() if np.any(buf)
-        }
+        del mixed
 
         if settings.peak is not None:
             loudest = float(np.max(np.abs(samples))) if samples.size else 0.0
@@ -321,29 +332,70 @@ class NesApuRenderer:
 
     # -- mixing ---------------------------------------------------------------
 
-    def _mix(self, buffers: dict[str, np.ndarray]) -> np.ndarray:
+    def _mix(
+        self, buffers: dict[str, np.ndarray], *, consume: bool = False
+    ) -> np.ndarray:
         """Combine channels with the APU's documented nonlinear mixer.
 
         Two pulse channels at full volume are quieter than the sum of each
         alone, and the pulse group mixes independently of triangle and noise.
         This nonlinearity is a real part of how the console sounds.
         """
+        # Written in place throughout, which is not premature optimisation
+        # here: at 4x oversampling one channel buffer is 45 MB for a minute of
+        # audio, and the obvious spelling of this function allocated about ten
+        # full-size temporaries. `pulse_sum = pulse_sum + buffer` builds a new
+        # array per channel; each `np.where(cond, f(x), 0.0)` builds one for
+        # the comparison, one per arithmetic step and one for the result.
+        #
+        # That cost a 60-second render 521 MB of peak RSS and got the service
+        # OOM-killed on a 512 MB instance, which the platform reported as a
+        # 502 with nothing in the application log. Peak memory is a product
+        # constraint, not a tuning detail.
+        #
+        # The arithmetic is unchanged -- same operations, same order, same
+        # dtypes -- so the output is bit-identical. `tests/test_renderer*`
+        # pin that.
         pulse_sum = np.zeros_like(next(iter(buffers.values())))
         tnd = np.zeros_like(pulse_sum)
-        for cid, buffer in buffers.items():
+        scratch = np.empty_like(pulse_sum)
+        # `consume` lets the caller hand over ownership so each channel buffer
+        # can be freed the moment it has been accumulated, instead of all four
+        # staying alive until the mix finishes. Only safe when nobody wants
+        # stems afterwards, which is why it is the caller's decision.
+        for cid in list(buffers):
+            buffer = buffers[cid]
             channel_type = self.profile.channel(cid).type
             if channel_type == "pulse":
-                pulse_sum = pulse_sum + buffer
+                pulse_sum += buffer
             elif channel_type == "triangle":
-                tnd = tnd + buffer / 8227.0
+                np.divide(buffer, 8227.0, out=scratch)
+                tnd += scratch
             elif channel_type == "noise":
-                tnd = tnd + buffer / 12241.0
+                np.divide(buffer, 12241.0, out=scratch)
+                tnd += scratch
+            if consume:
+                del buffers[cid], buffer
+        del scratch
 
-        pulse_out = np.where(
-            pulse_sum > 0, 95.88 / (8128.0 / np.maximum(pulse_sum, 1e-9) + 100.0), 0.0
-        )
-        tnd_out = np.where(tnd > 0, 159.79 / (1.0 / np.maximum(tnd, 1e-12) + 100.0), 0.0)
-        return (pulse_out + tnd_out).astype(np.float32)
+        # pulse group: 95.88 / (8128 / sum + 100), and 0 where sum is 0.
+        positive = pulse_sum > 0
+        np.maximum(pulse_sum, 1e-9, out=pulse_sum)
+        np.divide(8128.0, pulse_sum, out=pulse_sum)
+        pulse_sum += 100.0
+        np.divide(95.88, pulse_sum, out=pulse_sum)
+        pulse_sum *= positive  # the `np.where(..., 0.0)` branch
+
+        # triangle+noise group: 159.79 / (1 / sum + 100), likewise.
+        np.greater(tnd, 0, out=positive)
+        np.maximum(tnd, 1e-12, out=tnd)
+        np.divide(1.0, tnd, out=tnd)
+        tnd += 100.0
+        np.divide(159.79, tnd, out=tnd)
+        tnd *= positive
+
+        pulse_sum += tnd
+        return pulse_sum
 
 
 # -- hardware period maths ----------------------------------------------------

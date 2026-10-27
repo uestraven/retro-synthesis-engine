@@ -29,8 +29,16 @@
 #   starter  0.5    ~8 s    fine         ~84 s   16 s of margin. tight.
 #   standard 1.0    ~4 s    fine         ~42 s   comfortable
 #
-# So free serves NES with room to spare and cannot serve SNES at all. The
-# free plan also sleeps after inactivity, which costs the first visitor a
+# So free serves NES on CPU with room to spare and cannot serve SNES at all.
+#
+# MEMORY is the tighter constraint, and the one that actually bit. The free
+# plan caps RSS at 512 MB, and exceeding a memory ceiling does not degrade
+# gracefully -- the process is killed, and the platform reports it as a 502
+# with nothing in the application log. Peak RSS scales at ~4.7 MB per second
+# of rendered audio, so the duration cap and the concurrency limit below are
+# both set by memory rather than by speed.
+#
+# The free plan also sleeps after inactivity, which costs the first visitor a
 # cold start of roughly half a minute -- an annoyance for a free preview, and
 # the main reason to move up a tier even for NES alone.
 #
@@ -77,26 +85,41 @@ services:
       # on, and adjust RSE_API_MAX_SECONDS at the same time.
       - key: RSE_API_CONSOLES
         value: nes
-      # 180 s because NES is cheap: at 0.022x realtime it is ~40 s of render
-      # even on the free plan's tenth of a core, comfortably inside the 100 s
-      # request timeout.
+      # 60, set by MEMORY and not by CPU. This was 180 on the first deploy
+      # attempt, sized purely on render speed, and that is what produced the
+      # 502: peak RSS scales with duration at ~4.7 MB per second of audio, so
+      # 180 s needs ~880 MB against the free plan's 512 MB.
       #
-      # This number is coupled to RSE_API_CONSOLES above. If SNES is enabled,
-      # 180 s of 16-bit audio needs ~126 s on a full core and will exceed the
-      # timeout on any plan -- drop this to 45 on starter or 60 on standard.
-      # The real fix is asynchronous generation returning a job id so render
-      # time stops being request time, which is a feature and not a setting.
+      # Measured peaks after the renderer fixes: 30 s -> 194 MB, 45 s ->
+      # 246 MB, 60 s -> 340 MB, 90 s -> 441 MB. 60 leaves ~170 MB for Python,
+      # uvicorn and the request itself, which is the margin a hard memory
+      # ceiling deserves -- exceeding it does not degrade, it kills the
+      # process.
+      #
+      # Coupled to BOTH settings around it. RSE_API_MAX_CONCURRENT=1 is what
+      # makes 60 safe; raising concurrency without lowering this re-creates
+      # the OOM. And if SNES is enabled, this must drop to 45 or below for
+      # the CPU reason instead -- 16-bit audio renders 32x slower and would
+      # hit the 100 s request timeout.
       - key: RSE_API_MAX_SECONDS
-        value: "180"
+        value: "60"
       - key: RSE_API_MIN_SECONDS
         value: "8"
-      # The free plan is a tenth of a core, so concurrent renders contend for
-      # it and each one slows down. Two is affordable for NES, where a render
-      # is seconds; it would be reckless with SNES enabled, where two
-      # concurrent renders could push both past the request timeout. A queued
-      # request that succeeds beats two that 502.
+      # ONE, because the binding constraint on the free plan is MEMORY, not
+      # CPU, and concurrency multiplies it.
+      #
+      # A 60 s NES render peaks at 340 MB of RSS (measured, after the mixer
+      # was rewritten in place -- it was 521 MB before, which is why the
+      # first deploy returned 502: the instance was OOM-killed at 512 MB and
+      # the platform reports that as a bad gateway with nothing in the
+      # application log).
+      #
+      # Two concurrent 60 s renders is 680 MB and would OOM again. At one,
+      # the second request waits instead of killing the process. A queued
+      # request that succeeds beats two that 502 -- and NES renders in
+      # seconds, so the queue drains fast.
       - key: RSE_API_MAX_CONCURRENT
-        value: "2"
+        value: "1"
       - key: RSE_API_RATE_PER_MINUTE
         value: "20"
       - key: RSE_API_RATE_BURST

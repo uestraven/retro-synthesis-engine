@@ -553,3 +553,161 @@ def test_source_envelopes_take_precedence_over_the_default(renderer):
 def test_the_default_decay_is_reported_in_settings():
     assert RenderSettings().to_dict()["default_noise_decay"] is True
     assert RenderSettings(default_noise_decay=False).to_dict()["default_noise_decay"] is False
+
+
+# --- peak memory is a product constraint ----------------------------------
+#
+# A 60-second render used to peak at 521 MB of RSS, which is over the 512 MB
+# of a free Render instance. Exceeding a memory ceiling does not degrade: the
+# process is killed, and the platform reports it as a 502 with nothing in the
+# application log. The first deployed NES request failed exactly this way.
+#
+# The cause was ordinary numpy spelling. `_mix` allocated roughly ten
+# full-size temporaries -- `pulse_sum = pulse_sum + buffer` builds a new array
+# per channel, and each `np.where(cond, f(x), 0.0)` builds one per arithmetic
+# step -- and the per-channel stems forced all four oversampled buffers to
+# stay alive past the mix, at 45 MB per channel per minute of audio.
+#
+# These tests pin the two properties that made it expensive. They do not
+# measure bytes: `resource.getrusage` is absent on Windows, where this project
+# is also run, so a byte assertion would be unrunnable on half the platforms.
+# The measured figures are recorded in render.yaml, beside the caps they set.
+
+
+def _notes_for(seconds: float, profile):
+    """A note on every channel, so every stem is non-empty.
+
+    Built from this module's own `note()` helper rather than a second
+    constructor -- the first version of this invented a `midi=` field that
+    RenderNote does not have.
+    """
+    out = []
+    for index, cid in enumerate(profile.channel_ids):
+        start = 0.0
+        while start < seconds:
+            out.append(
+                note(
+                    cid,
+                    60 + index,
+                    start=start,
+                    end=min(start + 0.25, seconds),
+                    velocity=100,
+                    pitched=profile.channel(cid).type != "noise",
+                )
+            )
+            start += 0.25
+    return out
+
+
+def test_the_mixer_is_in_place_and_bit_identical() -> None:
+    """The rewrite must not have changed a single sample.
+
+    Checked against the previous arithmetic written out longhand, rather than
+    against a stored fixture, so the comparison is to the actual old
+    expression and not to whatever the new one happened to produce when a
+    fixture was generated.
+    """
+    from rse.hardware.profile import load_profile
+    from rse.renderers.nes_apu import NesApuRenderer
+
+    profile = load_profile("nes")
+    renderer = NesApuRenderer(profile)
+    rng = np.random.default_rng(0)
+    buffers = {
+        cid: (rng.random(2048) * 15).astype(np.float32)
+        for cid in profile.channel_ids
+    }
+
+    pulse_sum = np.zeros(2048, dtype=np.float32)
+    tnd = np.zeros(2048, dtype=np.float32)
+    for cid, buffer in buffers.items():
+        kind = profile.channel(cid).type
+        if kind == "pulse":
+            pulse_sum = pulse_sum + buffer
+        elif kind == "triangle":
+            tnd = tnd + buffer / 8227.0
+        elif kind == "noise":
+            tnd = tnd + buffer / 12241.0
+    expected = (
+        np.where(
+            pulse_sum > 0,
+            95.88 / (8128.0 / np.maximum(pulse_sum, 1e-9) + 100.0),
+            0.0,
+        )
+        + np.where(
+            tnd > 0, 159.79 / (1.0 / np.maximum(tnd, 1e-12) + 100.0), 0.0
+        )
+    ).astype(np.float32)
+
+    actual = renderer._mix({k: v.copy() for k, v in buffers.items()})
+    assert actual.dtype == np.float32
+    assert np.array_equal(expected, actual), "the mixer rewrite changed the audio"
+
+
+def test_consuming_the_mix_frees_the_channel_buffers() -> None:
+    """The structural property behind the saving.
+
+    `consume=True` hands ownership to the mixer so each channel buffer can be
+    released as it is accumulated instead of all four living until the mix
+    finishes. Asserted by observing the dict is emptied, which is the
+    mechanism -- and the result must still be identical to the non-consuming
+    path.
+    """
+    from rse.hardware.profile import load_profile
+    from rse.renderers.nes_apu import NesApuRenderer
+
+    profile = load_profile("nes")
+    renderer = NesApuRenderer(profile)
+    rng = np.random.default_rng(1)
+    source = {
+        cid: (rng.random(512) * 15).astype(np.float32)
+        for cid in profile.channel_ids
+    }
+
+    kept = dict(source)
+    mixed_kept = renderer._mix(kept)
+    assert set(kept) == set(source), "the non-consuming path must not mutate"
+
+    consumed = {k: v.copy() for k, v in source.items()}
+    mixed_consumed = renderer._mix(consumed, consume=True)
+    assert consumed == {}, "consume=True should release every channel buffer"
+    assert np.array_equal(mixed_kept, mixed_consumed)
+
+
+def test_stems_are_optional_and_default_to_present() -> None:
+    """Default True so nothing that reads stems changes; False for the API.
+
+    Measuring duty on the MIX rather than on isolated stems is a mistake this
+    project has already made, so the default must stay permissive -- the
+    saving belongs to the one path that provably does not use them.
+    """
+    from rse.hardware.profile import load_profile
+    from rse.renderers.base import RenderSettings
+    from rse.renderers.nes_apu import NesApuRenderer
+
+    assert RenderSettings().keep_stems is True
+    assert RenderSettings().to_dict()["keep_stems"] is True
+
+    profile = load_profile("nes")
+    renderer = NesApuRenderer(profile)
+    notes = _notes_for(1.0, profile)
+
+    with_stems = renderer.render(notes, RenderSettings(tail_sec=0.0))
+    without = renderer.render(
+        notes, RenderSettings(tail_sec=0.0, keep_stems=False)
+    )
+
+    assert with_stems.stems, "stems should be present by default"
+    assert without.stems == {}, "keep_stems=False should produce none"
+    # And dropping them must not change the audio anyone hears.
+    assert np.array_equal(with_stems.samples, without.samples)
+
+
+def test_the_public_api_path_does_not_keep_stems() -> None:
+    """The product path writes only the mix, so holding four oversampled
+    channel buffers past the mix is pure cost. This is the line that turned a
+    512 MB instance from OOM-killed into working, so it is pinned."""
+    from pathlib import Path
+
+    source = Path("rse/song/audio.py").read_text()
+    assert "keep_stems=False" in source

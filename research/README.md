@@ -92,6 +92,23 @@ right discriminator separates artifact from content by an order of magnitude
 -- sub-bass DURATION, 0.15 s for a kick transient against 6.17 s for the drone
 -- not by a limit tuned to sit just past the current measurement.
 
+**Measure the resource that fails, not the one you were thinking about.** The
+first deployed NES request returned 502. The duration cap had been sized by
+careful CPU measurement -- NES renders at 0.022x realtime, so 180 s of audio
+is ~40 s of work even on a tenth of a core -- and memory was estimated in my
+head as "21 MB of samples, should be fine". Peak RSS for a 60-second render
+was 521 MB against a 512 MB instance. A CPU budget degrades; a memory ceiling
+kills the process, and the platform reports it as a bad gateway with nothing
+in the application log.
+
+The cause was ordinary numpy spelling, not an algorithm: `pulse_sum =
+pulse_sum + buffer` allocates a new 45 MB array per channel, and
+`np.where(cond, f(x), 0.0)` allocates one per arithmetic step. Rewriting the
+mixer in place and letting the product path skip per-channel stems cut peak
+memory 35% with bit-identical output. Peak memory is a product constraint
+wherever the thing is deployed, so it belongs in the same measurements as
+speed.
+
 **Advertising a setting is a claim that it does something.** The SNES echo
 control reserved the right number of ARAM bytes and produced byte-identical
 audio at every preset, because nothing reads the per-voice echo sends. Metadata

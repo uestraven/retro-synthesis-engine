@@ -40,6 +40,19 @@ class RenderSettings:
     default_noise_decay: bool = True
     #: Seconds of silence appended so release tails are not clipped.
     tail_sec: float = 0.25
+    #: Keep a decimated copy of every channel alongside the mix.
+    #:
+    #: Defaults to True so nothing that already reads `stems` changes -- the
+    #: CLI's `--stems`, the Gradio UI's download list and the duty-balance
+    #: measurements all need them, and measuring duty on the MIX rather than
+    #: on isolated stems is a mistake this project has already made.
+    #:
+    #: The public API sets it False, because it only ever uses `samples` and
+    #: the stems are not free: they force all four channel buffers to stay
+    #: alive past the mix, which at 4x oversampling is 45 MB per channel per
+    #: minute of audio. That is what pushed a 60-second render over a 512 MB
+    #: instance and turned a working request into a 502.
+    keep_stems: bool = True
 
     def __post_init__(self) -> None:
         if self.sample_rate <= 0:
@@ -57,6 +70,7 @@ class RenderSettings:
             "apply_output_filters": self.apply_output_filters,
             "default_noise_decay": self.default_noise_decay,
             "tail_sec": self.tail_sec,
+            "keep_stems": self.keep_stems,
         }
 
 

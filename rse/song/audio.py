@@ -88,6 +88,11 @@ def render_window(
     if not notes:
         return None
     renderer = NesApuRenderer(profile, duty_by_channel=duty_by_channel)
-    result = renderer.render(notes, RenderSettings(tail_sec=0.0))
+    # keep_stems=False: this path writes only the mix, and holding a decimated
+    # copy of every channel forces all four oversampled channel buffers to
+    # stay alive past the mix. At 4x oversampling that is 45 MB per channel
+    # per minute, which is what put a 60-second render over a 512 MB instance
+    # and returned a 502 instead of a song.
+    result = renderer.render(notes, RenderSettings(tail_sec=0.0, keep_stems=False))
     destination.parent.mkdir(parents=True, exist_ok=True)
     return write_wav(destination, result.samples, result.sample_rate)
