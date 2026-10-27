@@ -215,6 +215,98 @@ def test_every_repetition_decodes_identically() -> None:
             assert drift == 0.0, f"{name} pass {index + 1} drifted by {drift}"
 
 
+def test_the_rendered_output_has_no_step_at_the_loop_boundary() -> None:
+    """The check the other loop tests do NOT make.
+
+    Everything else here examines the sample data or the decoder: the
+    waveform is periodic, the decoded BRR repeats bit-identically. None of
+    that proves a click-free musical loop, because the thing a listener
+    hears is the PLAYER's output, and the player reads the data through a
+    4-point kernel.
+
+    It was wrong. `_interpolate` clamped its taps to the buffer, so the last
+    two reads before every wrap got the final sample repeated instead of the
+    loop start -- a step on every held note, downstream of three rounds of
+    green loop tests. Measured on clean PCM so the assertion is about the
+    player and not about BRR's quantisation, which is the subject of the
+    test below.
+    """
+    from rse.snes.sampler import OUTPUT_RATE, _resample
+    from rse.snes.samples import midi_to_hz
+
+    bank = build_bank(brr=False)
+    for name in _looping_assets():
+        asset = bank[name]
+        for semitones in (-5, 0, 7):
+            pitch = asset.instrument.root_note + semitones
+            played = _resample(asset, pitch, int(4.0 * OUTPUT_RATE))
+
+            # Where the wraps land in OUTPUT samples: the read pointer
+            # advances `step` input samples per output sample.
+            ratio = midi_to_hz(pitch) / midi_to_hz(asset.instrument.root_note)
+            step = ratio * asset.rate / OUTPUT_RATE
+            period = (asset.loop_end - asset.loop_start) / step
+            first = asset.loop_end / step
+
+            steps = np.abs(np.diff(played))
+            boundaries = [
+                int(round(first + index * period))
+                for index in range(int((played.size - first) / period))
+            ]
+            boundaries = [b for b in boundaries if 2 < b < steps.size - 2]
+            assert boundaries, f"{name} at {pitch} never wrapped in 4 s"
+
+            # Compared against the interior distribution, because an absolute
+            # threshold would pass a bass and fail a bright lead for reasons
+            # that have nothing to do with looping.
+            worst = max(float(steps[b - 2 : b + 3].max()) for b in boundaries)
+            interior = float(np.percentile(steps, 99.9))
+            assert worst <= interior * 1.2, (
+                f"{name} at {pitch}: step {worst:.6f} across the wrap against "
+                f"an interior p99.9 of {interior:.6f}"
+            )
+
+
+def test_brr_is_the_only_thing_left_elevating_the_wrap() -> None:
+    """What the filter-0 loop policy costs, measured at the output.
+
+    With the player fixed, the loop boundary is clean on clean PCM. Encoded,
+    bass's boundary step is about twice its interior p99.9 -- because the
+    loop block spends its 4-bit residual on absolute values while bass's
+    predictive blocks are near-perfect on a slow waveform. So the residual is
+    the format, and specifically the price of making every repetition
+    identical. Recorded rather than asserted away, since it is the number to
+    revisit if a listener reports a tick under sustained bass.
+    """
+    from rse.snes.sampler import OUTPUT_RATE, _resample
+    from rse.snes.samples import midi_to_hz
+
+    def wrap_ratio(asset: object, pitch: int) -> float:
+        played = _resample(asset, pitch, int(4.0 * OUTPUT_RATE))
+        ratio = midi_to_hz(pitch) / midi_to_hz(asset.instrument.root_note)  # type: ignore[attr-defined]
+        step = ratio * asset.rate / OUTPUT_RATE  # type: ignore[attr-defined]
+        period = (asset.loop_end - asset.loop_start) / step  # type: ignore[attr-defined]
+        first = asset.loop_end / step  # type: ignore[attr-defined]
+        steps = np.abs(np.diff(played))
+        bounds = [
+            int(round(first + i * period))
+            for i in range(int((played.size - first) / period))
+        ]
+        bounds = [b for b in bounds if 2 < b < steps.size - 2]
+        worst = max(float(steps[b - 2 : b + 3].max()) for b in bounds)
+        return worst / float(np.percentile(steps, 99.9))
+
+    clean = build_bank(brr=False)["bass"]
+    encoded = build_bank(brr=True)["bass"]
+    pitch = clean.instrument.root_note
+    # Clean is the player's own result; the gap above it is the format's.
+    assert wrap_ratio(clean, pitch) <= 1.2
+    assert wrap_ratio(encoded, pitch) < 3.0, (
+        "BRR's contribution at the boundary grew; check whether the loop "
+        "block is still filter 0"
+    )
+
+
 def test_the_wrap_is_no_louder_a_step_than_the_loop_itself() -> None:
     """A discontinuity test that is relative, because an absolute threshold
     would pass a bass and fail a hat for reasons that have nothing to do with

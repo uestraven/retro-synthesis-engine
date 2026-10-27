@@ -121,6 +121,36 @@
   #status.bad { color: var(--warn); }
   #result[hidden] { display: none; }
   .hint { font-size: .72rem; color: var(--dim); margin-top: .35rem; }
+  /* Advanced diagnostics. Visually quieter than the musical controls on
+     purpose: nothing in here changes the rendered audio, and it should not
+     compete for attention with the settings that do. */
+  .advanced {
+    border: 1px dashed var(--edge); border-radius: 10px;
+    margin: 0 0 1.25rem; background: transparent;
+  }
+  .advanced[hidden] { display: none; }
+  .advanced > summary {
+    padding: .7rem 1.25rem; cursor: pointer; color: var(--dim);
+    font-size: .7rem; letter-spacing: .16em; text-transform: uppercase;
+  }
+  .diag { padding: 0 1.25rem 1.1rem; }
+  table.budget {
+    width: 100%; border-collapse: collapse; margin: .9rem 0 .2rem;
+    font-size: .78rem;
+  }
+  table.budget td { padding: .35rem 0; color: var(--dim); }
+  table.budget td:last-child {
+    text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  table.budget tr.total td { border-top: 1px solid var(--edge); font-weight: 700; }
+  table.budget tr.total td:last-child { color: var(--accent); }
+  .diagh { font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+           color: var(--dim); margin: 1.6rem 0 .3rem; }
+  table.claims td { vertical-align: top; padding: .5rem 0;
+                    border-top: 1px solid var(--edge); }
+  table.claims td:first-child { padding-right: 1rem; color: var(--ink); }
+  table.claims td:last-child { white-space: nowrap; color: var(--accent2); }
+  table.claims .hint { margin-top: .2rem; }
 </style>
 </head>
 <body>
@@ -187,29 +217,62 @@
       </div>
     </fieldset>
 
+    <!-- Musical SNES controls only. The echo setting used to sit here, next
+         to Tempo and Mood, which told users it would change the sound. It
+         changes a memory figure and nothing else, so it moved to the
+         diagnostics panel below. -->
     <fieldset id="snesPanel" hidden>
       <legend>16-bit depth</legend>
       <div class="row">
-        <div class="field">
-          <label for="echo">Echo buffer <span class="val">memory only</span></label>
-          <select id="echo"></select>
-          <div class="hint" id="echoHint"><b>This will not change how the
-            song sounds.</b> It reserves the SNES echo buffer, which is
-            charged against the same 64 KiB of audio RAM as the instruments
-            &mdash; so it shows you what a given reverb would cost in sample
-            memory. The preview renderer has no echo processor yet, so every
-            setting produces identical audio.</div>
-        </div>
         <div class="field">
           <label for="reserved">Voices reserved for sound effects
             <span class="val" id="reservedVal">0</span></label>
           <input type="range" id="reserved" min="0" max="6" step="1" value="0">
           <div class="ends"><span>music gets all 8</span><span>6 held back</span></div>
           <div class="hint">Game-ready mode. Reserved voices are unavailable to
-            the music, and the report says what was dropped.</div>
+            the music, and the report says what was dropped. This one does
+            change the audio.</div>
         </div>
       </div>
     </fieldset>
+
+    <!-- Advanced: hardware diagnostics. Collapsed by default and kept well
+         away from the musical controls, because nothing in here affects the
+         rendered WAV. -->
+    <details id="snesDiagnostics" hidden class="advanced">
+      <summary>Advanced &mdash; SNES hardware diagnostics</summary>
+      <div class="diag">
+        <p class="hint">A memory planning tool, not a sound setting. The SNES
+          mixes echo in a buffer carved out of the same 64 KiB of audio RAM as
+          the instrument samples, so reverb and instruments compete for space.
+          This estimates that trade. <b>It does not add audible reverb to your
+          song</b> &mdash; the preview renderer has no echo processor.</p>
+        <div class="field">
+          <label for="echo">Hypothetical echo-buffer duration</label>
+          <select id="echo"></select>
+        </div>
+        <table class="budget">
+          <tr><td>Reported allocation, excluding echo</td>
+              <td id="budgetBase">&mdash;</td></tr>
+          <tr><td>Additional modelled echo buffer</td>
+              <td id="budgetEcho">&mdash;</td></tr>
+          <tr class="total"><td>Modelled total</td>
+              <td id="budgetTotal">&mdash;</td></tr>
+          <tr><td>Remaining before unmodelled allocations</td>
+              <td id="budgetFree">&mdash;</td></tr>
+        </table>
+        <p class="hint" id="budgetCaveat">Generate a 16-bit song to populate
+          this from its real instrument set.</p>
+
+        <h4 class="diagh">What is and is not implemented</h4>
+        <p class="hint">Per capability, because one "not hardware-exact" flag
+          puts "the BRR encoder is real" and "no emulator has ever played
+          this" in the same bucket. SNES-style audio generation is a working
+          feature; authentic SNES hardware compatibility is a separate
+          milestone that is not done.</p>
+        <table class="budget claims" id="snesClaims"></table>
+      </div>
+    </details>
 
     <fieldset>
       <legend>Feel</legend>
@@ -380,14 +443,34 @@ async function loadCapabilities() {
 
   const echo = el("echo");
   echo.innerHTML = '<option value="">Style default</option>';
-  for (const preset of caps.echo_presets || []) {
+  ECHO_PRESETS = caps.echo_presets || [];
+  for (const preset of ECHO_PRESETS) {
     const option = document.createElement("option");
     option.value = preset.name;
     option.textContent =
       `${preset.name} — ${preset.delay_ms} ms, ` +
       `${(preset.aram_bytes / 1024).toFixed(0)} KiB of audio RAM`;
     echo.append(option);
+    // Belt and braces. The server says so per preset; if it ever stops
+    // saying so the label here is wrong and should be fixed, not ignored.
+    if (preset.affects_audio) {
+      console.warn(`[rse] ${preset.name} now claims to affect audio; the ` +
+        `diagnostics panel's wording needs updating.`);
+    }
   }
+  // Re-cost the budget as the user explores, without regenerating: the base
+  // allocation does not depend on the echo setting, so the arithmetic is
+  // local and instant.
+  echo.onchange = showBudget;
+
+  // The claims come from the server so there is one source for them. A
+  // sentence in this file and a boolean in Python would drift.
+  el("snesClaims").innerHTML = (caps.snes_claims || [])
+    .map((c) =>
+      `<tr><td>${escape_(c.capability)}<div class="hint">` +
+      `${escape_(c.detail)}</div></td>` +
+      `<td>${escape_(c.claim)}</td></tr>`)
+    .join("");
   const reserved = el("reserved");
   reserved.max = caps.max_reserved_voices ?? 6;
   reserved.oninput = () => {
@@ -425,6 +508,7 @@ async function loadCapabilities() {
       const snes = chosenConsole === "snes";
       el("snesPanel").hidden = !snes;
       el("soundPanel").hidden = snes;
+      el("snesDiagnostics").hidden = !snes;
     };
     box.append(button);
   }
@@ -437,6 +521,57 @@ el("energy").oninput = () => { el("energyVal").textContent = el("energy").value 
 // slowest first so the slider reads left-to-right as slow-to-fast. Index 0 is
 // reserved for "style default".
 let TEMPO_LADDER = [];
+
+// Echo presets and the last generated song's memory figures, for the
+// diagnostics panel. `BUDGET` stays null until a 16-bit song has been
+// generated, because the base allocation depends on which instruments that
+// song actually used -- quoting a figure before then would be inventing one.
+let ECHO_PRESETS = [];
+let BUDGET = null;
+
+const bytes = (n) => `${n.toLocaleString()} B`;
+
+/**
+ * Re-cost the hypothetical echo buffer against the last song's allocation.
+ *
+ * Presented as base + echo = total rather than as one number, because one
+ * number is exactly what caused the confusion this panel exists to fix: a
+ * reviewer read the reported 47% as excluding echo and worked out what
+ * adding a 240 ms buffer would cost on top. It was already included. Showing
+ * the base separately makes the question unaskable.
+ */
+function showBudget() {
+  const caveat = el("budgetCaveat");
+  if (!BUDGET) {
+    for (const id of ["budgetBase", "budgetEcho", "budgetTotal", "budgetFree"]) {
+      el(id).textContent = "—";
+    }
+    caveat.textContent =
+      "Generate a 16-bit song to populate this from its real instrument set.";
+    return;
+  }
+  const chosen = el("echo").value;
+  // No explicit choice means the song's own setting, which is already in the
+  // reported total; an explicit one is costed from the preset table.
+  const preset = ECHO_PRESETS.find((p) => p.name === chosen);
+  const echoBytes = preset ? preset.aram_bytes : BUDGET.echoBytes;
+  const total = BUDGET.base + echoBytes;
+  el("budgetBase").textContent = bytes(BUDGET.base);
+  el("budgetEcho").textContent = bytes(echoBytes);
+  el("budgetTotal").textContent =
+    `${bytes(total)} — ${(total / 65536 * 100).toFixed(1)}% of 64 KiB`;
+  el("budgetFree").textContent = bytes(65536 - total);
+  caveat.innerHTML =
+    `Modelled, not validated. ${bytes(BUDGET.measured)} of the base figure is ` +
+    `measured &mdash; the encoded sample data and the directory &mdash; and ` +
+    `the echo line is exact, following from the DSP's delay register at ` +
+    `128 B/ms. The remainder of the base is a modelled sequence plus assumed ` +
+    `driver and runtime allowances. ` +
+    `<b>${BUDGET.unmodelled.length} allocation classes a real SPC image needs ` +
+    `are not modelled at all</b> and are counted as zero: ` +
+    `${BUDGET.unmodelled.join(", ")}. So this is memory planning, not a ` +
+    `statement that a SNES would load it.`;
+}
 
 function showTempo() {
   const index = Number(el("tempo").value);
@@ -536,18 +671,27 @@ function render(song) {
     const s = song.snes;
     const aram = s.aram;
     el("facts").innerHTML += [
+      // Audible facts only. The memory figures moved to the diagnostics
+      // panel: shown beside tempo and voice counts they read as properties
+      // of the music, which they are not.
       ["voices", `${s.peak_voices} of 8 peak`],
       ["dropped", `${s.allocation.dropped}`],
       ["stolen", `${s.allocation.stolen}`],
-      // "accounted" rather than "used": the figure includes assumed driver
-      // and runtime allowances and excludes allocations a real SPC needs,
-      // so it is not a statement that this would load on a SNES.
-      ["audio RAM accounted", `${(aram.total_bytes / 1024).toFixed(1)} of 64 KiB` +
-        ` (${(aram.used_fraction * 100).toFixed(0)}%)`],
-      ["of which measured", `${(aram.measured_bytes / 1024).toFixed(1)} KiB`],
-      ["echo buffer", `${s.echo.preset_ms} ms (memory only, not audible)`],
       ["extended chords", s.extended_chords.join(" ") || "none"],
     ].map(([k, v]) => `<span>${k}: <b>${escape_(v)}</b></span>`).join("");
+
+    // Hand the real allocation to the diagnostics panel. The base excludes
+    // echo so the panel can add a hypothetical buffer without ambiguity
+    // about whether the song's own setting is already counted.
+    BUDGET = {
+      base: aram.total_bytes - aram.breakdown.echo,
+      echoBytes: aram.breakdown.echo,
+      // The base's measured part, so echo is not counted in two lines at
+      // once -- the whole point of splitting the table this way.
+      measured: aram.measured_bytes - aram.breakdown.echo,
+      unmodelled: aram.unmodelled.map((u) => u.name),
+    };
+    showBudget();
   }
 
   const notes = song.notes && song.notes.length

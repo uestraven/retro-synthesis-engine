@@ -88,6 +88,54 @@ def test_an_unreachable_api_is_not_blamed_on_localhost(source: str) -> None:
     assert "${API_BASE}" in source
 
 
+def test_the_echo_control_is_not_among_the_musical_controls(source: str) -> None:
+    """An Echo slider beside Tempo and Mood promises a sound change.
+
+    It does not change the sound -- it reserves a memory buffer the preview
+    renderer never reads. So the control lives in a collapsed diagnostics
+    panel, and this test pins the structure rather than the wording, because
+    the wording is the part most likely to be softened later.
+    """
+    start = source.index('id="snesPanel"')
+    panel = source[start : source.index("</fieldset>", start)]
+    assert 'id="reserved"' in panel, "voice reservation does affect audio"
+    assert 'id="echo"' not in panel, "the echo control is back beside the musical settings"
+
+    diagnostics = source[source.index('id="snesDiagnostics"') :]
+    diagnostics = diagnostics[: diagnostics.index("</details>")]
+    assert 'id="echo"' in diagnostics
+    assert "does not add audible reverb" in diagnostics
+    assert "memory planning" in diagnostics.lower()
+    # Collapsed by default: <details> without `open`.
+    assert "<details" in source and "<details open" not in source
+
+
+def test_the_budget_table_separates_the_base_from_the_echo(source: str) -> None:
+    """One combined number is what caused the confusion this panel fixes.
+
+    A reviewer read the reported total as excluding echo and worked out what
+    adding a 240 ms buffer would cost on top; it was already included. Base
+    and echo on separate rows makes the question unaskable.
+    """
+    for row in ("budgetBase", "budgetEcho", "budgetTotal", "budgetFree"):
+        assert f'id="{row}"' in source, row
+    # The echo buffer must not be counted in both the base and its own row.
+    assert "aram.total_bytes - aram.breakdown.echo" in source
+    assert "aram.measured_bytes - aram.breakdown.echo" in source
+    # And the panel must not quote a figure before a song has been generated.
+    assert "Generate a 16-bit song to populate" in source
+
+
+def test_the_memory_figures_are_not_shown_as_musical_facts(source: str) -> None:
+    """They were in the same chip row as tempo and voice counts, which reads
+    as a property of the music."""
+    facts = source[source.index('el("facts").innerHTML +=') :]
+    facts = facts[: facts.index("].map(")]
+    assert "audio RAM" not in facts
+    assert "echo" not in facts.lower()
+    assert "peak_voices" in facts, "the audible facts should still be there"
+
+
 def test_the_page_is_self_contained(source: str) -> None:
     """No build step and no third-party fetch: one file, offline-capable."""
     remote = re.findall(r'(?:src|href)="(https?://[^"]+)"', source)

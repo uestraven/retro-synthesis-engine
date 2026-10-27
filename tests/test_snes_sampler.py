@@ -745,21 +745,83 @@ def test_the_pitch_drop_keeps_its_phase_continuous(bank) -> None:
 
 
 def test_the_mix_has_little_sub_bass(bank) -> None:
-    """Where the drones were. 20-60 Hz is below the bass instrument's range,
-    so anything much there is an artifact."""
-    import wave as wave_module
+    """Where the drones were: energy BELOW the lowest note actually played.
 
-    path = Path("listen_snes/snes_boss.wav")
-    if not path.is_file():
-        pytest.skip("the rendered track is not present")
-    with wave_module.open(str(path)) as handle:
-        rate = handle.getframerate()
-        raw = np.frombuffer(
-            handle.readframes(handle.getnframes()), dtype="<i2"
-        ).astype(np.float64)
-    mono = raw.reshape(-1, 2).mean(axis=1)
-    magnitude = np.abs(np.fft.rfft(mono * np.hanning(len(mono))))
-    freqs = np.fft.rfftfreq(len(mono), 1 / rate)
-    audible = freqs > 20
-    sub = magnitude[(freqs > 20) & (freqs < 60)].sum() / magnitude[audible].sum()
-    assert sub < 0.02, f"{sub * 100:.2f}% of the mix is below 60 Hz"
+    Two things were wrong with this test, and the second only showed up once
+    the first was fixed.
+
+    It read `listen_snes/snes_boss.wav` and skipped when absent. That
+    directory is gitignored, so in a clean checkout the file is never there
+    and the test ALWAYS skipped -- sitting in the suite looking like coverage
+    of the drone regression without once executing. Release validation
+    counted the skips and found it. It renders its own input now, which costs
+    a couple of seconds and makes the test real.
+
+    Running it then failed at 2.11% against a 2% limit, and the limit was the
+    thing at fault. The band was hard-coded as 20-60 Hz and described as
+    "below the bass instrument's range" -- but the bass plays down to MIDI 33,
+    which is 55 Hz, so the band contained the instrument's own fundamental and
+    the test was measuring the bass and calling it an artifact.
+
+    So the band is derived from the lowest note the composer actually
+    emitted, which cannot drift when the composer's range changes.
+
+    Fixing the band left it failing at 1.28%, and that exposed a third
+    problem -- mine. The floor comes from PITCHED notes, but the measurement
+    was over the whole mix, which contains a kick drum. A kick is supposed to
+    have sub-bass. Measuring total energy below the pitched floor and calling
+    it an artifact indicts the percussion for doing its job.
+
+    Excluding percussion from the signal would be worse, because the drone
+    this test exists for CAME from percussion -- a 70 ms hat resampled as
+    though its value were a MIDI pitch, stretched 88x into 6.17 seconds of
+    sub-bass. Removing percussion would blind the test to its own bug.
+
+    What actually separates them is duration. A kick's low end is impulsive;
+    a drone is continuous. So the measurement is the longest unbroken run of
+    sub-bass, where the kick gives 0.15 s and the artifact gave 6.17 s. A
+    1-second limit sits an order of magnitude from both, which is why it
+    needs no tuning against the data.
+    """
+    from rse.platform.roles import Role
+    from rse.snes.samples import midi_to_hz
+    from rse.song.snes_generate import generate_snes
+
+    song = generate_snes(style="boss", seed=4242, target_seconds=20.0)
+    rate = song.sample_rate
+    pitched = [
+        a.note.value
+        for a in song.allocation.assignments
+        if a.note.pitched and a.note.role is not Role.PERCUSSION
+    ]
+    assert pitched, "no pitched notes to derive a floor from"
+
+    # A whole tone below the lowest fundamental in the score, so nothing the
+    # music is supposed to contain reaches into the measured band.
+    floor = midi_to_hz(min(pitched)) * 2 ** (-2 / 12)
+    mono = song.samples.mean(axis=1).astype(np.float64)
+
+    # Isolate 20 Hz to the floor, then take a smoothed envelope.
+    spectrum = np.fft.rfft(mono)
+    freqs = np.fft.rfftfreq(mono.size, 1 / rate)
+    spectrum[(freqs >= floor) | (freqs < 20)] = 0
+    window = int(0.05 * rate)
+    envelope = np.convolve(
+        np.abs(np.fft.irfft(spectrum, n=mono.size)),
+        np.ones(window) / window,
+        mode="same",
+    )
+
+    reference = float(np.percentile(np.abs(mono), 99))
+    present = envelope > reference * 0.05
+    runs = [
+        len(run)
+        for run in "".join("1" if x else "0" for x in present).split("0")
+        if run
+    ]
+    longest = (max(runs) if runs else 0) / rate
+    assert longest < 1.0, (
+        f"sub-bass below {floor:.1f} Hz sustained for {longest:.2f} s. "
+        "Percussion transients are short; a sustained run means something is "
+        "being resampled far below its intended pitch."
+    )

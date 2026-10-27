@@ -41,8 +41,11 @@ def main() -> int:
     parser.add_argument("--reserved", type=int, default=0)
     parser.add_argument(
         "--echo", default=None,
-        help=f"preset ({', '.join(sorted(ECHO_PRESETS))}) or milliseconds; "
-             "charged against the same 64 KiB as the samples",
+        help=f"preset ({', '.join(sorted(ECHO_PRESETS))}) or milliseconds. "
+             "MEMORY ONLY -- does not change the rendered audio. It reserves "
+             "the DSP's echo buffer against the same 64 KiB as the samples, "
+             "so it shows what a reverb would cost in instrument memory; "
+             "there is no echo processor",
     )
     parser.add_argument(
         "--no-brr", action="store_true",

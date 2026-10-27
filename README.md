@@ -6,19 +6,26 @@ rather than generating audio waveforms directly.
 
 **Compose symbolically. Validate against hardware. Render through chip-aware synthesis.**
 
-Initial target: the NES APU's four channels (two pulse, one triangle, one
-noise). Genesis and SNES profiles come later.
+First target: the NES APU's four channels (two pulse, one triangle, one
+noise), which is complete. Second: a SNES preview — eight sampled voices in
+stereo with real BRR encoding, shipping as a preview and explicitly not as
+hardware-exact playback. Genesis comes later.
 
 ## Status
 
-**RSE composes and renders original NES music today.** One command gives you a
-structured, looping, hardware-valid piece as WAV and MIDI. The machine learning
-is what's still missing — Phases 1 and 3 are done, and that is enough for a
-working (if unsurprising) music generator.
+**RSE composes and renders original NES music today, and SNES music as a
+preview.** One command gives you a structured, looping, hardware-valid piece
+as WAV and MIDI. The machine learning is what's still missing — and the
+procedural composer turned out to beat the pretrained model it was meant to
+be a baseline for, which is why Phase 4 is deprioritised rather than blocking.
 
 ```bash
-rse generate --mood dark --energy high --bars 16
+rse generate --mood dark --energy high --bars 16      # 8-bit NES
+python scripts/snes_boss.py --style boss --seed 4242  # 16-bit SNES preview
 ```
+
+Or from a browser: `rse-api` serves a generator page at
+http://127.0.0.1:8000 with both consoles.
 
 | Phase | Scope | State |
 |---|---|---|
@@ -26,8 +33,11 @@ rse generate --mood dark --energy high --bars 16
 | 2 | Canonical RSE Event Format, hardware validator | **done** |
 | 3 | Rule-based generator, NES renderer, exports | **done** |
 | 4 | Tokenizer, Transformer training and inference | **pipeline done**; no model trained on real music |
-| 5 | Gradio interface | **done** |
+| 5 | Gradio interface | **done**; superseded by the browser generator |
 | 6 | Regression tests, originality screening, alpha release | not started |
+| — | Browser generator (FastAPI + static page) | **done** |
+| — | SNES preview: sampled voices, BRR, stereo, 64 KiB accounting | **preview release candidate**; not hardware-exact |
+| — | SNES hardware authenticity: S-DSP Gaussian, SPC export, emulator-verified | not started |
 
 The renderer is a native APU synthesizer — no external binary, no subprocess,
 no download. Pitch is quantized to what the hardware timer can actually
@@ -352,9 +362,22 @@ which generated songs are deleted (`RSE_API_RETENTION_SECONDS`, default 1800).
 CORS is same-origin until `RSE_API_ALLOWED_ORIGINS` names the site; it is never
 `*`.
 
-**SNES returns 501.** Only the 8-bit NES engine exists. Sample-based
-instruments, eight DSP voices, envelopes and stereo are a separate milestone,
-and playing NES compositions through different instruments would not be SNES
-output — so the API refuses rather than returning NES audio under an SNES
-label. `GET /api/capabilities` marks it unavailable so the interface can grey
-the option out.
+**SNES is a preview, and the distinction is load-bearing.** `console: "snes"`
+reaches a genuinely separate sampled-instrument renderer — eight DSP voices,
+stereo with per-voice panning, real BRR encoding — not NES audio relabelled.
+What it is *not* is hardware-exact: `hardware_exact: false` and
+`hardware_budgeted: false` travel with every response, and
+`GET /api/capabilities` returns a per-capability claims table
+(`snes_claims`) rather than one flag, because "the BRR encoder is real and
+round-trips" and "no emulator has ever played this" are both true and belong
+in different rows.
+
+SNES-style audio generation is a product feature. Authentic SNES hardware
+compatibility is a separate engineering milestone. The first ships; the second
+does not. See `docs/snes-v1-release-validation.md`.
+
+One setting to know about: **echo is memory-only**. It reserves the DSP's echo
+buffer in the audio-RAM account and does not change the rendered audio, so it
+lives under *Advanced — SNES hardware diagnostics* rather than beside tempo
+and mood. Every preset renders byte-identical output, and a test asserts that
+so the label cannot quietly become a lie.

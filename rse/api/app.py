@@ -37,6 +37,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from rse.api.limits import RateLimiter, SongStore
 from rse.api.models import (
     CapabilitiesResponse,
+    CapabilityClaim,
     EchoPreset,
     GenerateRequest,
     GenerateResponse,
@@ -106,6 +107,89 @@ CONSOLES = [
         "runtime allowances are assumptions, several allocations a real SPC "
         "image needs are unmodelled, and there is no SPC export or emulator "
         "verification.",
+    },
+]
+
+#: What RSE claims about each SNES capability, at the granularity where the
+#: claims actually differ.
+#:
+#: One flag cannot carry this. `hardware_exact: False` is true but blunt: it
+#: puts "the BRR encoder is real and round-trips" and "no emulator has ever
+#: played this" in the same bucket, and a reader who needs to know which is
+#: which has to go and read source. Separating them is also the only way to
+#: keep the claims honest as the work proceeds -- a capability moves one row
+#: at a time, and the row names the evidence rather than the intent.
+#:
+#: The distinction the whole release rests on: SNES-STYLE AUDIO GENERATION is
+#: a product feature and is shipping. AUTHENTIC SNES HARDWARE COMPATIBILITY is
+#: a separate engineering milestone and is not.
+SNES_CAPABILITY_CLAIMS: list[dict[str, str]] = [
+    {
+        "capability": "BRR compression",
+        "claim": "Implemented, internally validated",
+        "detail": "Real 9-byte blocks, the four hardware predictors in their "
+        "integer form, 3.55x compression. Cross-checked against an "
+        "independently written decoder in this repository -- which is not an "
+        "independent implementation of the hardware.",
+    },
+    {
+        "capability": "Sample tuning",
+        "claim": "Measured",
+        "detail": "Within 0.38 cents of equal temperament across the bank "
+        "and across pitches.",
+    },
+    {
+        "capability": "Sample interpolation",
+        "claim": "Catmull-Rom preview",
+        "detail": "A 4-point kernel plus a documented low-pass. NOT the "
+        "S-DSP's own 4-tap Gaussian table, which attenuates high frequencies "
+        "where Catmull-Rom overshoots them -- a difference in character, not "
+        "only in accuracy.",
+    },
+    {
+        "capability": "Sample looping",
+        "claim": "Implemented, verified at the output",
+        "detail": "Block-aligned loops, bit-identical across repetitions, and "
+        "no step at the boundary of the RENDERED audio -- which is a separate "
+        "check from the data being periodic, and the one that caught a "
+        "4-point kernel reading past the loop.",
+    },
+    {
+        "capability": "Stereo rendering",
+        "claim": "Implemented",
+        "detail": "Per-voice panning, measured channel decorrelation.",
+    },
+    {
+        "capability": "Eight-voice constraint",
+        "claim": "Verified on tested output",
+        "detail": "Never exceeded on the material generated so far, with "
+        "voice stealing as a reported policy rather than a silent drop. Not a "
+        "proof for every composition the generator can produce.",
+    },
+    {
+        "capability": "ARAM accounting",
+        "claim": "Partial",
+        "detail": "Sample, directory and echo bytes are measured; sequence "
+        "bytes are modelled; driver and runtime are assumed; five allocation "
+        "classes are unmodelled and counted as zero. Memory planning, not a "
+        "load test.",
+    },
+    {
+        "capability": "Audible echo / reverb",
+        "claim": "Not implemented",
+        "detail": "The echo setting reserves buffer memory for the budget "
+        "estimate and does not change the rendered audio.",
+    },
+    {
+        "capability": "Hardware-exact playback",
+        "claim": "Not verified",
+        "detail": "No emulator has played any of this.",
+    },
+    {
+        "capability": "SPC export",
+        "claim": "Unsupported",
+        "detail": "There is no SPC700 driver, so there is nothing to export. "
+        "A correct byte count is not an SPC file.",
     },
 ]
 
@@ -247,6 +331,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     ECHO_PRESETS.items(), key=lambda kv: kv[1]
                 )
             ],
+            snes_claims=[CapabilityClaim(**c) for c in SNES_CAPABILITY_CLAIMS],
         )
 
     @app.post("/api/generate", response_model=GenerateResponse)

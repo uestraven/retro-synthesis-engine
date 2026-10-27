@@ -252,6 +252,23 @@ class EchoPreset(BaseModel):
     affects_audio: bool = False
 
 
+class CapabilityClaim(BaseModel):
+    """What RSE claims about one SNES capability, and on what evidence.
+
+    Served rather than written into the page so the claims have exactly one
+    source. A marketing-ish sentence in HTML and a boolean in Python drift;
+    this cannot.
+    """
+
+    capability: str
+    #: Deliberately a free-text claim and not an enum. The useful distinctions
+    #: here -- "implemented, internally validated" against "verified on tested
+    #: output" against "partial" -- are differences in the KIND of evidence,
+    #: and flattening them to a status would lose the thing worth saying.
+    claim: str
+    detail: str
+
+
 class SoundProfileInfo(BaseModel):
     """One named instrument profile the engine can actually produce."""
 
@@ -302,3 +319,7 @@ class CapabilitiesResponse(BaseModel):
     echo_presets: list[EchoPreset] = Field(default_factory=list)
     #: Maximum voices a caller may reserve for sound effects.
     max_reserved_voices: int = 6
+    #: Per-capability SNES claims, so a client can show what is implemented,
+    #: what is merely measured, what is partial and what is unsupported,
+    #: rather than inferring all of it from one `hardware_exact: false`.
+    snes_claims: list[CapabilityClaim] = Field(default_factory=list)

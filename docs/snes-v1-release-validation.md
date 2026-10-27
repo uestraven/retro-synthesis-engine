@@ -5,9 +5,15 @@ freeze: no new composition, synthesis or orchestration work. Everything below
 is either a measurement, a documentation correction, or a defect the
 validation itself found.
 
-Three defects were found, and two of them were audible. That is the argument
+**Status: approved as a preview release candidate** — not as hardware-compatible
+SNES playback. SNES-style audio generation is a product feature and ships;
+authentic SNES hardware compatibility is a separate milestone and does not.
+
+Five defects were found, and three of them were audible. That is the argument
 for running a validation milestone rather than shipping on a green suite:
-every one of these was sitting behind passing tests.
+every one of these was sitting behind passing tests. Two were found only
+after review pushed back on a claim I had already made — the loop evidence
+and the "measured" ARAM figure.
 
 ## 1. Full regression suite
 
@@ -117,6 +123,67 @@ decoder call it, which also closes a subtler gap: the encoder scores
 candidate filters by the error the decoder would produce, and that scoring is
 only meaningful if it models the decoder exactly.
 
+### Defect found: the loop evidence did not prove a click-free loop
+
+Review's correction, and the sharpest finding in the milestone: *"Do not imply
+that identical loop repetitions prove a click-free musical loop. Check the
+actual output boundary."*
+
+That was exactly the gap. Bit-identical repetitions prove **repeatability**.
+Every loop test here examined the sample data or the decoder, and what a
+listener hears is the **player's** output — read through a 4-point kernel.
+
+`_interpolate` clamped its taps to the buffer. It had no idea the sample
+looped, so the last two reads before every wrap got the final sample repeated
+instead of the loop start: a step on every held note, at the loop rate,
+downstream of three rounds of green loop tests. Nothing was wrong with the
+loop; the player just did not know there was one.
+
+Measured in the rendered output as the step across the wrap against the
+interior p99.9 of the same signal:
+
+| instrument | before | after | on clean PCM |
+|---|---|---|---|
+| bass | 3.00× | 1.94× | **1.00×** |
+| brass | 1.02× | 1.02× | 0.43× |
+| strings | 0.64× | 0.64× | 0.69× |
+| choir | 0.19× | 0.19× | 0.10× |
+
+The clean-PCM column is the point. With the player fixed, the boundary is at
+or below the interior step for every instrument, so **the player is correct**.
+What remains on the encoded bank is BRR quantisation — specifically the price
+of the filter-0 loop-block policy, which spends its 4-bit residual on
+absolute values where bass's predictive blocks are near-perfect on a slow
+waveform. That is the trade documented above, now quantified at the output
+instead of in the decoded data. Worst absolute step 0.065 on bass.
+
+Two tests now cover this separately: one asserts no step at the boundary on
+clean PCM (the player), the other records BRR's contribution (the format).
+
+### Defect found: a test that never ran
+
+Counting the skips turned up `test_the_mix_has_little_sub_bass`, which read
+`listen_snes/snes_boss.wav` and skipped when absent. That directory is
+gitignored, so in a clean checkout the file is never there — the test sat in
+the suite looking like coverage of the drone regression without once
+executing.
+
+Made to render its own input, it failed at 2.11%, and the threshold was what
+was wrong: the band was hard-coded 20–60 Hz and described as "below the bass
+instrument's range", but the bass plays down to MIDI 33 = 55 Hz. The test was
+measuring the bass and calling it an artifact.
+
+Fixing the band exposed a third problem, mine: the floor comes from pitched
+notes but the measurement was over the whole mix, which contains a kick drum,
+and a kick is *supposed* to have sub-bass. Excluding percussion would be
+worse — the drone this test exists for *came* from percussion.
+
+What separates them is duration. A kick's low end is impulsive; a drone is
+continuous. The measurement is now the longest unbroken run of sub-bass below
+the lowest note actually played: **0.15 s** for kick transients against
+**6.17 s** for the original artifact. The 1-second limit sits an order of
+magnitude from both, which is why it needs no tuning against the data.
+
 ### Verified
 
 | check | result |
@@ -124,8 +191,9 @@ only meaningful if it models the decoder exactly.
 | Block alignment | every asset's length is a multiple of 16; the encoder pads nothing |
 | Loop-point adjustment | every loop start is a multiple of 16, so the round-down is a no-op |
 | Header END / LOOP flags | END on the last block; LOOP set iff the sample loops |
-| Repeated loop decoding | five passes decode **bit-identically** (drift exactly 0.0) |
-| Discontinuity at the wrap | below the largest in-loop step for all four looping instruments |
+| Repeated loop decoding | five passes decode **bit-identically** (drift exactly 0.0) — which proves repeatability and *not* a click-free loop; see above |
+| Discontinuity at the wrap | in the decoded data: below the largest in-loop step for all four looping instruments |
+| Discontinuity in the rendered output | at or below the interior step on clean PCM for all four; BRR adds up to 1.94× on bass |
 | Decoded sample stability | the loop block's peak error is no worse than the predictive blocks' |
 | Non-looping percussion | END without LOOP ends the voice; the tail after it is exactly silent |
 | Cross-check | agrees with an independent integer decoder |
@@ -272,9 +340,28 @@ test asserts the audio does *not* change, which looks backwards and is the
 point: when an echo processor is written, that test fails and whoever writes
 it has to come back and update every label.
 
-**Your call** whether that is acceptable for V1, or whether the control
-should be removed, or whether echo is worth implementing. The three options
-cost very differently and only you can weigh them against the roadmap.
+**Resolved: the control moved rather than being implemented or removed.** It
+is out of the music-generation fieldset entirely and into a collapsed
+*Advanced — SNES hardware diagnostics* panel, where it is a memory planning
+tool. The calculation has real value — reverb and instruments genuinely
+compete for the same 64 KiB — and the illusion of an effect does not.
+
+The budget is presented as base + hypothetical echo = modelled total rather
+than as one number, because one number is what caused the double-count
+confusion in the first place. Verified against the live API:
+
+| echo | base | + echo | = modelled total | free |
+|---|---|---|---|---|
+| dry | 23,672 B | 0 B | 23,672 B — 36.1% | 41,864 B |
+| room | 23,672 B | 8,192 B | 31,864 B — 48.6% | 33,672 B |
+| hall | 23,672 B | 16,384 B | 40,056 B — 61.1% | 25,480 B |
+| cavern | 23,672 B | 30,720 B | 54,392 B — 83.0% | 11,144 B |
+
+The base is constant, so there is nothing left to misread. Panel total and
+API total agree exactly at the song's own setting.
+
+The memory figures are also out of the musical facts row, where sitting
+beside tempo and voice counts made them read as properties of the music.
 
 Everything else in the panel does affect the output: `reserved_voices=3`
 changes the allocation (8 voices → 5, 15 notes shed) and the audio.

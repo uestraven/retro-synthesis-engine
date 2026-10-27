@@ -69,6 +69,29 @@ loops removed the dropout and detuned the whole bank by 4.4 cents, because
 only because the same milestone independently checked tuning. Two defects in
 this project have now been introduced by the fix for a previous one.
 
+**Repeatability is not absence of a click.** The same milestone proved the
+loop decoded bit-identically across five passes and called looping verified.
+It was not: `_interpolate` clamped its four taps to the buffer, so the last
+two reads before every wrap repeated the final sample instead of reading the
+loop start -- a step on every held note, in the rendered output, downstream of
+three rounds of green loop tests. Nothing was wrong with the loop. The player
+did not know there was one. Periodic data says nothing about a player that
+reads it wrong, and the only test that catches this renders a note long enough
+to wrap and measures the step at the boundary.
+
+**Count the skips.** `test_the_mix_has_little_sub_bass` read a gitignored path
+and skipped when it was absent, which in a clean checkout is always -- a test
+sitting in the suite looking like coverage of the drone regression without
+once executing. Found by reading skip reasons rather than the pass count.
+
+**When a threshold fails, suspect the threshold.** That test then failed twice
+for reasons that were not the code: its band was hard-coded 20-60 Hz and
+described as below the bass's range, when the bass plays 55 Hz; and the fix
+measured the whole mix including a kick, which is legitimately sub-bass. The
+right discriminator separates artifact from content by an order of magnitude
+-- sub-bass DURATION, 0.15 s for a kick transient against 6.17 s for the drone
+-- not by a limit tuned to sit just past the current measurement.
+
 **Advertising a setting is a claim that it does something.** The SNES echo
 control reserved the right number of ARAM bytes and produced byte-identical
 audio at every preset, because nothing reads the per-voice echo sends. Metadata

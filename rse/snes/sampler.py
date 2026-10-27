@@ -234,8 +234,33 @@ INTERP = _catmull_rom_table()
 DSP_SOFTEN_HZ = 11000.0
 
 
-def _interpolate(data: np.ndarray, positions: np.ndarray) -> np.ndarray:
-    """Sample `data` at fractional `positions` with the 4-point kernel."""
+def _interpolate(
+    data: np.ndarray,
+    positions: np.ndarray,
+    *,
+    loop: tuple[int, int] | None = None,
+) -> np.ndarray:
+    """Sample `data` at fractional `positions` with the 4-point kernel.
+
+    `loop` is the `(start, end)` the player wraps around, and passing it is
+    not optional for a looping sample. A 4-point kernel reads taps at -1, 0,
+    +1 and +2 around each position, so the last two reads before a wrap need
+    samples from the START of the loop. Without `loop` they were clamped to
+    the buffer's final sample instead, repeating it -- a step at every wrap,
+    in the rendered output, on every held note.
+
+    It survived three rounds of loop testing because every one of those tests
+    examined the SAMPLE DATA. The data was periodic and the decoded BRR
+    repeated bit-identically; the defect was downstream of both, in the
+    player reading it. Nothing was wrong with the loop. The interpolator just
+    did not know there was one.
+
+    Taps wrap once they are inside the loop region, which also means the -1
+    tap at exactly `start` reads `end - 1` rather than the attack's last
+    sample. That is correct for every pass after the first, and harmless on
+    the first, because the lead-in is generated continuously into the loop --
+    the two candidate samples are nearly equal by construction.
+    """
     base = np.floor(positions).astype(np.int64)
     frac = positions - base
     rows = INTERP[
@@ -244,7 +269,15 @@ def _interpolate(data: np.ndarray, positions: np.ndarray) -> np.ndarray:
     size = data.size
     out = np.zeros(positions.size, dtype=np.float64)
     for tap, offset in enumerate((-1, 0, 1, 2)):
-        index = np.clip(base + offset, 0, size - 1)
+        index = base + offset
+        if loop is not None:
+            start, end = loop
+            length = end - start
+            if length > 0:
+                index = np.where(
+                    index >= start, start + np.mod(index - start, length), index
+                )
+        index = np.clip(index, 0, size - 1)
         out += data[index] * rows[:, tap]
     return out
 
@@ -307,11 +340,24 @@ def _resample(
         # One-shot: silence past the end rather than wrapping.
         positions = np.clip(positions, 0, data.size - 1)
 
+    # The loop bounds go to the interpolator, not just to the position
+    # arithmetic. Wrapping the positions is only half the job: the kernel's
+    # taps have to wrap too, or the samples it reads at the boundary come
+    # from the end of the buffer instead of the start of the loop.
+    bounds = (asset.loop_start, asset.loop_end) if loops else None
     if interpolation == "catmull":
-        out = _interpolate(data, positions)
+        out = _interpolate(data, positions, loop=bounds)
     else:
         low = np.floor(positions).astype(np.int64)
-        high = np.minimum(low + 1, data.size - 1)
+        high = low + 1
+        if loops:
+            length = asset.loop_end - asset.loop_start
+            high = np.where(
+                high >= asset.loop_start,
+                asset.loop_start + np.mod(high - asset.loop_start, length),
+                high,
+            )
+        high = np.minimum(high, data.size - 1)
         frac = positions - low
         out = data[low] * (1.0 - frac) + data[high] * frac
     if not loops:
