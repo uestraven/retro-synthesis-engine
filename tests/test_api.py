@@ -19,6 +19,7 @@ import time
 import wave
 from pathlib import Path
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -60,7 +61,7 @@ def test_health_reports_no_model_requirement(client: TestClient) -> None:
     body = client.get("/api/health").json()
     assert body["engine"] == "procedural"
     assert body["model_required"] is False
-    assert body["consoles_available"] == ["nes"]
+    assert set(body["consoles_available"]) == {"nes", "snes"}
 
 
 def test_capabilities_are_read_from_the_engine(client: TestClient) -> None:
@@ -117,19 +118,30 @@ def test_the_served_song_matches_the_served_report(client: TestClient) -> None:
 # --- what must refuse -----------------------------------------------------
 
 
-def test_snes_is_refused_not_quietly_downgraded(client: TestClient) -> None:
-    """The user's own constraint: do not call a soundfont SNES emulation."""
-    response = client.post("/api/generate", json={"prompt": "x", "console": "snes"})
-    assert response.status_code == 501
-    body = response.json()
-    assert body["error"] == "console_not_implemented"
-    assert body["available"] == ["nes"]
+def test_snes_is_never_nes_audio_under_a_snes_label(client: TestClient) -> None:
+    """The constraint this test has always protected. It used to be satisfied
+    by a 501; now SNES really generates, so it is satisfied by the output
+    actually being different -- stereo, eight voices, sampled instruments --
+    and by the preview label travelling with it."""
+    snes = generate(client, console="snes", style="boss", seconds=30, seed=11)
+    nes = generate(client, console="nes", style="boss", seconds=30, seed=11)
+    assert snes["snes"] is not None
+    assert nes["snes"] is None
+    # Different renderers, different audio.
+    digest = lambda url: hashlib.sha256(  # noqa: E731 - local, single use
+        client.get(url).content
+    ).hexdigest()
+    assert digest(snes["links"]["wav"]) != digest(nes["links"]["wav"])
+    assert snes["snes"]["hardware_exact"] is False
 
 
-def test_capabilities_marks_snes_unavailable(client: TestClient) -> None:
+def test_capabilities_marks_both_consoles_available(client: TestClient) -> None:
     consoles = {c["id"]: c for c in client.get("/api/capabilities").json()["consoles"]}
     assert consoles["nes"]["available"] is True
-    assert consoles["snes"]["available"] is False
+    assert consoles["snes"]["available"] is True
+    # NES is not a preview; SNES is, and says so.
+    assert not consoles["nes"].get("preview")
+    assert consoles["snes"]["preview"] is True
 
 
 def test_no_format_is_advertised_that_cannot_be_written(client: TestClient) -> None:
@@ -677,3 +689,154 @@ def test_sound_design_is_on_by_default_through_the_api(client: TestClient) -> No
     assert report["composition"]["duty_by_channel"] == (
         body["sound"]["duty_by_channel"]
     )
+
+
+# --- SNES through the website -------------------------------------------
+
+
+def test_snes_is_available_and_labelled_a_preview(client: TestClient) -> None:
+    """It used to return 501. Now it generates, and the label has to travel
+    with it: hardware accuracy is still not claimed."""
+    consoles = {c["id"]: c for c in client.get("/api/capabilities").json()["consoles"]}
+    assert consoles["snes"]["available"] is True
+    assert consoles["snes"]["preview"] is True
+    assert "NOT hardware-exact" in consoles["snes"]["detail"]
+
+
+def test_snes_generates_genuine_stereo(client: TestClient) -> None:
+    import wave as wave_module
+
+    body = generate(client, console="snes", style="boss", seconds=60, seed=4242)
+    assert body["snes"] is not None
+    data = client.get(body["links"]["wav"]).content
+    path = Path("/tmp") / f"snes_{body['song_id']}.wav"
+    path.write_bytes(data)
+    try:
+        with wave_module.open(str(path)) as handle:
+            assert handle.getnchannels() == 2
+            frames = handle.getnframes()
+            raw = np.frombuffer(
+                handle.readframes(frames), dtype="<i2"
+            ).astype(np.float64).reshape(-1, 2)
+        assert not np.array_equal(raw[:, 0], raw[:, 1]), "not real stereo"
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_snes_respects_the_eight_voice_ceiling(client: TestClient) -> None:
+    body = generate(client, console="snes", style="boss", seconds=60, seed=4242)
+    snes = body["snes"]
+    assert snes["peak_voices"] <= 8
+    assert snes["allocation"]["dropped"] == 0
+    assert snes["allocation"]["stolen"] == 0
+
+
+def test_snes_reports_a_measured_aram_budget(client: TestClient) -> None:
+    body = generate(client, console="snes", style="boss", seconds=60, seed=1)
+    aram = body["snes"]["aram"]
+    assert aram["aram_bytes"] == 65536
+    assert aram["fits"] is True
+    assert aram["breakdown"]["samples"] > 0
+    # And it says which figures are assumed rather than measured.
+    assert "driver_bytes" in aram["assumed"]
+    assert body["snes"]["instrument_bank"]["brr_measured"] is True
+
+
+def test_echo_costs_audio_ram(client: TestClient) -> None:
+    """The tradeoff the hardware imposes, visible through the API: a longer
+    reverb is memory the instruments do not get."""
+    budgets = {}
+    for preset in ("dry", "room", "cavern"):
+        body = generate(
+            client, console="snes", style="boss", seconds=60, seed=5, echo=preset
+        )
+        budgets[preset] = body["snes"]["aram"]["total_bytes"]
+    assert budgets["dry"] < budgets["room"] < budgets["cavern"]
+    assert budgets["cavern"] - budgets["dry"] > 25_000
+
+
+def test_capabilities_prices_every_echo_preset(client: TestClient) -> None:
+    presets = client.get("/api/capabilities").json()["echo_presets"]
+    assert presets
+    for preset in presets:
+        assert preset["aram_bytes"] >= 0
+        if preset["delay_ms"] == 0:
+            assert preset["aram_bytes"] == 0
+        else:
+            assert preset["aram_bytes"] > 0
+
+
+def test_an_unknown_echo_preset_is_refused(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        json={"console": "snes", "style": "boss", "seconds": 30, "echo": "cathedral"},
+    )
+    assert response.status_code == 422
+
+
+def test_reserving_voices_reduces_what_music_gets(client: TestClient) -> None:
+    """Game-ready mode, and the loss is reported rather than silent."""
+    full = generate(client, console="snes", style="boss", seconds=60, seed=9)
+    held = generate(
+        client, console="snes", style="boss", seconds=60, seed=9, reserved_voices=4
+    )
+    assert held["snes"]["allocation"]["voice_count"] == 4
+    assert full["snes"]["allocation"]["voice_count"] == 8
+    assert held["snes"]["allocation"]["dropped"] > 0
+    assert held["snes"]["allocation"]["displacements"]
+
+
+def test_reserving_too_many_voices_is_refused(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        json={"console": "snes", "seconds": 30, "reserved_voices": 9},
+    )
+    assert response.status_code == 422
+
+
+def test_snes_is_reproducible_from_its_seed(client: TestClient) -> None:
+    first = generate(client, console="snes", style="town", seconds=30, seed=77)
+    second = generate(client, console="snes", style="town", seconds=30, seed=77)
+    digest = lambda url: hashlib.sha256(  # noqa: E731 - local, single use
+        client.get(url).content
+    ).hexdigest()
+    assert digest(first["links"]["wav"]) == digest(second["links"]["wav"])
+
+
+def test_nes_is_untouched_by_the_snes_branch(client: TestClient) -> None:
+    """NES stays mono, carries no `snes` field, and keeps its duty report."""
+    import wave as wave_module
+
+    body = generate(client, console="nes", style="boss", seconds=30, seed=7)
+    assert body["snes"] is None
+    assert body["sound"]["duty_by_channel"]
+    data = client.get(body["links"]["wav"]).content
+    path = Path("/tmp") / f"nes_{body['song_id']}.wav"
+    path.write_bytes(data)
+    try:
+        with wave_module.open(str(path)) as handle:
+            assert handle.getnchannels() == 1
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_the_cli_and_the_api_share_the_snes_path() -> None:
+    """The duplication guard, for the SNES path too."""
+    api = Path("rse/api/app.py").read_text()
+    cli = Path("scripts/snes_boss.py").read_text()
+    assert "from rse.song.snes_generate import" in api
+    assert "from rse.song.snes_generate import" in cli
+    # Neither reimplements the arrangement or the render.
+    for source in (api, cli):
+        assert "from rse.snes.arrange import arrange" not in source
+
+
+def test_the_snes_preview_caveats_reach_the_response(client: TestClient) -> None:
+    body = generate(client, console="snes", style="boss", seconds=30, seed=3)
+    caveats = " ".join(body["snes"]["caveats"])
+    assert "BRR-encoded" in caveats
+    assert "NOT the S-DSP" in caveats
+    assert "no emulator verification" in caveats.lower() or (
+        "no SPC export" in caveats
+    )
+    assert body["snes"]["hardware_exact"] is False

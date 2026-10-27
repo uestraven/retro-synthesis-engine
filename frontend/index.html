@@ -170,7 +170,7 @@
       </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="soundPanel">
       <legend>Sound</legend>
       <div class="row">
         <div class="field">
@@ -183,6 +183,27 @@
           <select id="mood"></select>
           <div class="hint">Picks an instrument profile. Only moods the engine
             maps to a real profile are offered.</div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset id="snesPanel" hidden>
+      <legend>16-bit depth</legend>
+      <div class="row">
+        <div class="field">
+          <label for="echo">Echo</label>
+          <select id="echo"></select>
+          <div class="hint" id="echoHint">Echo is charged against the same
+            64 KiB of audio RAM as the instruments, so a longer reverb is
+            memory the samples do not get.</div>
+        </div>
+        <div class="field">
+          <label for="reserved">Voices reserved for sound effects
+            <span class="val" id="reservedVal">0</span></label>
+          <input type="range" id="reserved" min="0" max="6" step="1" value="0">
+          <div class="ends"><span>music gets all 8</span><span>6 held back</span></div>
+          <div class="hint">Game-ready mode. Reserved voices are unavailable to
+            the music, and the report says what was dropped.</div>
         </div>
       </div>
     </fieldset>
@@ -337,6 +358,22 @@ async function loadCapabilities() {
     mood.append(option);
   }
 
+  const echo = el("echo");
+  echo.innerHTML = '<option value="">Style default</option>';
+  for (const preset of caps.echo_presets || []) {
+    const option = document.createElement("option");
+    option.value = preset.name;
+    option.textContent =
+      `${preset.name} — ${preset.delay_ms} ms, ` +
+      `${(preset.aram_bytes / 1024).toFixed(0)} KiB of audio RAM`;
+    echo.append(option);
+  }
+  const reserved = el("reserved");
+  reserved.max = caps.max_reserved_voices ?? 6;
+  reserved.oninput = () => {
+    el("reservedVal").textContent = reserved.value;
+  };
+
   const duration = el("duration");
   duration.min = caps.min_seconds;
   duration.max = caps.max_seconds;
@@ -362,6 +399,12 @@ async function loadCapabilities() {
       chosenConsole = console_.id;
       for (const other of box.children) other.setAttribute("aria-pressed", "false");
       button.setAttribute("aria-pressed", "true");
+      // Only expose controls the chosen console actually has. The instrument
+      // profile and duty cycles are pulse-waveform concepts with no SNES
+      // meaning, and echo and voice reservation have no NES meaning.
+      const snes = chosenConsole === "snes";
+      el("snesPanel").hidden = !snes;
+      el("soundPanel").hidden = snes;
     };
     box.append(button);
   }
@@ -410,8 +453,14 @@ function body() {
     loop: el("loop").checked,
   };
   if (el("style").value) request.style = el("style").value;
-  if (el("profile").value) request.sound_profile = el("profile").value;
-  if (el("mood").value) request.mood = el("mood").value;
+  if (chosenConsole === "snes") {
+    if (el("echo").value) request.echo = el("echo").value;
+    const held = Number(el("reserved").value);
+    if (held > 0) request.reserved_voices = held;
+  } else {
+    if (el("profile").value) request.sound_profile = el("profile").value;
+    if (el("mood").value) request.mood = el("mood").value;
+  }
   // Index 0 means "style default", so no tempo is sent at all and the preset
   // keeps its own. Any other position sends a tempo already on the ladder, so
   // the server has nothing to snap.
@@ -463,6 +512,20 @@ function render(song) {
     .map(([text, href]) => `<a href="${api(href)}" download>${text}</a>`)
     .join("");
 
+  if (song.snes) {
+    const s = song.snes;
+    const aram = s.aram;
+    el("facts").innerHTML += [
+      ["voices", `${s.peak_voices} of 8 peak`],
+      ["dropped", `${s.allocation.dropped}`],
+      ["stolen", `${s.allocation.stolen}`],
+      ["audio RAM", `${(aram.total_bytes / 1024).toFixed(1)} of 64 KiB` +
+        ` (${(aram.used_fraction * 100).toFixed(0)}%)`],
+      ["echo", `${s.echo.preset_ms} ms`],
+      ["extended chords", s.extended_chords.join(" ") || "none"],
+    ].map(([k, v]) => `<span>${k}: <b>${escape_(v)}</b></span>`).join("");
+  }
+
   const notes = song.notes && song.notes.length
     ? `<div class="bucket"><h3>How your settings were read</h3><ul>` +
       song.notes.map((n) => `<li>${escape_(n)}</li>`).join("") + `</ul></div>`
@@ -472,7 +535,13 @@ function render(song) {
     bucket("Asked for and delivered", song.requirements.satisfied) +
     bucket("Approximated", song.requirements.approximated) +
     bucket("Chosen for you", song.requirements.imposed) +
-    bucket("Nothing takes this as input", song.requirements.unsupported, "unsupported");
+    bucket("Nothing takes this as input", song.requirements.unsupported, "unsupported") +
+    (song.snes
+      ? `<div class="bucket unsupported"><h3>This is a preview, not hardware` +
+        `</h3><ul>` +
+        song.snes.caveats.map((c) => `<li>${escape_(c)}</li>`).join("") +
+        `</ul></div>`
+      : "");
 
   el("result").hidden = false;
 }

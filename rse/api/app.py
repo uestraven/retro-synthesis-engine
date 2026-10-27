@@ -37,6 +37,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from rse.api.limits import RateLimiter, SongStore
 from rse.api.models import (
     CapabilitiesResponse,
+    EchoPreset,
     GenerateRequest,
     GenerateResponse,
     SongLinks,
@@ -46,6 +47,7 @@ from rse.api.models import (
     energy_from_percent,
 )
 from rse.api.settings import Settings
+from rse.prompt.interpret import Requirement
 
 log = logging.getLogger("rse.api")
 
@@ -92,11 +94,15 @@ CONSOLES = [
     {
         "id": "snes",
         "label": "16-bit SNES",
-        "available": False,
-        "detail": "Not implemented. Sample-based instruments, eight DSP "
-        "voices, envelopes and stereo are a separate engineering milestone; "
-        "playing NES compositions with different instruments would not be "
-        "SNES output and this API will not label it as such.",
+        "available": True,
+        "preview": True,
+        "detail": "SNES-INSPIRED PREVIEW. Sampled instruments across eight "
+        "DSP voices, stereo with per-voice panning, hardware-informed "
+        "envelopes, real BRR encoding and a measured 64 KiB audio-RAM "
+        "budget. NOT hardware-exact: interpolation is a 4-point kernel plus "
+        "a documented low-pass rather than the S-DSP's own table, envelopes "
+        "are floating point, and there is no SPC export or emulator "
+        "verification.",
     },
 ]
 
@@ -186,6 +192,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             TIMBRES,
             _percent,
         )
+        from rse.snes.aram import echo_bytes_for
+        from rse.song.snes_generate import ECHO_PRESETS
 
         return CapabilitiesResponse(
             styles=[
@@ -222,23 +230,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 for name, (lead, comp) in SOUND_PROFILES.items()
             ],
             moods=sorted(MOOD_PROFILES),
+            echo_presets=[
+                EchoPreset(
+                    name=name,
+                    delay_ms=delay,
+                    aram_bytes=echo_bytes_for(delay),
+                )
+                for name, delay in sorted(
+                    ECHO_PRESETS.items(), key=lambda kv: kv[1]
+                )
+            ],
         )
 
     @app.post("/api/generate", response_model=GenerateResponse)
     async def generate(body: GenerateRequest, request: Request) -> GenerateResponse:
-        if body.console == "snes":
-            # 501, not a silent downgrade to NES.
-            raise HTTPException(
-                status_code=501,
-                detail={
-                    "error": "console_not_implemented",
-                    "message": "16-bit SNES generation is not implemented. "
-                    "Only the 8-bit NES engine exists today, and NES audio "
-                    "will not be returned labelled as SNES.",
-                    "available": ["nes"],
-                },
-            )
-
         wait = limiter.check(client_key(request))
         if wait is not None:
             raise HTTPException(
@@ -269,10 +274,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         song_id = uuid.uuid4().hex
         out_dir = storage / song_id
 
+        worker = _generate_snes_sync if body.console == "snes" else _generate_sync
         try:
             async with gate:
                 payload = await asyncio.to_thread(
-                    _generate_sync,
+                    worker,
                     body=body,
                     seed=seed,
                     requested=requested,
@@ -327,6 +333,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             requirements=payload["requirement_report"],
             notes=list(meta["selection"]["notes"]),
             unsupported=list(meta["unsupported"]),
+            snes=payload.get("snes"),
         )
 
     @app.get("/")
@@ -380,6 +387,156 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     return app
+
+
+def _generate_snes_sync(
+    *, body: GenerateRequest, seed: int, requested: float, out_dir: Path
+) -> dict[str, Any]:
+    """The SNES path, run in a worker thread.
+
+    Calls `rse.song.snes_generate`, the same library path
+    `scripts/snes_boss.py` uses, so the website and the command line cannot
+    produce different music from the same request.
+
+    The response is shaped like the NES one -- same links, same requirement
+    report -- with the eight-voice allocation and the ARAM budget under
+    `snes`, because those are the facts a SNES listener needs and a NES one
+    has no use for.
+    """
+    from rse.prompt.interpret import interpret
+    from rse.song.generate import finish_report
+    from rse.song.snes_generate import generate_snes, write_snes_artifacts
+
+    plan = interpret(body.effective_prompt())
+    # The SNES arranger reads the composer's plan, so the style selection is
+    # the same machinery the NES path uses.
+    from rse.procedural.select import select
+
+    selection = select(plan)
+    style = body.style or selection.style
+
+    song = generate_snes(
+        style=style,
+        seed=seed,
+        target_seconds=requested,
+        echo=body.echo,
+        reserved_voices=body.reserved_voices,
+    )
+    report = write_snes_artifacts(song, out_dir=out_dir, name="song")
+    # Same keys as the NES payload, so one response model serves both. The
+    # SNES writer calls it `score`, since a platform-neutral score is not
+    # necessarily MIDI, but the API surface should not have two names for the
+    # same link.
+    report["files"] = {
+        "wav": report["files"]["wav"],
+        "midi": report["files"].get("score"),
+    }
+
+    # Shape it like the NES payload so one response model serves both.
+    music = report["music"]
+    plan.requirements.append(
+        Requirement(
+            "16-bit SNES",
+            "approximated",
+            "SNES-INSPIRED PREVIEW: sampled instruments on eight voices with "
+            "real BRR encoding and a measured audio-RAM budget, but not "
+            "hardware-exact and not emulator-verified",
+        )
+    )
+    return {
+        "version": "rse-snes-preview/0.1",
+        "engine": "procedural",
+        "prompt": body.prompt,
+        "seed": seed,
+        "songspec": plan.to_dict(),
+        "composition": {
+            "engine": "procedural",
+            "selection": {
+                "style": style,
+                "reason": "chosen directly" if body.style else selection.reason,
+                "matched_on": "explicit" if body.style else selection.matched_on,
+                "notes": list(selection.notes),
+                "tempo_bpm": selection.tempo_bpm,
+                "tonic": selection.tonic,
+                "section_bars": selection.section_bars,
+                "unsupported": list(selection.unsupported),
+            },
+            "form": music["form"],
+            "total_bars": music["bars"],
+            "duration_sec": music["seconds"],
+            "tempo_bpm": music["tempo_bpm"],
+            "frames_per_row": song.result.style.frames_per_row,
+            "mode": music["mode"],
+            "tonic": music["tonic"],
+            "sound": None,
+            "duty_by_channel": None,
+            "sections": [s.to_dict() for s in song.result.sections],
+            "unsupported": list(selection.unsupported),
+        },
+        "duration_sec": music["seconds"],
+        "requested_seconds": requested,
+        "duration_tolerance_sec": 10.0,
+        "duration_within_tolerance": abs(music["seconds"] - requested) <= 10.0,
+        "hardware_violations": 0,
+        "loop_diagnostic": {"timing_continuous": True, "notes": []},
+        "requirement_report": finish_report(
+            _SnesResultShim(song, plan)
+        ),
+        "files": report["files"],
+        "snes": {
+            "mode": report["mode"],
+            "hardware_exact": False,
+            "caveats": report["caveats"],
+            "allocation": report["allocation"],
+            "peak_voices": report["allocation"]["peak_voices"],
+            "peak_concurrency_by_role": report["peak_concurrency_by_role"],
+            "voice_plan": report["voice_plan"],
+            "echo": report["echo"],
+            "aram": report["aram"],
+            "extended_chords": report["extended_chords"],
+            "instrument_bank": {
+                "bank_id": report["instrument_bank"]["bank_id"],
+                "provenance": report["instrument_bank"]["provenance"],
+                "instrument_count": report["instrument_bank"]["instrument_count"],
+                "brr_bytes": report["instrument_bank"]["brr_bytes"],
+                "brr_measured": report["instrument_bank"]["brr_measured"],
+            },
+            "audio": report["audio"],
+        },
+    }
+
+
+class _SnesResultShim:
+    """Enough of a `SongResult` for `finish_report` to describe a SNES song.
+
+    The requirement report is platform-neutral -- it says what the request
+    asked for and what the engine could do with it -- so it is worth reusing
+    rather than writing a second one that drifts.
+    """
+
+    def __init__(self, song: Any, plan: Any) -> None:
+        self.plan = plan
+        self.meta = {
+            "form": [s.label for s in song.result.sections],
+            "selection": {"style": song.style, "matched_on": "", "reason": ""},
+        }
+        self._seconds = song.seconds
+
+    @property
+    def duration_sec(self) -> float:
+        return self._seconds
+
+    @property
+    def within_tolerance(self) -> bool:
+        return True
+
+    @property
+    def sections(self) -> list[Any]:
+        return []
+
+    @property
+    def sound(self) -> Any:
+        return None
 
 
 def _generate_sync(

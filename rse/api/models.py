@@ -73,8 +73,32 @@ class GenerateRequest(BaseModel):
     )
     sound_profile: str | None = Field(
         default=None,
-        description="Named instrument profile. Overrides mood.",
+        description="Named instrument profile. Overrides mood. NES only.",
     )
+    echo: str | None = Field(
+        default=None,
+        description="SNES only. Echo preset; costs audio RAM, so a long "
+        "reverb is paid for in instrument memory.",
+    )
+    reserved_voices: int = Field(
+        default=0, ge=0, le=6,
+        description="SNES only. Voices held back for sound effects, which is "
+        "the game-ready mode.",
+    )
+
+    @field_validator("echo")
+    @classmethod
+    def _known_echo(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from rse.song.snes_generate import ECHO_PRESETS
+
+        key = value.strip().lower()
+        if key and key not in ECHO_PRESETS:
+            raise ValueError(
+                f"unknown echo preset {value!r}; have {sorted(ECHO_PRESETS)}"
+            )
+        return key or None
 
     @field_validator("mood")
     @classmethod
@@ -188,6 +212,9 @@ class GenerateResponse(BaseModel):
     requirements: dict[str, Any]
     notes: list[str] = Field(default_factory=list)
     unsupported: list[dict[str, str]] = Field(default_factory=list)
+    #: SNES only: the eight-voice allocation, the ARAM budget, and the
+    #: preview's own caveats. Absent for NES.
+    snes: dict[str, Any] | None = None
 
 
 class StyleInfo(BaseModel):
@@ -198,6 +225,14 @@ class StyleInfo(BaseModel):
     #: number is a tempo a console could actually produce.
     frames_per_row: int
     mode: str
+
+
+class EchoPreset(BaseModel):
+    """One SNES echo setting and what it costs in audio RAM."""
+
+    name: str
+    delay_ms: int
+    aram_bytes: int
 
 
 class SoundProfileInfo(BaseModel):
@@ -245,3 +280,8 @@ class CapabilitiesResponse(BaseModel):
     #: Mood words that map to a profile. A mood outside this list is refused
     #: rather than silently ignored, which is what it used to be.
     moods: list[str] = Field(default_factory=list)
+    #: SNES echo presets, each with its ARAM cost so the interface can show
+    #: that a longer reverb is memory the instruments do not get.
+    echo_presets: list[EchoPreset] = Field(default_factory=list)
+    #: Maximum voices a caller may reserve for sound effects.
+    max_reserved_voices: int = 6
