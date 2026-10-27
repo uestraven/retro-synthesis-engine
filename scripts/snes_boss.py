@@ -25,7 +25,9 @@ import numpy as np
 from rse.exporters.wav import write_wav
 from rse.platform.roles import Role, concurrency
 from rse.procedural.compose import compose
+from rse.snes.aram import budget_for, largest_echo_that_fits
 from rse.snes.arrange import VOICE_PLAN, allocate, arrange, percussion_settings
+from rse.snes.brr import encode as brr_encode
 from rse.snes.sampler import render
 from rse.snes.samples import build_bank, manifest
 
@@ -38,6 +40,14 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=4242)
     parser.add_argument("--seconds", type=float, default=60.0)
     parser.add_argument("--reserved", type=int, default=0)
+    parser.add_argument(
+        "--echo-ms", type=int, default=64,
+        help="echo delay; charged against the same 64 KiB as the samples",
+    )
+    parser.add_argument(
+        "--no-brr", action="store_true",
+        help="skip BRR quantisation (the earlier clean-PCM preview)",
+    )
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -50,7 +60,14 @@ def main() -> int:
     # 3. the allocator decides what physically fits.
     allocation = allocate(song, reserved=args.reserved)
     # 4. the sampler renders what the allocator assigned.
-    bank = build_bank()
+    bank = build_bank(brr=not args.no_brr)
+    encoded = {
+        name: brr_encode(
+            asset.data,
+            loop_start=asset.loop_start if asset.loop_end > asset.loop_start else None,
+        )
+        for name, asset in bank.items()
+    }
 
     voices = dict(VOICE_PLAN)
     rendered = render(
@@ -97,17 +114,26 @@ def main() -> int:
         print(f"  score export failed: {type(error).__name__}: {error}")
         midi_path = None
 
-    bank_manifest = manifest(bank)
+    bank_manifest = manifest(bank, encoded=encoded)
+    # The score's own size stands in for sequence data: one event per note is
+    # a fair order-of-magnitude for a tracker-style sequence.
+    sequence_bytes = len(allocation.assignments) * 4
+    budget = budget_for(
+        encoded, sequence_bytes=sequence_bytes, echo_delay_ms=args.echo_ms
+    )
     report = {
         "renderer": "snes_sampler",
         "mode": "SNES-INSPIRED PREVIEW",
         "hardware_exact": False,
         "caveats": [
-            "PCM with linear interpolation, not BRR with the S-DSP's "
-            "4-tap Gaussian filter.",
+            "Samples ARE BRR-encoded and the byte counts are measured, but "
+            "interpolation is a 4-point Catmull-Rom kernel plus a documented "
+            "low-pass, NOT the S-DSP's own 4-tap Gaussian table.",
             "Floating-point ADSR, not the DSP's envelope rate tables.",
-            "No 64 KiB ARAM enforcement; the memory figures are estimates.",
-            "No SPC export and no emulator verification.",
+            "The ARAM budget is computed and reported; driver and runtime "
+            "figures are assumptions, since RSE has no SPC700 driver.",
+            "No SPC export and no emulator verification. A correct byte "
+            "count is not an SPC file.",
         ],
         "seed": args.seed,
         "style": args.style,
@@ -143,13 +169,11 @@ def main() -> int:
         },
         "audio": rendered.to_dict(),
         "instrument_bank": bank_manifest,
-        "memory_estimate": {
-            "pcm_bytes": bank_manifest["pcm_bytes"],
-            "brr_estimate_bytes": bank_manifest["brr_estimate_bytes"],
-            "aram_total_bytes": 65536,
-            "fraction_of_aram": bank_manifest["brr_estimate_fraction_of_aram"],
-            "note": "Estimate from BRR's geometry. Nothing is encoded and no "
-                    "ARAM compliance is claimed.",
+        "aram": budget.to_dict(),
+        "brr": {
+            "quantisation_applied": not args.no_brr,
+            "per_sample": {n: e.to_dict() for n, e in encoded.items()},
+            "longest_echo_that_fits_ms": largest_echo_that_fits(budget),
         },
         "files": {
             "wav": str(wav),
@@ -187,8 +211,14 @@ def main() -> int:
           f"correlation {audio['stereo_correlation']} "
           f"({'genuine stereo' if audio['stereo_correlation'] < 0.98 else 'NOT STEREO'})")
     print(f"clipping   {audio['clipped_frames']} frames before normalisation")
-    print(f"memory     BRR estimate {bank_manifest['brr_estimate_bytes']} B "
-          f"= {bank_manifest['brr_estimate_fraction_of_aram']*100:.1f}% of 64 KiB")
+    print(f"interp     4-point Catmull-Rom + {11000} Hz softening "
+          f"(NOT the S-DSP's Gaussian table)")
+    print(f"brr        {'applied' if not args.no_brr else 'SKIPPED'}; "
+          f"{bank_manifest['brr_bytes']} B encoded, measured")
+    print()
+    print(budget.report())
+    if not budget.fits:
+        print("  OVER THE 64 KiB BUDGET")
     if rendered.warnings:
         print("\nwarnings:")
         for warning in rendered.warnings[:6]:

@@ -1,11 +1,17 @@
 """SNES-inspired preview renderer: sampled voices, stereo, eight at a time.
 
-**This is a preview, not emulation.** It plays PCM with linear interpolation,
-not BRR with the S-DSP's Gaussian filter; its envelopes are computed in
-floating point, not from the hardware's rate tables; and it enforces no ARAM
-budget. The eight-voice ceiling, the key-on/key-off envelope stages and the
-per-voice left/right levels are modelled because they shape the arrangement.
-Nothing here may be described as authentic hardware output.
+**This is a preview, not emulation.** What IS real: the samples are BRR-encoded
+and decoded by `rse.snes.brr`, so they carry the format's quantisation; the
+ARAM budget is computed from measured encoded sizes by `rse.snes.aram`; the
+eight-voice ceiling, the key-on/key-off envelope stages and the per-voice
+left/right levels are all modelled.
+
+What is NOT: interpolation is a 4-point Catmull-Rom kernel plus a documented
+low-pass, not the S-DSP's own 4-tap Gaussian table, which I do not have.
+Envelopes are computed in floating point rather than from the hardware's rate
+tables. There is no SPC export and no emulator has run any of this -- a
+correct byte count is not an SPC file. Nothing here may be described as
+authentic hardware output.
 
 Two things in the brief are easy to get wrong and are done deliberately.
 
@@ -185,8 +191,87 @@ def envelope_for(
     return curve
 
 
+#: Fractional resolution of the interpolation table.
+INTERP_STEPS = 256
+
+
+def _catmull_rom_table(steps: int = INTERP_STEPS) -> np.ndarray:
+    """A 4-point interpolating kernel, one row per fractional position.
+
+    Catmull-Rom, which is a genuine interpolator: at an integer position it
+    reduces to the sample itself, so the data is reproduced exactly and only
+    the positions between samples are estimated.
+
+    This replaces a Gaussian-shaped kernel I wrote first and had to throw
+    away. Its row at frac=0 was [0.24, 0.48, 0.24, 0.03], so it smeared an
+    impulse across three taps instead of reproducing it -- a low-pass filter
+    misnamed as an interpolator. It measured WORSE than plain linear
+    interpolation on inharmonic energy, which is how the mistake surfaced.
+
+    The S-DSP's own 4-tap table does roll off the top end, and that softening
+    is part of the console's character. It is modelled HERE as a separate,
+    explicitly labelled low-pass rather than by pretending this kernel is the
+    hardware's table, which I do not have.
+    """
+    offsets = np.arange(steps, dtype=np.float64) / steps
+    table = np.empty((steps, 4), dtype=np.float64)
+    for index, t in enumerate(offsets):
+        t2, t3 = t * t, t * t * t
+        table[index] = (
+            -0.5 * t3 + t2 - 0.5 * t,
+            1.5 * t3 - 2.5 * t2 + 1.0,
+            -1.5 * t3 + 2.0 * t2 + 0.5 * t,
+            0.5 * t3 - 0.5 * t2,
+        )
+    return table
+
+
+INTERP = _catmull_rom_table()
+
+#: Cutoff of the softening filter that stands in for the S-DSP's 4-tap
+#: table's top-end rolloff. A documented approximation of the character, not
+#: the hardware's coefficients.
+DSP_SOFTEN_HZ = 11000.0
+
+
+def _interpolate(data: np.ndarray, positions: np.ndarray) -> np.ndarray:
+    """Sample `data` at fractional `positions` with the 4-point kernel."""
+    base = np.floor(positions).astype(np.int64)
+    frac = positions - base
+    rows = INTERP[
+        np.minimum((frac * INTERP_STEPS).astype(np.int64), INTERP_STEPS - 1)
+    ]
+    size = data.size
+    out = np.zeros(positions.size, dtype=np.float64)
+    for tap, offset in enumerate((-1, 0, 1, 2)):
+        index = np.clip(base + offset, 0, size - 1)
+        out += data[index] * rows[:, tap]
+    return out
+
+
+def _soften(signal: np.ndarray, cutoff_hz: float, rate: int) -> np.ndarray:
+    """One-pole low-pass, standing in for the DSP table's top-end rolloff."""
+    if cutoff_hz <= 0 or signal.shape[0] < 2:
+        return signal
+    alpha = (2.0 * math.pi * cutoff_hz / rate) / (
+        1.0 + 2.0 * math.pi * cutoff_hz / rate
+    )
+    out = np.empty_like(signal)
+    previous = signal[0]
+    out[0] = previous
+    for index in range(1, signal.shape[0]):
+        previous = previous + alpha * (signal[index] - previous)
+        out[index] = previous
+    return out
+
+
 def _resample(
-    asset: SampleAsset, pitch: int, frames: int, *, pitched: bool = True
+    asset: SampleAsset,
+    pitch: int,
+    frames: int,
+    *,
+    pitched: bool = True,
+    interpolation: str = "catmull",
 ) -> np.ndarray:
     """Play the sample at `pitch`, looping if it loops.
 
@@ -198,9 +283,9 @@ def _resample(
     the result was a continuous bed of overlapping drones, heard as a note
     that was both off-key and off-beat.
 
-    Linear interpolation. The S-DSP uses a 4-tap Gaussian filter whose
-    characteristic softening is part of the console's sound; this is
-    documented as a difference rather than approximated.
+    `interpolation` is "catmull" for the 4-point kernel or "linear" for the
+    simpler one. Neither is the S-DSP's own Gaussian table; see
+    `_catmull_rom_table` for what is and is not claimed.
     """
     if not pitched:
         pitch = asset.instrument.root_note
@@ -222,10 +307,13 @@ def _resample(
         # One-shot: silence past the end rather than wrapping.
         positions = np.clip(positions, 0, data.size - 1)
 
-    low = np.floor(positions).astype(np.int64)
-    high = np.minimum(low + 1, data.size - 1)
-    frac = positions - low
-    out = data[low] * (1.0 - frac) + data[high] * frac
+    if interpolation == "catmull":
+        out = _interpolate(data, positions)
+    else:
+        low = np.floor(positions).astype(np.int64)
+        high = np.minimum(low + 1, data.size - 1)
+        frac = positions - low
+        out = data[low] * (1.0 - frac) + data[high] * frac
     if not loops:
         out[np.arange(frames, dtype=np.float64) * step >= data.size] = 0.0
     return out
@@ -241,6 +329,8 @@ def render(
     tail_sec: float = 0.6,
     rate: int = OUTPUT_RATE,
     peak: float | None = MIX_PEAK,
+    interpolation: str = "catmull",
+    soften: bool = True,
 ) -> RenderedSong:
     """Mix the allocator's assignments into a stereo buffer.
 
@@ -289,7 +379,8 @@ def render(
         hold = max(1, int(note.duration * seconds_per_tick * rate))
         curve = envelope_for(asset, hold_frames=hold, rate=rate)
         wave = _resample(
-            asset, note.value, len(curve), pitched=note.pitched
+            asset, note.value, len(curve), pitched=note.pitched,
+            interpolation=interpolation,
         ) * curve
         # Velocity, the instrument's calibration, and the voice's own gain.
         wave *= (note.velocity / 127.0) * asset.instrument.gain
@@ -308,6 +399,8 @@ def render(
     for stem in stems.values():
         mix += stem
 
+    if soften:
+        mix = _soften(mix, DSP_SOFTEN_HZ, rate)
     mix = _highpass(mix, OUTPUT_HIGHPASS_HZ, rate)
 
     overshoot = int(np.count_nonzero(np.abs(mix) > 1.0))

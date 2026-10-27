@@ -140,13 +140,34 @@ def test_percussion_is_not_calibrated_to_the_lead(bank) -> None:
         assert bank[name].instrument.gain == 1.0, name
 
 
-def test_the_manifest_declares_provenance_and_refuses_to_claim_brr(bank) -> None:
+def test_the_manifest_declares_provenance(bank) -> None:
     report = manifest(bank)
     assert "Original synthesised prototype" in report["provenance"]
     assert "No commercial or" in report["provenance"]
-    assert "is BRR-encoded" in report["caveat"]
-    assert "no ARAM compliance is claimed" in report["caveat"]
-    assert report["brr_estimate_bytes"] < report["aram_total_bytes"]
+
+
+def test_the_manifest_distinguishes_estimated_from_measured(bank) -> None:
+    """Sizes were geometry estimates before `rse.snes.brr` existed. Now they
+    can be measurements, and the manifest has to say which it is holding."""
+    from rse.snes.brr import encode as brr_encode
+
+    estimated = manifest(bank)
+    assert estimated["brr_measured"] is False
+    assert "Nothing in this bank is BRR-encoded" in estimated["caveat"]
+
+    encoded = {
+        name: brr_encode(
+            asset.data,
+            loop_start=asset.loop_start if asset.loop_end > asset.loop_start else None,
+        )
+        for name, asset in bank.items()
+    }
+    measured = manifest(bank, encoded=encoded)
+    assert measured["brr_measured"] is True
+    assert "MEASURED" in measured["caveat"]
+    # Hardware compatibility is still not claimed either way.
+    assert "not claimed" in measured["caveat"]
+    assert measured["brr_bytes"] < measured["aram_total_bytes"]
 
 
 def test_calibrate_handles_a_silent_sample(bank) -> None:
