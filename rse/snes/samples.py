@@ -92,6 +92,12 @@ class Instrument:
     loop_cycles: int = 16
     #: Seconds of one-shot material for a non-looping instrument.
     oneshot_sec: float = 0.35
+    #: Octaves the pitch falls across a one-shot's decay.
+    #:
+    #: What makes a kick a kick. Without it a kick is a short tone plus noise,
+    #: and with 10% noise the spectral centroid came out at 2706 Hz -- for a
+    #: drum whose fundamental should sit near 65 Hz. The drop is the gesture.
+    pitch_drop: float = 0.0
     #: Slight detune between partials, which is most of what makes an
     #: ensemble sound like several players rather than one.
     spread_cents: float = 0.0
@@ -183,23 +189,27 @@ BANK: dict[str, Instrument] = {
     # Percussion: one-shot, noise-weighted, no loop.
     "kick": Instrument(
         name="kick",
-        harmonics=(1.0, 0.18, 0.05),
-        envelope=Envelope(attack=0.001, decay=0.14, sustain=0.0, release=0.03),
+        harmonics=(1.0, 0.14, 0.04),
+        envelope=Envelope(attack=0.001, decay=0.11, sustain=0.0, release=0.03),
         root_note=36,
         looping=False,
         pan=0.0,
-        noise=0.10,
+        # Barely any noise: at 10% the broadband energy dominated the
+        # spectrum and pulled the centroid to 2706 Hz.
+        noise=0.02,
         oneshot_sec=0.22,
+        pitch_drop=1.6,
     ),
     "snare": Instrument(
         name="snare",
         harmonics=(1.0, 0.55, 0.40),
-        envelope=Envelope(attack=0.001, decay=0.10, sustain=0.0, release=0.04),
-        root_note=60,
+        envelope=Envelope(attack=0.001, decay=0.09, sustain=0.0, release=0.04),
+        root_note=48,
         looping=False,
         pan=0.12,
-        noise=0.86,
+        noise=0.80,
         oneshot_sec=0.18,
+        pitch_drop=0.4,
     ),
     "hat": Instrument(
         name="hat",
@@ -262,8 +272,16 @@ def render_sample(
         count = int(instrument.oneshot_sec * rate)
         t = np.arange(count, dtype=np.float64) / rate
         wave = np.zeros(count, dtype=np.float64)
+        # A falling pitch, integrated so the phase stays continuous: stepping
+        # the frequency per sample without integrating produces a buzz.
+        if instrument.pitch_drop:
+            decay = max(1e-4, instrument.envelope.decay)
+            factor = 2.0 ** (-instrument.pitch_drop * np.minimum(1.0, t / decay))
+            phase_t = np.cumsum(factor) / rate
+        else:
+            phase_t = t
         for index, amplitude in enumerate(instrument.harmonics, start=1):
-            wave += amplitude * np.sin(2 * math.pi * f0 * index * t)
+            wave += amplitude * np.sin(2 * math.pi * f0 * index * phase_t)
         if instrument.noise:
             # Percussion is mostly noise; a little low-passing stops the hat
             # sounding like pure white static.

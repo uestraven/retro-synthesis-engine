@@ -156,3 +156,65 @@ def test_auto_picks_from_the_styles_vocabulary() -> None:
 def test_unknown_rhythm_is_rejected() -> None:
     with pytest.raises(KeyError, match="unknown harmonic rhythm"):
         compose(style_name="boss", seed=1, harmonic_rhythm="syncopated_waltz")
+
+
+def test_the_melody_never_attacks_an_odd_row() -> None:
+    """The defect the listener found by analysing the MIDI: "just a random
+    note added into the melody".
+
+    `vary_motif`'s ornament branch halved the chosen note's length without
+    checking it was long enough, so a two-row note became two ONE-row notes
+    and the second landed on an odd row -- the only off-eighth attack in an
+    otherwise even-grid piece, once per bar, as a ~100 ms blip.
+
+    Every style's melody rhythms contain twos, so it fired on 47% of ornament
+    positions and affected 54 of 240 songs across six styles: `action` 23 of
+    40 and `boss` 19 of 40, the two styles heard most.
+    """
+    from rse.procedural.compose import TICKS_PER_BAR, TICKS_PER_ROW
+
+    offenders = []
+    for style in sorted(STYLES):
+        for seed in range(900, 930):
+            result = compose(
+                style_name=style, seed=seed, target_seconds=60.0,
+                sound_design=None,
+            )
+            for event in result.composition.sounding_events():
+                if event.channel_id != "P1":
+                    continue
+                row = (event.tick % TICKS_PER_BAR) // TICKS_PER_ROW
+                if row % 2:
+                    offenders.append((style, seed, row, event.pitch))
+    assert offenders == [], f"{len(offenders)} off-grid melody notes"
+
+
+def test_an_ornament_never_produces_a_one_row_note() -> None:
+    """The mechanism, pinned directly."""
+    import random
+
+    from rse.procedural.compose import make_motif, vary_motif
+
+    for style in STYLES.values():
+        for seed in range(0, 300):
+            motif = make_motif(random.Random(seed), style)
+            varied = vary_motif(random.Random(seed + 7777), motif)
+            assert min(varied.rhythm) >= 2, (
+                f"{style.name}/{seed}: {varied.rhythm}"
+            )
+
+
+def test_a_variation_still_varies() -> None:
+    """The guard must not turn every ornament into a no-op."""
+    import random
+
+    from rse.procedural.compose import make_motif, vary_motif
+
+    style = STYLES["boss"]
+    changed = 0
+    for seed in range(0, 120):
+        motif = make_motif(random.Random(seed), style)
+        varied = vary_motif(random.Random(seed + 31), motif)
+        if (varied.degrees, varied.rhythm) != (motif.degrees, motif.rhythm):
+            changed += 1
+    assert changed >= 100, f"only {changed}/120 variations changed anything"

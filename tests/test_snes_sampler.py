@@ -635,3 +635,110 @@ def test_approach_note_never_leaves_the_scale() -> None:
                 target=target, from_pitch=target - 7, tonic=57, mode=mode
             )
             assert (note - 57) % 12 in set(scale), (mode, target, note)
+
+
+# --- percussion is not pitched --------------------------------------------
+
+
+def test_percussion_value_is_an_instrument_not_a_pitch(bank) -> None:
+    """The off-key, off-beat note. Percussion `value` is a noise period index
+    inherited from the NES noise channel -- 1 kick, 6 snare, 12 hat -- and the
+    sampler resampled by it as if it were a MIDI note. That pitched the kick
+    down 2.9 octaves, the snare 4.5 and the hat 6, stretching a 70 ms hat into
+    a 6.17-second sub-bass drone. With 327 percussion notes the track carried a
+    continuous bed of them.
+    """
+    from rse.snes.sampler import _resample
+
+    for name, value in (("kick", 1), ("snare", 6), ("hat", 12)):
+        asset = bank[name]
+        native = asset.frames / asset.rate
+        played = _resample(asset, value, int(0.6 * 44100), pitched=False)
+        sounding = np.nonzero(np.abs(played) > 1e-4)[0]
+        assert sounding.size > 0, name
+        duration = (sounding[-1] - sounding[0]) / 44100
+        assert duration == pytest.approx(native, abs=0.03), (
+            f"{name}: {duration * 1000:.0f} ms played against a "
+            f"{native * 1000:.0f} ms sample"
+        )
+
+
+def test_the_arranger_marks_percussion_unpitched() -> None:
+    from rse.procedural.compose import compose
+    from rse.snes.arrange import arrange
+
+    result = compose(style_name="boss", seed=4242, target_seconds=60.0)
+    song = arrange(result)
+    drums = [p for p in song.parts if p.role is Role.PERCUSSION]
+    assert drums
+    assert all(not p.pitched for p in drums)
+    # And everything else IS pitched.
+    assert all(p.pitched for p in song.parts if p.role is not Role.PERCUSSION)
+
+
+def test_a_pitched_note_still_transposes(bank) -> None:
+    """The fix must not disable pitching for the instruments that need it."""
+    from rse.snes.sampler import _resample
+
+    asset = bank["brass"]
+    low = _resample(asset, 48, 4000, pitched=True)
+    high = _resample(asset, 72, 4000, pitched=True)
+    # An octave up completes twice as many cycles in the same window.
+    def zero_crossings(wave):
+        return int(np.count_nonzero(np.diff(np.signbit(wave))))
+
+    assert zero_crossings(high) > zero_crossings(low) * 1.5
+
+
+def test_the_kick_is_dominated_by_low_frequencies(bank) -> None:
+    """A kick whose spectral centroid sits at 2706 Hz is not a kick. 10% noise
+    dominated the spectrum and there was no pitch envelope, which is the
+    gesture that makes a kick sound like one."""
+    asset = bank["kick"]
+    data = asset.data.astype(np.float64)
+    magnitude = np.abs(np.fft.rfft(data))
+    freqs = np.fft.rfftfreq(len(data), 1 / asset.rate)
+    below = magnitude[freqs < 200].sum() / magnitude.sum()
+    assert below > 0.5, f"only {below * 100:.1f}% of the kick is below 200 Hz"
+    assert asset.instrument.pitch_drop > 0
+
+
+def test_the_drums_are_ordered_low_to_high(bank) -> None:
+    def centroid(name: str) -> float:
+        asset = bank[name]
+        data = asset.data.astype(np.float64)
+        magnitude = np.abs(np.fft.rfft(data))
+        freqs = np.fft.rfftfreq(len(data), 1 / asset.rate)
+        return float((freqs * magnitude).sum() / magnitude.sum())
+
+    assert centroid("kick") < centroid("snare") < centroid("hat")
+
+
+def test_the_pitch_drop_keeps_its_phase_continuous(bank) -> None:
+    """Stepping the frequency per sample without integrating produces a buzz,
+    so the falling pitch is applied as an integrated phase."""
+    data = bank["kick"].data.astype(np.float64)
+    steps = np.abs(np.diff(data))
+    # No isolated discontinuity: the largest step is not wildly beyond the rest.
+    assert steps.max() < np.percentile(steps, 99.9) * 6
+
+
+def test_the_mix_has_little_sub_bass(bank) -> None:
+    """Where the drones were. 20-60 Hz is below the bass instrument's range,
+    so anything much there is an artifact."""
+    import wave as wave_module
+
+    path = Path("listen_snes/snes_boss.wav")
+    if not path.is_file():
+        pytest.skip("the rendered track is not present")
+    with wave_module.open(str(path)) as handle:
+        rate = handle.getframerate()
+        raw = np.frombuffer(
+            handle.readframes(handle.getnframes()), dtype="<i2"
+        ).astype(np.float64)
+    mono = raw.reshape(-1, 2).mean(axis=1)
+    magnitude = np.abs(np.fft.rfft(mono * np.hanning(len(mono))))
+    freqs = np.fft.rfftfreq(len(mono), 1 / rate)
+    audible = freqs > 20
+    sub = magnitude[(freqs > 20) & (freqs < 60)].sum() / magnitude[audible].sum()
+    assert sub < 0.02, f"{sub * 100:.2f}% of the mix is below 60 Hz"

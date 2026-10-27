@@ -368,6 +368,8 @@ def arrange(
                 velocity=event.velocity,
                 instrument_id=DRUM_INSTRUMENTS.get(event.value, "snare"),
                 release=0,
+                # `value` names the drum, not a pitch.
+                pitched=False,
             )
         )
 

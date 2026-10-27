@@ -93,6 +93,11 @@ class PartNote:
     release: int = 0
     #: Overrides the role's default priority for this note alone.
     priority: int | None = None
+    #: Whether `value` is a musical pitch. False for percussion, where it
+    #: selects an instrument instead -- on NES it is a noise period index, and
+    #: treating 1, 6 and 12 as MIDI notes pitched a kick down nearly three
+    #: octaves and stretched a 70 ms hat into a 6-second drone.
+    pitched: bool = True
 
     @property
     def end_tick(self) -> int:
@@ -108,6 +113,7 @@ class PartNote:
             "velocity": self.velocity,
             "instrument_id": self.instrument_id,
             "release": self.release,
+            "pitched": self.pitched,
         }
 
 

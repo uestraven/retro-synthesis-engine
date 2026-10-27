@@ -185,13 +185,25 @@ def envelope_for(
     return curve
 
 
-def _resample(asset: SampleAsset, pitch: int, frames: int) -> np.ndarray:
+def _resample(
+    asset: SampleAsset, pitch: int, frames: int, *, pitched: bool = True
+) -> np.ndarray:
     """Play the sample at `pitch`, looping if it loops.
+
+    `pitched=False` plays the sample at its own root note, untransposed. That
+    is what a percussion hit needs: its `value` selects an instrument rather
+    than naming a pitch -- on NES it is a noise period index -- and resampling
+    by it pitched a kick down 2.9 octaves, a snare 4.5 and a hat 6, stretching
+    a 70 ms hat into a 6.17-second sub-bass drone. With 327 percussion notes
+    the result was a continuous bed of overlapping drones, heard as a note
+    that was both off-key and off-beat.
 
     Linear interpolation. The S-DSP uses a 4-tap Gaussian filter whose
     characteristic softening is part of the console's sound; this is
     documented as a difference rather than approximated.
     """
+    if not pitched:
+        pitch = asset.instrument.root_note
     ratio = midi_to_hz(pitch) / midi_to_hz(asset.instrument.root_note)
     step = ratio * asset.rate / OUTPUT_RATE
     data = asset.data.astype(np.float64)
@@ -276,7 +288,9 @@ def render(
         start = int(note.tick * seconds_per_tick * rate)
         hold = max(1, int(note.duration * seconds_per_tick * rate))
         curve = envelope_for(asset, hold_frames=hold, rate=rate)
-        wave = _resample(asset, note.value, len(curve)) * curve
+        wave = _resample(
+            asset, note.value, len(curve), pitched=note.pitched
+        ) * curve
         # Velocity, the instrument's calibration, and the voice's own gain.
         wave *= (note.velocity / 127.0) * asset.instrument.gain
         left, right = settings.levels()

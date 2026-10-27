@@ -437,10 +437,26 @@ def vary_motif(rng: random.Random, motif: Motif) -> Motif:
         degrees[-1] = pivot - (degrees[-1] - pivot)
     elif choice == "ornament" and len(degrees) >= 2:
         at = rng.randrange(len(degrees) - 1)
-        degrees.insert(at + 1, degrees[at] + rng.choice((-1, 1)))
-        half = max(1, rhythm[at] // 2)
-        rhythm[at] = half
-        rhythm.insert(at + 1, half)
+        direction = rng.choice((-1, 1))
+        # Only subdivide a note long enough to stay on the grid. Halving a
+        # two-row note gave two ONE-row notes, and the second landed on an odd
+        # row -- the only off-eighth attack in an otherwise even-grid piece,
+        # once per bar, as a ~100 ms blip. The listener analysed the MIDI and
+        # called it "just a random note added into the melody", which is
+        # exactly what it was. Every style's melody rhythms contain twos, so
+        # this fired on 47% of ornament positions.
+        #
+        # The draws above happen either way, so the RNG stream is unchanged
+        # and only the cases where the defect fired can move.
+        if rhythm[at] >= 4:
+            degrees.insert(at + 1, degrees[at] + direction)
+            half = rhythm[at] // 2
+            rhythm[at] = half
+            rhythm.insert(at + 1, half)
+        else:
+            # Nothing short enough to ornament cleanly: augment instead, which
+            # is a variation this motif can actually carry.
+            rhythm = [max(1, r * 2) for r in rhythm]
     else:
         rhythm = [max(1, r * 2) for r in rhythm]
     return Motif(degrees=tuple(degrees), rhythm=tuple(rhythm))
