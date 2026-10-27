@@ -1,0 +1,364 @@
+{
+  "schema_version": "rse-hardware/0.1.0",
+  "profile_id": "snes",
+  "display_name": "Super Nintendo / Super Famicom (SPC700 + S-DSP)",
+  "region": "ntsc",
+  "engine_tick_hz": 125.0,
+  "notes": [
+    "The SPC700 is the audio CPU that runs the music driver. The Sony",
+    "S-DSP performs the eight-voice sample playback, envelopes, mixing",
+    "and echo. This profile describes the S-DSP's voices.",
+    "",
+    "Voices are interchangeable and are NOT named for musical roles.",
+    "Assigning a role to a voice is the arranger's job, and a voice is",
+    "reused by different parts at different times.",
+    "",
+    "DECLARATION IS NOT IMPLEMENTATION. `capabilities` below states what",
+    "the renderer actually supports today; everything in `planned` is",
+    "described here for the arranger to reason about and is NOT yet",
+    "functional. Nothing in `planned` may be advertised as working."
+  ],
+  "channels": [
+    {
+      "channel_id": "V1",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v1$",
+        "^voice ?1$"
+      ]
+    },
+    {
+      "channel_id": "V2",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v2$",
+        "^voice ?2$"
+      ]
+    },
+    {
+      "channel_id": "V3",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v3$",
+        "^voice ?3$"
+      ]
+    },
+    {
+      "channel_id": "V4",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v4$",
+        "^voice ?4$"
+      ]
+    },
+    {
+      "channel_id": "V5",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v5$",
+        "^voice ?5$"
+      ]
+    },
+    {
+      "channel_id": "V6",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v6$",
+        "^voice ?6$"
+      ]
+    },
+    {
+      "channel_id": "V7",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v7$",
+        "^voice ?7$"
+      ]
+    },
+    {
+      "channel_id": "V8",
+      "role": "sample_voice",
+      "type": "sample",
+      "pitched": true,
+      "max_simultaneous_notes": 1,
+      "pitch_min": 12,
+      "pitch_max": 120,
+      "volume_levels": 128,
+      "instrument_params": [
+        "sample_id",
+        "root_note",
+        "loop_start",
+        "loop_end",
+        "attack",
+        "decay",
+        "sustain",
+        "release",
+        "volume_left",
+        "volume_right",
+        "echo_send",
+        "priority"
+      ],
+      "effects": [
+        "vibrato",
+        "tremolo",
+        "pitch_slide",
+        "portamento"
+      ],
+      "track_name_patterns": [
+        "^v8$",
+        "^voice ?8$"
+      ]
+    }
+  ],
+  "excluded_channels": [],
+  "percussion": {
+    "sampled": true,
+    "voices": "shared",
+    "default_instruments": [
+      "kick",
+      "snare",
+      "hat",
+      "tom",
+      "cymbal"
+    ]
+  },
+  "audio_ram": {
+    "total_bytes": 65536,
+    "brr_block_bytes": 9,
+    "brr_samples_per_block": 16,
+    "sample_directory_entry_bytes": 4,
+    "echo_buffer_bytes_per_16ms": 2048,
+    "notes": [
+      "The echo buffer is charged against the same 64 KiB as the",
+      "samples, the driver and the sequence, so a long reverb costs",
+      "instrument memory. That tradeoff is the real hardware limit."
+    ]
+  },
+  "output": {
+    "nominal_sample_rate_hz": 32000,
+    "channels": 2,
+    "notes": [
+      "32 kHz is the DSP's nominal output rate. It is NOT the rate a",
+      "sample asset must be recorded at."
+    ]
+  },
+  "capabilities": {
+    "implemented": [],
+    "planned": [
+      "sample_playback",
+      "adsr_envelope",
+      "stereo_pan",
+      "eight_voice_allocation",
+      "echo",
+      "vibrato",
+      "tremolo",
+      "brr_encoding",
+      "spc_export"
+    ]
+  },
+  "modes": {
+    "preview": {
+      "id": "snes_preview",
+      "description": "Sample-based PCM synthesis, eight-voice limit, hardware-informed envelopes and stereo. NOT hardware-exact and must never be labelled as such.",
+      "hardware_exact": false
+    },
+    "hardware": {
+      "id": "snes_hardware",
+      "description": "BRR-encoded samples on 9-byte/16-sample blocks, representable envelopes, a valid ARAM allocation and emulator verification. No compatibility claim without that verification.",
+      "hardware_exact": true,
+      "implemented": false
+    }
+  },
+  "export": {
+    "formats": [
+      "wav"
+    ],
+    "stereo": true
+  },
+  "renderer": {
+    "default": "snes_sampler",
+    "implemented": false
+  }
+}
