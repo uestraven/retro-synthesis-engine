@@ -172,6 +172,43 @@ def chord_for(
     )
 
 
+def approach_note(
+    *, target: int, from_pitch: int, tonic: int, mode: str
+) -> int:
+    """A scale step into `target`, from whichever side moves least.
+
+    A real approach note leads somewhere. The first version was
+    `bass + (2 if degree % 2 == 0 else -2)` -- a whole tone up or down chosen
+    by whether the degree INDEX was even, with no reference to the next chord
+    and no guarantee of being a step at all. In A harmonic minor it produced
+    A2 -> A3 -> B2 -> A2: an octave leap up, a drop of a minor seventh to a
+    whole tone above the root, then back. The listener heard that as a note
+    that sounded out of place, which it was.
+
+    The note is picked from the scale and the NEAREST one wins, so a semitone
+    approach beats a whole tone: into A minor's tonic that selects the leading
+    tone G#, which is the strongest approach available and the right answer.
+    `from_pitch` only breaks an exact tie -- when the scale offers a step of
+    the same size on both sides, the line approaches from the side it is
+    already on.
+    """
+    scale = SCALES[mode]
+    # Scale pitches within an octave either side of the target.
+    candidates = [
+        tonic + 12 * octave + semitone
+        for octave in range(-4, 5)
+        for semitone in scale
+        if 0 < abs(tonic + 12 * octave + semitone - target) <= 2
+    ]
+    if not candidates:
+        return target
+    # Nearest to the target, breaking ties toward where the line already is.
+    return min(
+        candidates,
+        key=lambda pitch: (abs(pitch - target), abs(pitch - from_pitch)),
+    )
+
+
 def arrange(
     result: Any,
     *,
@@ -276,15 +313,38 @@ def arrange(
                     )
                 )
 
-            # Active bass: root on the downbeat, a scalar approach into the
-            # next bar, and an octave lift mid-bar. More than the NES bass,
-            # which alternates root and fifth.
+            # Active bass: root, an octave lift mid-bar, then a genuine step
+            # into the NEXT bar's root. More than the NES bass, which
+            # alternates root and fifth -- and the approach has to lead
+            # somewhere, which the first version did not.
             quarter = ticks_per_bar // 4
             bass_hold = quarter - BASS_RELEASE
+            next_degree_spec = _next_degree(result.sections, bar_offset + bar)
+            if next_degree_spec is None:
+                next_bass = bass
+            else:
+                next_chord = chord_for(
+                    degree=next_degree_spec, tonic=tonic, mode=mode,
+                    extended=False, section=section.label,
+                )
+                next_bass = bass_pitch_for(next_chord, near=bass)
+            lift = bass + 12
+            # The approach steps into the next root's UPPER octave, not its
+            # low one. Targeting the low octave made the within-bar motion a
+            # drop of 13 to 20 semitones -- the octave lift jumped up and the
+            # approach fell straight back down, which is the awkward contour
+            # the listener picked out even once the pitch itself was right.
+            #
+            # This way the lift-to-approach move is a step and the octave drop
+            # lands on the bar line, where a bass re-establishing its register
+            # is an idiomatic gesture rather than a stray leap.
+            step = approach_note(
+                target=next_bass + 12, from_pitch=lift, tonic=tonic, mode=mode
+            )
             for offset, pitch, velocity in (
                 (0, bass, 96),
-                (quarter * 2, bass + 12, 84),
-                (quarter * 3, bass + (2 if degree % 2 == 0 else -2), 80),
+                (quarter * 2, lift, 84),
+                (quarter * 3, step, 80),
             ):
                 song.parts.append(
                     PartNote(
@@ -316,6 +376,27 @@ def arrange(
         counts[part.role.value] = counts.get(part.role.value, 0) + 1
     song.notes = counts
     return song
+
+
+def _next_degree(sections: list[Any], absolute_bar: int) -> int | None:
+    """The scale degree of the bar after `absolute_bar`, across section joins.
+
+    Across joins on purpose: the approach note at the end of a section has to
+    lead into the next section's first chord, which is exactly where a bass
+    line most needs to connect.
+    """
+    offset = 0
+    bars: list[int] = []
+    for section in sections:
+        for bar in range(section.bars):
+            spec = section.progression[bar % len(section.progression)]
+            bars.append(spec if isinstance(spec, int) else spec.degree)
+        offset += section.bars
+    index = absolute_bar + 1
+    if index >= len(bars):
+        # The last bar leads back to the first, since the track loops.
+        return bars[0] if bars else None
+    return bars[index]
 
 
 def percussion_settings(value: int) -> VoiceSettings:

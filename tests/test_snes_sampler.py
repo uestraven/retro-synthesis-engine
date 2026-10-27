@@ -511,3 +511,127 @@ def test_the_high_pass_spares_the_bass(bank) -> None:
     from rse.snes.samples import midi_to_hz
 
     assert OUTPUT_HIGHPASS_HZ < midi_to_hz(BANK["bass"].root_note) / 2
+
+
+# --- the out-of-place bass note -------------------------------------------
+
+
+def test_the_approach_note_steps_into_the_next_root() -> None:
+    """The note the listener heard as out of place at 0:25.
+
+    It was `bass + (2 if degree % 2 == 0 else -2)` -- a whole tone up or down
+    chosen by whether the degree INDEX was even, with no reference to the next
+    chord and no guarantee of being a step. In A harmonic minor it produced
+    A2 -> A3 -> B2 -> A2: an octave leap up, then a drop of a minor seventh to
+    a whole tone above the root.
+    """
+    from rse.procedural.compose import TICKS_PER_BAR, compose
+    from rse.snes.arrange import arrange
+
+    result = compose(style_name="boss", seed=4242, target_seconds=60.0)
+    song = arrange(result)
+    bass = sorted(
+        (p for p in song.parts if p.role is Role.BASS), key=lambda p: p.tick
+    )
+    by_bar: dict[int, list] = {}
+    for part in bass:
+        by_bar.setdefault(part.tick // TICKS_PER_BAR, []).append(part)
+
+    checked = 0
+    for bar in sorted(by_bar):
+        following = by_bar.get(bar + 1)
+        if not following:
+            continue
+        last = sorted(by_bar[bar], key=lambda p: p.tick)[-1]
+        root = sorted(following, key=lambda p: p.tick)[0]
+        checked += 1
+        # A step into the next root, in either octave.
+        distance = min(
+            abs(last.value - root.value), abs(last.value - (root.value + 12))
+        )
+        assert distance <= 2, (
+            f"bar {bar}: approach {last.value} is {distance} semitones from "
+            f"the next root {root.value}, which is a leap not a step"
+        )
+    assert checked >= 30
+
+
+def test_every_bass_note_is_diatonic() -> None:
+    from rse.procedural.compose import compose
+    from rse.snes.arrange import SCALES, arrange
+
+    result = compose(style_name="boss", seed=4242, target_seconds=60.0)
+    song = arrange(result)
+    scale = set(SCALES[result.style.mode])
+    tonic = result.style.tonic
+    offenders = [
+        part.value
+        for part in song.parts
+        if part.role is Role.BASS and (part.value - tonic) % 12 not in scale
+    ]
+    assert offenders == [], offenders
+
+
+def test_the_bass_makes_no_leap_wider_than_an_octave_inside_a_bar() -> None:
+    """The octave lift is deliberate; a drop of 13 to 20 semitones back down
+    to the approach note was not, and that contour is what stood out."""
+    from rse.procedural.compose import TICKS_PER_BAR, compose
+    from rse.snes.arrange import arrange
+
+    result = compose(style_name="boss", seed=4242, target_seconds=60.0)
+    song = arrange(result)
+    by_bar: dict[int, list] = {}
+    for part in song.parts:
+        if part.role is Role.BASS:
+            by_bar.setdefault(part.tick // TICKS_PER_BAR, []).append(part)
+    for bar, parts in by_bar.items():
+        ordered = sorted(parts, key=lambda p: p.tick)
+        for first, second in zip(ordered, ordered[1:], strict=False):
+            assert abs(second.value - first.value) <= 12, (
+                f"bar {bar}: {first.value} -> {second.value}"
+            )
+
+
+def test_the_nearest_approach_wins_over_direction() -> None:  # noqa: D401
+    """A semitone beats a whole tone regardless of which side the line is on.
+
+    Into A harmonic minor's tonic that selects the leading tone G#, which is
+    the strongest approach available. An earlier version of this test expected
+    the direction to win, which would have chosen B over G# coming from above
+    -- a weaker approach, and not what the code does.
+    """
+    from rse.snes.arrange import approach_note
+
+    for from_pitch in (60, 76):
+        assert approach_note(
+            target=69, from_pitch=from_pitch, tonic=57, mode="harmonic_minor"
+        ) == 68
+
+
+def test_direction_breaks_an_exact_tie() -> None:
+    """Where the scale offers an equal step on both sides, the line approaches
+    from the side it is already on. In natural minor the fifth has a whole
+    tone above and below it."""
+    from rse.snes.arrange import approach_note
+
+    # E (64) in A natural minor: D (62) below, F# is not in the scale, so the
+    # neighbours are D (2 below) and F (65, 1 above) -- F wins on distance.
+    assert approach_note(
+        target=64, from_pitch=70, tonic=57, mode="minor"
+    ) == 65
+    # A tie: the second degree B (59) has A (57, 2 below) and C (60, 1 above).
+    # C is nearer, so distance still decides.
+    assert approach_note(
+        target=59, from_pitch=50, tonic=57, mode="minor"
+    ) == 60
+
+
+def test_approach_note_never_leaves_the_scale() -> None:
+    from rse.snes.arrange import SCALES, approach_note
+
+    for mode, scale in SCALES.items():
+        for target in range(50, 75):
+            note = approach_note(
+                target=target, from_pitch=target - 7, tonic=57, mode=mode
+            )
+            assert (note - 57) % 12 in set(scale), (mode, target, note)
