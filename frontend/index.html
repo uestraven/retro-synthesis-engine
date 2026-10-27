@@ -68,14 +68,6 @@
   .ends { display: flex; justify-content: space-between;
           font-size: .7rem; color: var(--dim); }
   .val { color: var(--accent); font-weight: 700; }
-  .tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
-  .tab {
-    font: inherit; font-size: .8rem; letter-spacing: .08em; cursor: pointer;
-    text-transform: uppercase; padding: .6rem 1rem; border-radius: 8px 8px 0 0;
-    background: transparent; color: var(--dim);
-    border: 1px solid var(--edge); border-bottom: none;
-  }
-  .tab[aria-selected=true] { background: var(--panel); color: var(--accent); }
   .consoles { display: flex; gap: .6rem; flex-wrap: wrap; }
   .console {
     flex: 1 1 12rem; text-align: left; cursor: pointer; font: inherit;
@@ -156,33 +148,19 @@
 <body>
 <main>
   <h1>Retro Synthesis Engine</h1>
-  <p class="sub">Describe a soundtrack. Get a complete retro game track.
+  <p class="sub">Choose a few settings. Get a complete retro game track.
     No model, no GPU &mdash; a procedural composer writing for real console hardware.</p>
 
-  <div class="tabs" role="tablist">
-    <button type="button" class="tab" id="tabQuick" role="tab"
-            aria-selected="true">Quick Generate</button>
-    <button type="button" class="tab" id="tabPrompt" role="tab"
-            aria-selected="false">Describe a Song</button>
-  </div>
+  <!-- There were two tabs here, "Quick Generate" and "Describe a Song". The
+       second fed a free-text description to a rule-based parser. It is gone
+       because natural-language input is not a path this project is taking:
+       the settings ARE the request, and offering a text box implied an
+       understanding of prose that only a language model would have. -->
 
   <form id="form">
     <fieldset>
       <legend>Console sound</legend>
       <div class="consoles" id="consoles"></div>
-    </fieldset>
-
-    <fieldset id="promptPanel" hidden>
-      <legend>Describe a Song</legend>
-      <div class="field">
-        <label for="prompt">Describe your soundtrack</label>
-        <textarea id="prompt" maxlength="600"
-          placeholder="A dark and dramatic boss battle theme with an urgent melody and driving percussion."></textarea>
-        <div class="hint">Read by a <b>rule-based parser</b>, not a language
-          model. It recognises styles, scenarios, moods, tempos, keys and
-          durations, and the report below says exactly what it could and could
-          not use. Nothing is invented.</div>
-      </div>
     </fieldset>
 
     <fieldset>
@@ -363,27 +341,10 @@ const api = (path) => API_BASE.replace(/\/$/, "") + path;
 
 const el = (id) => document.getElementById(id);
 
-// Two ways in, one engine. Quick Generate needs no language processing at all;
-// Describe a Song adds the rule-based parser on top of the same controls. Both
-// drive the procedural composer -- neither routes to a model.
-let promptMode = false;
-function setMode(prompt) {
-  promptMode = prompt;
-  el("tabQuick").setAttribute("aria-selected", String(!prompt));
-  el("tabPrompt").setAttribute("aria-selected", String(prompt));
-  el("promptPanel").hidden = !prompt;
-  if (prompt) {
-    // Hand the description the wheel. Explicit controls outrank an inferred
-    // value, which is right -- but a leftover dropdown from Quick Generate
-    // then silently overrides what the user just typed, so switching mode
-    // returns the inferrable controls to "from the description". The user can
-    // still override any of them deliberately afterwards.
-    for (const id of ["style", "profile", "mood"]) el(id).value = "";
-    el("tempo").value = 0;
-    showTempo();
-    el("profileHint").textContent = "";
-  }
-}
+// One way in: the controls are the request. `setMode`, `promptMode` and the
+// logic that cleared style/profile/mood/tempo when switching into description
+// mode all went with the tab -- there is no second mode for them to arbitrate
+// between any more.
 let chosenConsole = "nes";
 let lastSeed = null;
 
@@ -601,11 +562,6 @@ function body() {
   const index = Number(el("tempo").value);
   const seed = el("seed").value.trim();
   const request = {
-    // Quick Generate sends no prompt at all: the controls are the request,
-    // and the rule-based parser is not involved.
-    prompt: promptMode
-      ? el("prompt").value.trim() || el("prompt").placeholder.trim()
-      : "",
     console: chosenConsole,
     seconds: Number(el("duration").value),
     energy: Number(el("energy").value),
@@ -762,10 +718,6 @@ async function generate(request) {
     go.disabled = false;
   }
 }
-
-el("tabQuick").onclick = () => setMode(false);
-el("tabPrompt").onclick = () => setMode(true);
-setMode(false);
 
 el("form").onsubmit = (event) => { event.preventDefault(); generate(body()); };
 el("again").onclick = () => {

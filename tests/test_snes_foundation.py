@@ -547,3 +547,35 @@ def test_nes_composition_still_matches_its_baseline() -> None:
             json.dumps(events, sort_keys=True).encode()
         ).hexdigest()[:16]
         assert digest == baseline[key], key
+
+
+def test_short_pieces_need_section_bars_not_target_seconds() -> None:
+    """`target_seconds` cannot make a short piece, and that surprises people.
+
+    The composer lays out whole formal sections, so at the default of 8 bars
+    the shortest possible form is two sections -- 16 bars, about 26 seconds --
+    whatever duration is requested. Asking for 2.4 seconds silently returns
+    26, which is the kind of quiet non-compliance worth pinning.
+
+    `section_bars` is the control that actually shortens a piece. This exists
+    because a request for a 2.4-second battle sting went through
+    `target_seconds` and came back 11x too long.
+    """
+    from rse.song.snes_generate import generate_snes
+
+    ignored = generate_snes(style="boss", seed=1, target_seconds=2.4, echo="dry")
+    assert ignored.seconds > 20, (
+        "target_seconds is expected NOT to shorten the piece; if this now "
+        "works, the comment above and the docstring on generate_snes are out "
+        "of date"
+    )
+
+    short = generate_snes(
+        style="boss", seed=1, target_seconds=2.4, section_bars=1, echo="dry"
+    )
+    assert sum(s.bars for s in short.result.sections) == 2
+    assert 3.0 < short.seconds < 5.0, short.seconds
+
+    # The default must be unchanged, since every other caller relies on it.
+    default = generate_snes(style="boss", seed=1, target_seconds=60.0, echo="dry")
+    assert sum(s.bars for s in default.result.sections) == 40

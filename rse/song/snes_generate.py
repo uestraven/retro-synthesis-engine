@@ -171,14 +171,31 @@ def generate_snes(
     echo: str | int | None = None,
     reserved_voices: int = 0,
     brr: bool = True,
+    section_bars: int = 8,
 ) -> SnesSong:
     """Compose, arrange for eight voices, and render in stereo.
 
     `echo` takes a preset name, an explicit millisecond value, or None for the
     style's default. It is charged against ARAM, so a long reverb is paid for
     in instrument memory.
+
+    `section_bars` is the length of one formal section, and it is the only way
+    to get a SHORT piece. `target_seconds` cannot do it: the composer lays out
+    whole sections, so at the default of 8 bars the shortest possible form is
+    two sections, which is 16 bars and about 26 seconds whatever duration is
+    requested. Dropping to 1 reaches roughly 3 seconds, which is sting
+    territory.
+
+    Short does not mean the composer understands stings. It still writes a
+    motif with accompaniment, bass and drums across a form; it has no notion
+    of a gesture like "one hit, then a rising fanfare, then a held chord".
     """
-    result = compose(style_name=style, seed=seed, target_seconds=target_seconds)
+    result = compose(
+        style_name=style,
+        seed=seed,
+        target_seconds=target_seconds,
+        section_bars=section_bars,
+    )
     song = arrange(result)
     allocation = allocate(song, reserved=reserved_voices)
 

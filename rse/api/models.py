@@ -1,15 +1,29 @@
 """The wire contract for the generator.
 
-These mirror the controls in the interface concept -- console, prompt, style,
-duration, energy, tempo, loop -- and nothing more. Each one maps onto something
-the composer already takes, so the API adds no musical behaviour of its own:
+These mirror the controls in the interface -- console, style, duration,
+energy, tempo, loop -- and nothing more. Each one maps onto something the
+composer already takes, so the API adds no musical behaviour of its own:
 `style` picks an existing preset, `energy` picks an existing energy bucket,
 `tempo_bpm` uses the override `compose()` already accepts. A control that
-implied a new musical capability would be a composer change pretending to be a
-web change.
+implied a new musical capability would be a composer change pretending to be
+a web change.
 
-`console` is validated, not quietly ignored. SNES is not implemented, and the
-API says so with a 501 rather than returning NES audio under an SNES label.
+There is no `prompt`. There was: a free-text field read by a rule-based
+parser, behind a "Describe a Song" tab. Both are gone, because
+natural-language input is not a direction this project is taking and a text
+box promises an understanding of prose that only a language model has. The
+settings ARE the request.
+
+The parser itself survives as `rse.prompt.interpret`, and not as dead code:
+it is still how a request becomes a `SongPlan`, which is the structure the
+composer and the requirement report both read. `effective_prompt()` phrases
+the settings as a short description for it. That indirection is now
+vestigial in shape -- building a `SongPlan` from the settings directly would
+be cleaner -- but it is well covered by tests and changing it is a refactor
+of the engine rather than of the web surface.
+
+`console` is validated, not quietly ignored, and a console this deployment
+does not serve gets a 503 rather than audio from the other renderer.
 """
 
 from __future__ import annotations
@@ -45,15 +59,10 @@ def energy_from_percent(percent: float) -> str:
 class GenerateRequest(BaseModel):
     """One Generate Song click."""
 
-    prompt: str = Field(
-        default="",
-        max_length=600,
-        description="Free text describing the soundtrack.",
-    )
     console: Literal["nes", "snes"] = "nes"
     style: str | None = Field(
         default=None,
-        description="Composer preset. Omit to infer it from the prompt.",
+        description="Composer preset. Omit to let the engine choose one.",
     )
     seconds: float | None = Field(
         default=None, description="Requested duration. Capped by the server."
@@ -64,7 +73,7 @@ class GenerateRequest(BaseModel):
     tempo_bpm: int | None = Field(default=None, ge=20, le=380)
     loop: bool | None = Field(
         default=None,
-        description="Omit to let the prompt decide; set to force it either way.",
+        description="Omit for the style's default; set to force it either way.",
     )
     mood: str | None = Field(
         default=None,
@@ -140,11 +149,6 @@ class GenerateRequest(BaseModel):
         description="Omit for a new variation; supply to reproduce a song.",
     )
 
-    @field_validator("prompt")
-    @classmethod
-    def _strip(cls, value: str) -> str:
-        return value.strip()
-
     @field_validator("style")
     @classmethod
     def _known_style(cls, value: str | None) -> str | None:
@@ -165,15 +169,19 @@ class GenerateRequest(BaseModel):
         return key
 
     def effective_prompt(self) -> str:
-        """What the interpreter is given.
+        """The settings, phrased as the short description the planner reads.
 
-        An empty prompt is legitimate -- someone may only touch the controls --
-        so the style becomes the request rather than failing. Phrased the way
-        the interpreter reads prompts, since it is a prompt interpreter and not
-        a form parser.
+        Not a prompt from a user -- there is no longer any way for one to
+        arrive. `rse.prompt.interpret` is the engine's settings-to-`SongPlan`
+        step, and it happens to take its input as a sentence, so this renders
+        the one setting it can infer something from.
+
+        Named `effective_prompt` because that is what it feeds, and renaming
+        it would churn the call sites for no behavioural gain. The shape is
+        vestigial: a `SongPlan` built straight from the fields would be
+        clearer. That is an engine refactor, deliberately not bundled with
+        removing a web control.
         """
-        if self.prompt:
-            return self.prompt
         if self.style:
             return f"a {self.style.replace('_', ' ')} theme"
         return "retro game music"

@@ -27,8 +27,6 @@ from rse.api.limits import RateLimiter
 from rse.api.models import ENERGY_LADDER, GenerateRequest, energy_from_percent
 from rse.api.settings import DEFAULT_HOST, Settings
 
-PROMPT = "A dark and dramatic boss battle theme with an urgent melody and driving percussion."
-
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
@@ -76,7 +74,7 @@ def test_capabilities_are_read_from_the_engine(client: TestClient) -> None:
 
 
 def test_an_english_prompt_produces_a_playable_song(client: TestClient) -> None:
-    body = generate(client, prompt=PROMPT, seed=20261026)
+    body = generate(client, style="boss", seed=20261026)
     assert body["engine"] == "procedural"
     assert body["style"] == "boss"
     assert body["hardware_violations"] == 0
@@ -107,7 +105,7 @@ def test_the_api_and_the_cli_share_one_generation_path() -> None:
 
 
 def test_the_served_song_matches_the_served_report(client: TestClient) -> None:
-    body = generate(client, prompt=PROMPT, seed=5)
+    body = generate(client, style="boss", seed=5)
     report = client.get(body["links"]["report"]).json()
     assert report["seed"] == body["seed"]
     assert report["duration_sec"] == body["duration_sec"]
@@ -149,31 +147,26 @@ def test_no_format_is_advertised_that_cannot_be_written(client: TestClient) -> N
     worse than a missing one."""
     body = client.get("/api/capabilities").json()
     assert "ogg" not in body["formats"]
-    song = generate(client, prompt=PROMPT, seed=1)
+    song = generate(client, style="boss", seed=1)
     assert song["links"].get("ogg") is None
 
 
 def test_duration_cap_is_enforced(client: TestClient, settings: Settings) -> None:
     over = client.post(
         "/api/generate",
-        json={"prompt": PROMPT, "seconds": settings.max_seconds + 1},
+        json={"style": "boss", "seconds": settings.max_seconds + 1},
     )
     assert over.status_code == 422
     assert over.json()["error"] == "duration_out_of_range"
     under = client.post(
         "/api/generate",
-        json={"prompt": PROMPT, "seconds": settings.min_seconds - 1},
+        json={"style": "boss", "seconds": settings.min_seconds - 1},
     )
     assert under.status_code == 422
 
 
 def test_unknown_style_is_rejected(client: TestClient) -> None:
     response = client.post("/api/generate", json={"prompt": "x", "style": "dubstep"})
-    assert response.status_code == 422
-
-
-def test_a_prompt_cannot_be_unbounded(client: TestClient) -> None:
-    response = client.post("/api/generate", json={"prompt": "x" * 5000})
     assert response.status_code == 422
 
 
@@ -184,7 +177,7 @@ def test_a_prompt_cannot_be_unbounded(client: TestClient) -> None:
 def test_file_fetch_cannot_leave_the_storage_directory(
     client: TestClient, filename: str
 ) -> None:
-    body = generate(client, prompt=PROMPT, seed=2)
+    body = generate(client, style="boss", seed=2)
     response = client.get(f"/api/songs/{body['song_id']}/{filename}")
     assert response.status_code == 404
 
@@ -202,9 +195,9 @@ def test_rate_limit_answers_429_with_a_retry_hint(tmp_path: Path) -> None:
             Settings(storage_dir=tmp_path, rate_per_minute=60, rate_burst=1)
         )
     )
-    first = client.post("/api/generate", json={"prompt": PROMPT, "seconds": 10})
+    first = client.post("/api/generate", json={"style": "boss", "seconds": 10})
     assert first.status_code == 200
-    second = client.post("/api/generate", json={"prompt": PROMPT, "seconds": 10})
+    second = client.post("/api/generate", json={"style": "boss", "seconds": 10})
     assert second.status_code == 429
     assert second.json()["error"] == "rate_limited"
     assert int(second.headers["Retry-After"]) >= 1
@@ -231,8 +224,8 @@ def test_energy_actually_changes_the_style(client: TestClient) -> None:
     """The defect this guards: a slider the interface shows and the composer
     never sees. Energy is what selection falls back to, so with a prompt that
     names no scenario or mood it must move the result."""
-    calm = generate(client, prompt="retro game music", energy=0, seed=7)
-    intense = generate(client, prompt="retro game music", energy=100, seed=7)
+    calm = generate(client, energy=0, seed=7)
+    intense = generate(client, energy=100, seed=7)
     assert calm["style"] != intense["style"]
     assert "energy" in calm["style_reason"]
     assert "energy" in intense["style_reason"]
@@ -241,7 +234,7 @@ def test_energy_actually_changes_the_style(client: TestClient) -> None:
 def test_energy_says_so_when_it_did_not_steer(client: TestClient) -> None:
     """A named scenario outranks energy; the note must admit that rather than
     implying the slider was applied."""
-    body = generate(client, prompt="a dark boss battle theme", energy=5, seed=7)
+    body = generate(client, style="boss", energy=5, seed=7)
     assert body["style"] == "boss"
     assert any("did not steer" in note for note in body["notes"])
 
@@ -250,8 +243,8 @@ def test_tempo_control_reaches_the_composer(client: TestClient) -> None:
     """The defect this guards: `select()` discards a tempo it thinks was
     guessed, which silently turned a 90 BPM request into a 150 BPM song and
     reported "the prompt named no tempo"."""
-    slow = generate(client, prompt=PROMPT, tempo_bpm=90, seed=7)
-    fast = generate(client, prompt=PROMPT, tempo_bpm=180, seed=7)
+    slow = generate(client, style="boss", tempo_bpm=90, seed=7)
+    fast = generate(client, style="boss", tempo_bpm=180, seed=7)
     # Snapped to the NES frame grid: 90 -> 90.15 (10 frames), 180 -> 180.30 (5).
     assert slow["tempo_bpm"] == pytest.approx(90.15, abs=0.01)
     assert fast["tempo_bpm"] == pytest.approx(180.30, abs=0.01)
@@ -268,7 +261,7 @@ def test_tempo_control_reaches_the_composer(client: TestClient) -> None:
 def test_an_explicit_tempo_is_not_called_absent(client: TestClient) -> None:
     """The report must not claim the prompt named no tempo when a control
     named one."""
-    body = generate(client, prompt=PROMPT, tempo_bpm=90, seed=7)
+    body = generate(client, style="boss", tempo_bpm=90, seed=7)
     assert not any("named no tempo" in note for note in body["notes"])
     stated = {
         item["text"]
@@ -282,28 +275,34 @@ def test_a_preset_tempo_request_is_not_reported_as_an_override(
     client: TestClient,
 ) -> None:
     """Asking for exactly what the preset already does is not an override."""
-    body = generate(client, prompt=PROMPT, tempo_bpm=150, seed=7)
+    body = generate(client, style="boss", tempo_bpm=150, seed=7)
     assert body["tempo_bpm"] == pytest.approx(150.25, abs=0.01)
     assert not any("overriding" in note for note in body["notes"])
 
 
-def test_style_control_overrides_inference_and_says_so(client: TestClient) -> None:
-    body = generate(client, prompt="a peaceful village", style="boss", seed=7)
+def test_an_explicit_style_is_honoured_and_reported_as_chosen(
+    client: TestClient,
+) -> None:
+    """Was `test_style_control_overrides_inference_and_says_so`, which paired
+    style="boss" with the prompt "a peaceful village" to prove the control
+    beat the parser's inference. With prompts gone there is no inference to
+    beat, so what remains is that the control is honoured and the report says
+    where the style came from rather than implying the engine chose it."""
+    body = generate(client, style="boss", seed=7)
     assert body["style"] == "boss"
     assert body["style_reason"] == "chosen directly"
-    assert any("overriding" in note for note in body["notes"])
 
 
 def test_ui_style_labels_are_accepted(client: TestClient) -> None:
     """The dropdown shows "Boss Battle"; the composer calls it "boss"."""
     assert GenerateRequest(style="Boss Battle").style == "boss"
     assert GenerateRequest(style="boss_battle").style == "boss"
-    assert generate(client, prompt="x", style="Boss Battle", seed=7)["style"] == "boss"
+    assert generate(client, style="Boss Battle", seed=7)["style"] == "boss"
 
 
 def test_duration_control_reaches_the_composer(client: TestClient) -> None:
-    short = generate(client, prompt=PROMPT, seconds=30, seed=7)
-    long = generate(client, prompt=PROMPT, seconds=120, seed=7)
+    short = generate(client, style="boss", seconds=30, seed=7)
+    long = generate(client, style="boss", seconds=120, seed=7)
     assert short["duration_sec"] < long["duration_sec"]
     assert short["requested_seconds"] == 30.0
     assert long["requested_seconds"] == 120.0
@@ -320,9 +319,9 @@ def test_an_empty_prompt_still_generates(client: TestClient) -> None:
 
 
 def test_an_omitted_seed_is_returned_and_reproduces(client: TestClient) -> None:
-    first = generate(client, prompt=PROMPT)
+    first = generate(client, style="boss")
     assert isinstance(first["seed"], int)
-    second = generate(client, prompt=PROMPT, seed=first["seed"])
+    second = generate(client, style="boss", seed=first["seed"])
     digest = lambda url: hashlib.sha256(  # noqa: E731 - local, single use
         client.get(url).content
     ).hexdigest()
@@ -330,8 +329,8 @@ def test_an_omitted_seed_is_returned_and_reproduces(client: TestClient) -> None:
 
 
 def test_a_new_request_gives_a_new_variation(client: TestClient) -> None:
-    first = generate(client, prompt=PROMPT)
-    second = generate(client, prompt=PROMPT)
+    first = generate(client, style="boss")
+    second = generate(client, style="boss")
     assert first["seed"] != second["seed"]
     assert first["song_id"] != second["song_id"]
 
@@ -339,11 +338,27 @@ def test_a_new_request_gives_a_new_variation(client: TestClient) -> None:
 def test_the_cli_and_the_api_agree_on_the_same_seed(
     client: TestClient, tmp_path: Path
 ) -> None:
-    """One engine, one answer, whichever door you came in by."""
+    """One engine, one answer, whichever door you came in by.
+
+    The two sides must be given the SAME request, which stopped being
+    automatic when the `prompt` field was removed. This used to pass PROMPT
+    to the library while the API got a prompt built from `style`, so the
+    comparison quietly became "do two different requests happen to agree" --
+    and it would have kept passing for as long as style selection converged,
+    which is not what the test claims to check.
+
+    Taking the string from `effective_prompt()` ties it to the real
+    settings-to-plan translation, so the test breaks if that translation
+    changes rather than silently comparing the wrong things.
+    """
     from rse.song.generate import generate_song, write_artifacts
 
-    body = generate(client, prompt=PROMPT, seed=4242, seconds=60)
-    result = generate_song(PROMPT, seed=4242, target_seconds=60.0)
+    body = generate(client, style="boss", seed=4242, seconds=60)
+    result = generate_song(
+        GenerateRequest(style="boss").effective_prompt(),
+        seed=4242,
+        target_seconds=60.0,
+    )
     payload = write_artifacts(result, out_dir=tmp_path, name="cli")
     assert payload["duration_sec"] == body["duration_sec"]
     assert payload["composition"]["form"] == body["form"]
@@ -356,14 +371,8 @@ def test_the_cli_and_the_api_agree_on_the_same_seed(
 # --- honesty --------------------------------------------------------------
 
 
-def test_memorable_is_still_reported_unsupported(client: TestClient) -> None:
-    body = generate(client, prompt="a boss theme with a memorable melody", seed=7)
-    unsupported = {item["text"] for item in body["requirements"]["unsupported"]}
-    assert "memorable" in unsupported
-
-
 def test_requirement_buckets_are_all_present(client: TestClient) -> None:
-    body = generate(client, prompt=PROMPT, seed=7)
+    body = generate(client, style="boss", seed=7)
     for bucket in ("satisfied", "approximated", "imposed", "unsupported"):
         assert bucket in body["requirements"]
 
@@ -385,7 +394,7 @@ def test_songs_are_evicted_past_the_count_limit(tmp_path: Path) -> None:
         )
     )
     ids = [
-        generate(client, prompt=PROMPT, seconds=10)["song_id"] for _ in range(3)
+        generate(client, style="boss", seconds=10)["song_id"] for _ in range(3)
     ]
     # The oldest is gone; the newest two remain fetchable.
     assert client.get(f"/api/songs/{ids[0]}/song.wav").status_code == 404
@@ -405,9 +414,9 @@ def test_expired_songs_are_swept(tmp_path: Path) -> None:
             )
         )
     )
-    first = generate(client, prompt=PROMPT, seconds=10)["song_id"]
+    first = generate(client, style="boss", seconds=10)["song_id"]
     time.sleep(0.01)
-    generate(client, prompt=PROMPT, seconds=10)
+    generate(client, style="boss", seconds=10)
     assert client.get(f"/api/songs/{first}/song.wav").status_code == 404
 
 
@@ -470,7 +479,7 @@ def test_no_wildcard_bind_is_committed() -> None:
 
 
 def test_the_served_wav_is_a_valid_riff_file(client: TestClient, tmp_path: Path) -> None:
-    body = generate(client, prompt=PROMPT, seed=11)
+    body = generate(client, style="boss", seed=11)
     data = client.get(body["links"]["wav"]).content
     path = tmp_path / "served.wav"
     path.write_bytes(data)
@@ -484,7 +493,7 @@ def test_the_served_wav_is_a_valid_riff_file(client: TestClient, tmp_path: Path)
 def test_the_served_midi_is_loadable(client: TestClient, tmp_path: Path) -> None:
     import mido
 
-    body = generate(client, prompt=PROMPT, seed=12)
+    body = generate(client, style="boss", seed=12)
     path = tmp_path / "served.mid"
     path.write_bytes(client.get(body["links"]["midi"]).content)
     midi = mido.MidiFile(path)
@@ -498,7 +507,7 @@ def test_the_served_midi_is_loadable(client: TestClient, tmp_path: Path) -> None
 
 
 def test_the_report_is_valid_json(client: TestClient) -> None:
-    body = generate(client, prompt=PROMPT, seed=13)
+    body = generate(client, style="boss", seed=13)
     raw = client.get(body["links"]["report"]).content
     assert json.loads(raw)["engine"] == "procedural"
 
@@ -542,73 +551,6 @@ def test_loopback_needs_no_opt_in(monkeypatch) -> None:
 
 
 # --- the report must describe THIS engine ---------------------------------
-
-
-def test_scenario_is_credited_not_explained_away(client: TestClient) -> None:
-    """The interpreter's text says "the composer has no scenario input", which
-    was true of Fermata and is false here: the scenario is what picks the
-    preset. Shown unchanged, the page explains a mechanism that is not
-    running."""
-    body = generate(client, prompt="a dark boss battle theme", seed=7)
-    details = {
-        item["text"]: item["detail"]
-        for bucket in body["requirements"].values()
-        for item in bucket
-    }
-    assert "boss battle" in details
-    assert "no scenario input" not in details["boss battle"]
-    assert "composer preset" in details["boss battle"]
-    satisfied = {item["text"] for item in body["requirements"]["satisfied"]}
-    assert "boss battle" in satisfied
-
-
-def test_no_genre_token_is_claimed(client: TestClient) -> None:
-    """There is no genre conditioning anywhere in the procedural engine."""
-    body = generate(client, prompt="nes battle music", seed=7)
-    for bucket in body["requirements"].values():
-        for item in bucket:
-            assert "genre token" not in item["detail"], item
-
-
-def test_the_report_mentions_no_model(client: TestClient) -> None:
-    body = generate(client, prompt="a boss theme with a memorable melody", seed=7)
-    for bucket in body["requirements"].values():
-        for item in bucket:
-            assert "the model" not in item["detail"], item
-
-
-def test_a_delivered_contrast_and_return_are_credited(client: TestClient) -> None:
-    body = generate(
-        client,
-        prompt="a boss theme with a contrasting middle section and a dramatic return",
-        seconds=60,
-        seed=7,
-    )
-    assert "B" in body["form"]
-    satisfied = {
-        item["text"]: item["detail"] for item in body["requirements"]["satisfied"]
-    }
-    assert "contrasting" in satisfied
-    assert "own motif" in satisfied["contrasting"]
-    assert "return" in satisfied
-    assert "restates the opening theme" in satisfied["return"]
-
-
-def test_an_undelivered_contrast_is_reported_unmet(client: TestClient) -> None:
-    """Crediting the composer must not become crediting it unconditionally: a
-    form too short for a B section has not met the request."""
-    body = generate(
-        client,
-        prompt="a boss theme with a contrasting middle section",
-        seconds=16,
-        seed=7,
-    )
-    assert "B" not in body["form"]
-    unsupported = {
-        item["text"]: item["detail"] for item in body["requirements"]["unsupported"]
-    }
-    assert "contrasting" in unsupported
-    assert "no contrasting section" in unsupported["contrasting"]
 
 
 # --- only connected controls are offered ----------------------------------

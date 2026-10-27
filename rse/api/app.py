@@ -217,7 +217,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="Retro Synthesis Engine",
         version="0.1.0",
-        description="Generate complete NES-style soundtracks from a prompt.",
+        description="Generate complete retro-console soundtracks from a few settings.",
     )
     app.state.settings = config
     app.state.storage = storage
@@ -585,7 +585,11 @@ def _generate_snes_sync(
     return {
         "version": "rse-snes-preview/0.1",
         "engine": "procedural",
-        "prompt": body.prompt,
+        # The description the planner was given, same as the NES report's
+        # `result.plan.prompt`. Derived from the settings now that there is no
+        # user-supplied prompt, but still worth recording: it is the input the
+        # style selection actually saw.
+        "prompt": plan.prompt,
         "seed": seed,
         "songspec": plan.to_dict(),
         "composition": {

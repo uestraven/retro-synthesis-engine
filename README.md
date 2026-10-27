@@ -257,8 +257,8 @@ forward the port over SSH rather than widening the bind.
 
 ## The generation API
 
-The public-facing path: an HTTP service that turns a prompt and a few controls
-into a finished NES soundtrack. It is the backend the browser generator calls,
+The public-facing path: an HTTP service that turns a few settings into a
+finished soundtrack. It is the backend the browser generator calls,
 and it exists so the thing a person uses is the same thing the command line
 uses — both call `rse.song.generate`, so neither can produce different music
 from the same request.
@@ -295,7 +295,7 @@ download are needed — the procedural composer is the whole engine.
 ```bash
 curl -X POST http://127.0.0.1:8000/api/generate \
   -H 'content-type: application/json' \
-  -d '{"prompt": "A dark and dramatic boss battle theme with driving percussion.",
+  -d '{"console": "nes", "style": "boss",
        "seconds": 60, "energy": 75, "loop": true}'
 ```
 
@@ -304,11 +304,23 @@ performed it, and the requirement report. `GET /api/capabilities` returns the
 styles, duration limits, formats, tempo ladder and instrument profiles, read
 from the engine rather than duplicated in the frontend.
 
-**Two ways in, one engine.** *Quick Generate* is settings only and involves no
-language processing at all. *Describe a Song* adds a rule-based parser on top
-of the same controls — it recognises styles, scenarios, moods, tempos, keys and
-durations, and reports exactly what it could not use. Neither mode routes to a
-model: both drive the procedural composer, asserted by test.
+**The settings are the request.** There is no `prompt` field and no text
+box. There was: a *Describe a Song* tab feeding a rule-based parser. Both are
+gone, because natural-language input is not a direction this project is
+taking and a text box promises an understanding of prose that only a language
+model has.
+
+The parser survives as `rse.prompt.interpret`, but as an internal step rather
+than a feature: it is still how a request becomes the `SongPlan` that the
+composer and the requirement report both read, and
+`scripts/prompt_to_song.py` still accepts real prose for research use. The
+web surface does not.
+
+One consequence worth knowing: the report's *"Nothing takes this as input"*
+bucket is now almost always empty. It existed to catch words a prompt could
+contain that the engine cannot act on — "memorable", "epic" — and settings
+cannot express those. The bucket stays, because a setting can still go
+unmet.
 
 **Only connected controls are offered.** A control that changes nothing is
 worse than a missing one. `mood` was exactly that for most of this project --

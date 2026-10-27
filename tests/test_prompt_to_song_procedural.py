@@ -348,3 +348,132 @@ def test_section_bars_stay_on_the_grid(boss) -> None:
     sections = report["composition"]["sections"]
     assert bars == sum(section["bars"] for section in sections)
     assert ticks_per_bar() == 1920
+
+
+# --- requirement-report honesty, moved here from the API suite -------------
+#
+# These three lived in tests/test_api.py and drove the report through the
+# HTTP `prompt` field. That field is gone: natural-language input is not a
+# direction this project is taking, and the web page offers only settings.
+#
+# The behaviour they protect is not gone, so neither are they. The parser is
+# still the engine's settings-to-SongPlan step and `scripts/prompt_to_song.py`
+# still takes real prose, so the honesty rules -- do not claim a request you
+# did not meet, never mention a model, never claim a genre token -- are tested
+# here against the library instead of against a web field that no longer
+# exists. Deleting them would have traded real coverage for a smaller diff.
+
+
+def _requirements(prompt: str) -> dict[str, list[dict[str, str]]]:
+    """Buckets for a prompt, straight from the library path.
+
+    `finish_report` returns the four buckets at the top level; the API nests
+    them under a "requirements" key. Going through the library means reading
+    the former.
+    """
+    from rse.song.generate import finish_report, generate_song
+
+    result = generate_song(prompt, seed=7)
+    return finish_report(result)
+
+
+def test_memorable_is_still_reported_unsupported() -> None:
+    """"Memorable" is a judgement, not an input. Nothing in the engine takes
+    it, so the report must say so rather than quietly accepting the word."""
+    buckets = _requirements("a boss theme with a memorable melody")
+    assert "memorable" in {item["text"] for item in buckets["unsupported"]}
+
+
+def test_no_genre_token_is_claimed() -> None:
+    """There is no genre conditioning anywhere in the procedural engine."""
+    buckets = _requirements("nes battle music")
+    for bucket in buckets.values():
+        for item in bucket:
+            assert "genre token" not in item["detail"], item
+
+
+def test_the_report_mentions_no_model() -> None:
+    """The detail strings were written when Fermata was the only engine. A
+    procedural composer that talks about "the model" is describing something
+    that is not running."""
+    buckets = _requirements("a boss theme with a memorable melody")
+    for bucket in buckets.values():
+        for item in bucket:
+            assert "the model" not in item["detail"], item
+
+
+def test_a_delivered_contrast_and_return_are_credited() -> None:
+    """Crediting a request the prompt carried, when the composer met it.
+
+    Moved from the API suite with the two above. It was briefly rewritten to
+    use `style="boss"` instead of a prompt, which was wrong in a way the
+    suite caught: a settings request cannot ASK for a contrasting section, so
+    there is no requirement to credit and the assertion had nothing to find.
+    The crediting logic is real and still reachable through prose, so the
+    test belongs here rather than deleted or defanged.
+    """
+    from rse.song.generate import finish_report, generate_song
+
+    result = generate_song(
+        "a boss theme with a contrasting middle section and a dramatic return",
+        seed=7,
+        target_seconds=60.0,
+    )
+    assert "B" in result.meta["form"]
+    satisfied = {
+        item["text"]: item["detail"]
+        for item in finish_report(result)["satisfied"]
+    }
+    assert "contrasting" in satisfied
+    assert "own motif" in satisfied["contrasting"]
+    assert "return" in satisfied
+    assert "restates the opening theme" in satisfied["return"]
+
+
+def test_an_undelivered_contrast_is_reported_unmet() -> None:
+    """Crediting must not become crediting unconditionally: a form too short
+    for a B section has not met the request."""
+    from rse.song.generate import finish_report, generate_song
+
+    result = generate_song(
+        "a boss theme with a contrasting middle section",
+        seed=7,
+        target_seconds=16.0,
+    )
+    assert "B" not in result.meta["form"]
+    unsupported = {
+        item["text"]: item["detail"]
+        for item in finish_report(result)["unsupported"]
+    }
+    assert "contrasting" in unsupported
+    assert "no contrasting section" in unsupported["contrasting"]
+
+
+def test_scenario_is_credited_not_explained_away() -> None:
+    """The interpreter's stock text says "the composer has no scenario
+    input", which was true of Fermata and is false here: the scenario is what
+    picks the preset. Shown unchanged, the report would explain a mechanism
+    that is not running.
+
+    Moved from the API suite, and the move is not cosmetic -- this is no
+    longer reachable through the web surface at all. With `style` set the
+    scenario lands in "approximated" ("it did not pick the preset because
+    chosen directly took precedence"), and with no style there is no scenario
+    to credit. Only prose can both name a scenario and leave the preset to
+    it, so only prose can exercise the crediting path.
+    """
+    from rse.song.generate import finish_report, generate_song
+
+    result = generate_song(
+        "a dark and dramatic boss battle theme", seed=7, target_seconds=60.0
+    )
+    report = finish_report(result)
+    details = {
+        item["text"]: item["detail"]
+        for bucket in report.values()
+        for item in bucket
+    }
+    assert "boss battle" in details
+    assert "no scenario input" not in details["boss battle"]
+    assert "composer preset" in details["boss battle"]
+    assert "boss battle" in {item["text"] for item in report["satisfied"]}

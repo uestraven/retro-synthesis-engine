@@ -148,7 +148,7 @@ def test_every_song_field_the_page_reads_exists(
 ) -> None:
     """The contract check. A `song.durationSec` typo would pass review."""
     song = client.post(
-        "/api/generate", json={"prompt": "a boss theme", "seed": 1}
+        "/api/generate", json={"style": "boss", "seed": 1}
     ).json()
     referenced = set(re.findall(r"\bsong\.([a-z_]+)", source))
     missing = sorted(field for field in referenced if field not in song)
@@ -159,7 +159,7 @@ def test_every_link_and_requirement_field_exists(
     client: TestClient, source: str
 ) -> None:
     song = client.post(
-        "/api/generate", json={"prompt": "a boss theme", "seed": 1}
+        "/api/generate", json={"style": "boss", "seed": 1}
     ).json()
     for field in set(re.findall(r"song\.links\.([a-z]+)", source)):
         assert field in song["links"], field
@@ -233,7 +233,12 @@ def test_the_duration_slider_is_bounded_by_the_server(source: str) -> None:
 
 
 def test_interpolated_text_is_escaped(source: str) -> None:
-    """The prompt comes back in the report; it must not be injected as HTML.
+    """Server strings reach the report; they must not be injected as HTML.
+
+    The original reason was a user-supplied prompt echoed into the report.
+    That field is gone, which REMOVES one source and does not remove the
+    rule: style names, requirement details, caveats and the SNES claims table
+    all still arrive from the server and still reach innerHTML.
 
     Scoped to `innerHTML` assignments, which are the only injection vector
     here. `textContent` and `dataset` assignments are escaped by the DOM
