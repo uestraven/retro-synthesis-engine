@@ -384,3 +384,31 @@ def test_variety_does_not_disturb_the_melody_stream() -> None:
         default_frames=STYLES["boss"].frames_per_row,
     )
     assert arrangement.tonic in STYLE_TONICS["boss"]
+
+
+def test_every_figure_a_listener_approved_is_in_its_style_pool() -> None:
+    """A figure judged good has to be reachable, or the judgement is wasted.
+
+    Both of these came out of one listening pass. `town` was compared on
+    `pad` against `arpeggio` and the arpeggio won -- "better and more
+    authentic NES" -- so it became town's default. `tension` was compared the
+    same way and BOTH were judged good with valid use-cases, so its default
+    stayed `pad` and `arpeggio` had to join its pool.
+
+    It was not in it. The pool held `arpeggio_down`, which is the same figure
+    with its pitches reversed -- close enough to look covered when reading
+    the table, and not the figure that was actually played. That near-miss is
+    the reason this test names the figures explicitly rather than checking
+    that a pool is non-empty.
+    """
+    from rse.procedural.compose import STYLES
+
+    assert "arpeggio" in STYLE_HARMONY["town"]
+    assert "pad" in STYLE_HARMONY["town"]
+    assert "arpeggio" in STYLE_HARMONY["tension"]
+    assert "pad" in STYLE_HARMONY["tension"]
+
+    # A style's own default must be offered by its pool too, or turning
+    # variety on can never reproduce the sound the style ships with.
+    for name in ("town", "tension"):
+        assert STYLES[name].harmony_style in STYLE_HARMONY[name], name

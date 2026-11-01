@@ -166,7 +166,8 @@ class Style:
     melody_rhythms: tuple[tuple[int, ...], ...]
     #: Which rows the bass attacks within a bar.
     bass_rows: tuple[int, ...]
-    #: Accompaniment behaviour: "arpeggio", "offbeat", "pad".
+    #: Accompaniment behaviour: "arpeggio", "offbeat", "pad",
+    #: "stab", "alternating".
     harmony_style: str
     #: Drum density: rows per hat, and whether a backbeat snare is used.
     hat_every: int
@@ -226,7 +227,7 @@ STYLES: dict[str, Style] = {
         ),
         melody_rhythms=((2, 2, 2, 2, 4, 4), (4, 2, 2, 4, 4), (2, 2, 4, 2, 2, 4)),
         bass_rows=(0, 4, 8, 12),
-        harmony_style="offbeat",
+        harmony_style="alternating",
         hat_every=2,
         backbeat=True,
         tonic=57,
@@ -268,7 +269,7 @@ STYLES: dict[str, Style] = {
         progressions=((0, 3, 4, 0), (0, 5, 3, 4), (0, 4, 0, 4)),
         melody_rhythms=((4, 4, 4, 4), (4, 4, 2, 2, 4), (8, 8)),
         bass_rows=(0, 8),
-        harmony_style="pad",
+        harmony_style="arpeggio",
         hat_every=4,
         backbeat=False,
         tonic=62,
@@ -282,7 +283,7 @@ STYLES: dict[str, Style] = {
         progressions=((0, 1, 0, 1), (0, 6, 0, 1), (0, 0, 1, 1)),
         melody_rhythms=((8, 8), (8, 4, 4), (16,)),
         bass_rows=(0, 8),
-        harmony_style="pad",
+        harmony_style="arpeggio",
         hat_every=8,
         backbeat=False,
         tonic=55,
@@ -825,6 +826,13 @@ def render_harmony(
         if figure == "arpeggio_down":
             pitches = list(reversed(pitches))
         if figure == "pad":
+            # ONE note for the whole bar: the root, sustained. The third
+            # never sounds here, so the accompaniment states no chord
+            # quality -- and a listener comparing it against three
+            # alternatives still preferred it. Two replacements were built
+            # and both were rejected by ear; see research/README.md. It is
+            # the default for `town` and `tension` on that evidence, not by
+            # oversight.
             pitch = clamp(pitches[0])
             notes.append(
                 Note(

@@ -80,8 +80,14 @@ STYLE_HARMONY: dict[str, tuple[str, ...]] = {
     "boss": ("offbeat", "arpeggio", "stab", "alternating"),
     "action": ("arpeggio", "offbeat", "alternating", "arpeggio_down"),
     "adventure": ("arpeggio", "arpeggio_down", "offbeat", "pad"),
-    "town": ("pad", "arpeggio", "alternating", "arpeggio_down"),
-    "tension": ("pad", "stab", "arpeggio_down"),
+    "town": ("arpeggio", "pad", "alternating", "arpeggio_down"),
+    # `arpeggio` added after a listening pass: a pad and an arpeggio were
+    # compared at tension's 100 BPM and BOTH were judged good with valid
+    # use-cases, so both belong in the pool. The pool already had
+    # `arpeggio_down`, which is the same figure with its pitches reversed --
+    # near enough to look covered on inspection, and not the one that was
+    # actually heard.
+    "tension": ("pad", "arpeggio", "stab", "arpeggio_down"),
     "victory": ("arpeggio", "alternating", "offbeat", "arpeggio_down"),
 }
 

@@ -71,6 +71,25 @@ class VoicingRequest:
     previous: tuple[int, ...] = ()
     low: int = HARMONY_LOW
     high: int = HARMONY_HIGH
+    #: Use a voice the bass freed, when the budget has room for it.
+    #:
+    #: Handing the root to the bass should not cost the harmony a voice.
+    #: False reproduces the behaviour before that was fixed -- the bass tone
+    #: removed and the freed voice left unused, so a three-voice budget
+    #: returned a rootless two-note dyad, and `max_voices` had no effect at
+    #: all above 2.
+    #:
+    #: True here, but NOT unconditionally true upstream: `generate_snes`
+    #: decides from the voice reservation, because the extra note is free
+    #: with 0 or 1 voices reserved and costs 15 dropped notes at 2 or more.
+    #:
+    #: Confirmed by listening, which is the evidence that matters -- the
+    #: before/after pair was rendered and the fixed version judged better.
+    #: Two NES changes reasoned out the same way were rejected by the same
+    #: ear in the same session, so the measurement alone would not have been
+    #: enough. False stays reachable to keep that comparison renderable, and
+    #: because a deliberately thin, open texture is a real choice.
+    spend_freed_voice: bool = True
 
 
 def bass_pitch_for(
@@ -145,6 +164,34 @@ def plan_voicing(request: VoicingRequest) -> ChordVoicing:
             if tone in keep:
                 keep.discard(tone)
                 omitted.append(tone)
+
+    # Spend what the bass freed. Handing the root to the bass is the right
+    # orchestration -- the harmony should not double it in unison -- but
+    # REMOVING it and then not using the voice it freed is how a three-voice
+    # budget produced two notes.
+    #
+    # Measured before this: 34 of 40 bars in a boss track were rootless
+    # dyads, 80% of the track had exactly two harmony notes sounding, and
+    # max_voices had no effect at all above 2 -- a C major triad came back as
+    # (E, G) whether it was given a budget of 2, 3 or 4. A rootless third and
+    # fifth is harmonically ambiguous: C-E-G minus the C could be C major, A
+    # minor or F major, so the chord's identity rested entirely on the bass
+    # and a listener heard padding rather than harmony.
+    #
+    # Restored here rather than by not removing it above, because the removal
+    # is correct when the budget really is tight: with two voices over a root
+    # bass, (third, fifth) is the textbook choice and (root, third) wastes a
+    # voice on a note the bass already has. This only ever adds a voice that
+    # was going unused. `_place` puts it in the harmony register, 52 and up,
+    # so it lands at least an octave above the bass instead of doubling it.
+    if (
+        request.spend_freed_voice
+        and bass_tone is not None
+        and len(keep) < request.max_voices
+    ):
+        keep.add(bass_tone)
+        if bass_tone in omitted:
+            omitted.remove(bass_tone)
 
     placed = _place(
         intent=intent,

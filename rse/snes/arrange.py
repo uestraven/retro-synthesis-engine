@@ -216,6 +216,7 @@ def arrange(
     harmony_voices: int = 3,
     contrast_harmony_voices: int = 3,
     extended_sections: tuple[str, ...] = ("B",),
+    spend_freed_voice: bool = True,
 ) -> ArrangedSong:
     """Re-realise a procedural composition for sampled, polyphonic voices.
 
@@ -276,6 +277,7 @@ def arrange(
                     max_voices=budget,
                     bass=bass,
                     previous=previous,
+                    spend_freed_voice=spend_freed_voice,
                 )
             )
             song.voicings.append(voicing)

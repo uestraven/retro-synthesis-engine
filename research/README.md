@@ -92,6 +92,58 @@ right discriminator separates artifact from content by an order of magnitude
 -- sub-bass DURATION, 0.15 s for a kick transient against 6.17 s for the drone
 -- not by a limit tuned to sit just past the current measurement.
 
+**The thin NES pad is not a defect. Two fixes for it were rejected by ear.**
+`town` and `tension` use the `pad` figure: one note per bar, the root,
+sustained. The third never sounds, so the accompaniment states no chord
+quality at all -- measured, a full triad in 0% of bars. A musician who
+listened said the engine "doesn't really have harmony", which seemed to
+confirm it.
+
+It did not. Four NES renders at ascending accompaniment density were compared
+blind-ish by the listener: `pad` (1 note/bar) "sounds fine"; `pad_triad`
+(3 sustained notes stating the triad) "jumbled, not good"; `arpeggio`
+(8/bar, the figure that already existed) "sounds good"; a frame-rate arpeggio
+at 60 note changes per second "weird, like a buzzing in the background". Both
+new figures were removed.
+
+`town` and `tension` both moved to `arpeggio` on that verdict -- "better and
+more authentic NES" for town, and preferred over the pad for tension on a
+second listen -- and their eight baseline hashes were re-pinned deliberately,
+which is the only way an accepted piece should move.
+
+**Then `alternating` won, and it never states the third at all.** A figure
+audit flagged it as the one measurable red flag left: eight notes a bar, as
+busy as `arpeggio`, but root and fifth only, so a full triad in 0% of bars.
+Same no-chord-quality shape as the SNES rootless dyad with a busy rhythm over
+it. Rendered against `arpeggio` and `stab` on boss with rhythm held constant,
+it was judged the BEST of the three -- and then preferred over `offbeat`,
+boss's incumbent, which spells the chord completely. `boss` moved to
+`alternating`; `offbeat` stays in the pool because both were judged to have
+merit for different scenarios.
+
+So three separate times now, "the accompaniment does not state the third" has
+predicted a problem that was not there, and twice a fix for it made things
+worse. The measurement is real and it does not track what a listener hears --
+the chord's quality is evidently carried well enough by melody and bass, and
+a comp that competes with them is worse than one that leaves them room. Stop
+using triad completeness as a quality signal for NES accompaniment.
+
+Two lessons under that. A harmonic deficit visible in the score is not
+necessarily audible as one -- the quality was being carried by melody and
+bass, and adding it to the comp made the texture worse, not clearer. And the
+answer was already in the codebase: `arpeggio` was the good option all along,
+so the whole exercise produced a one-word default change and two deletions.
+
+**A chiptune arpeggio is a pitch change, not a sequence of notes.** The
+frame-rate arpeggio buzzed, and the mechanism is in the renderer rather than
+the rate. `_render_note` starts each note at `index = 0` and derives the duty
+sequencer position from it, so every note-on resets the waveform phase. The
+implementation emitted 112 note-ons per bar; hardware writes a new period to
+the pulse timer while the channel keeps running. `rse/events/classify.py`
+already says this -- it classifies arpeggios as within-row EFFECTS, not
+attacks -- and the renderer has no way to express one. The row grid was never
+the limit (a frame is representable in ticks); the per-note phase reset is.
+
 **Measure the resource that fails, not the one you were thinking about.** The
 first deployed NES request returned 502. The duration cap had been sized by
 careful CPU measurement -- NES renders at 0.022x realtime, so 180 s of audio

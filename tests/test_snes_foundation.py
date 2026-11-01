@@ -416,12 +416,52 @@ def test_the_root_is_only_dropped_when_the_bass_has_it() -> None:
 
 
 def test_a_triad_whose_root_is_in_the_bass_needs_only_two_voices() -> None:
+    """Two voices SUFFICE when the bass holds the root -- but only when two is
+    all there is.
+
+    This test used to assert that a three-voice budget returned two notes,
+    and it was the only thing documenting that behaviour. It carried no
+    reason, and the behaviour turned out to be a defect rather than a choice:
+    the voicer removed the bass tone and then never used the voice it had
+    freed, so `max_voices` had no effect at all above 2. Measured
+    consequence on a boss track: 34 of 40 bars were rootless two-note dyads
+    and 80% of the track had exactly two harmony notes sounding. A rootless
+    third and fifth is ambiguous -- C-E-G minus the C is equally C major, A
+    minor or F major -- so the chord's identity rested entirely on the bass.
+
+    The arranger had always asked for three. Its own comment reads "eight
+    voices will not hold a lead, three harmony notes, a bass, three drums AND
+    a pad", so the cap at two was never intended.
+
+    What survives is the sufficiency claim, which is correct and still worth
+    pinning: given exactly two voices over a root bass, the right answer is
+    third and fifth, not a wasted unison with the bass.
+    """
     chord = ChordIntent(root=9, quality=Quality.MINOR)
-    voicing = plan_voicing(
+    tight = plan_voicing(
+        VoicingRequest(intent=chord, max_voices=2, bass=bass_pitch_for(chord))
+    )
+    assert tight.voice_count == 2
+    assert set(tight.tones) == {Tone.THIRD, Tone.FIFTH}
+
+    # Given three, all three sound: the bass doubling the root does not cost
+    # the harmony a voice.
+    full = plan_voicing(
         VoicingRequest(intent=chord, max_voices=3, bass=bass_pitch_for(chord))
     )
-    assert voicing.voice_count == 2
-    assert set(voicing.tones) == {Tone.THIRD, Tone.FIFTH}
+    assert full.voice_count == 3
+    assert set(full.tones) == {Tone.ROOT, Tone.THIRD, Tone.FIFTH}
+
+    # And the old behaviour stays reachable, because a deliberately thin,
+    # open texture is a real orchestration choice -- and because the
+    # before/after comparison has to be renderable without an old commit.
+    thin = plan_voicing(
+        VoicingRequest(
+            intent=chord, max_voices=3, bass=bass_pitch_for(chord),
+            spend_freed_voice=False,
+        )
+    )
+    assert thin.voice_count == 2
 
 
 def test_a_suspension_never_loses_its_suspended_tone() -> None:

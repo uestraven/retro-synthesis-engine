@@ -218,3 +218,50 @@ def test_a_variation_still_varies() -> None:
         if (varied.degrees, varied.rhythm) != (motif.degrees, motif.rhythm):
             changed += 1
     assert changed >= 100, f"only {changed}/120 variations changed anything"
+
+
+def test_the_accompaniment_figures_are_what_the_listener_chose() -> None:
+    """Both figures here were settled by ear, and the ear overruled the score.
+
+    `pad` plays one note per bar -- the root -- so the accompaniment never
+    sounds the third and states no chord quality at all. Measured, a full
+    triad in 0% of bars. A musician who listened said the engine "doesn't
+    really have harmony", and every indicator agreed it was a defect.
+
+    Two fixes were built and both were rejected on listening: `pad_triad`
+    (three sustained notes stating the triad) came back "jumbled", and a
+    frame-rate arpeggio came back "a buzzing in the background". Both were
+    removed. What won was `arpeggio`, which had existed all along -- judged
+    "better and more authentic NES" than the pad it replaced.
+
+    So `town` and `tension` both moved to `arpeggio` and their eight baseline
+    hashes were re-pinned deliberately, which is the only way an accepted
+    piece should ever move. `tension` was judged separately rather than
+    inheriting town's verdict: it runs at 100 BPM where an arpeggio reads
+    differently, and applying one style's result to another is how a
+    listening decision turns back into a guess.
+
+    `boss` moved to `alternating`, which is the result worth remembering:
+    `alternating` NEVER states the third. It trades root and fifth on every
+    half-beat and never touches the tone that distinguishes major from minor.
+    An audit flagged it as the one measurable red flag left in the figure
+    table; compared against `offbeat` -- the incumbent, which spells the
+    chord completely -- it was preferred for a boss fight. `offbeat` stays in
+    boss's pool because both were judged to have merit for different
+    scenarios.
+
+    Three times now, "the accompaniment does not state the third" has
+    predicted a problem that was not there, and twice a fix for it made
+    things worse. See research/README.md: triad completeness is not a
+    quality signal for NES accompaniment.
+    """
+    assert STYLES["town"].harmony_style == "arpeggio"
+    assert STYLES["tension"].harmony_style == "arpeggio"
+    assert STYLES["boss"].harmony_style == "alternating"
+
+    # Both boss figures stay selectable: the rejected-sounding one was not
+    # rejected, it was preferred for a different scenario.
+    from rse.procedural.variety import STYLE_HARMONY
+
+    assert "alternating" in STYLE_HARMONY["boss"]
+    assert "offbeat" in STYLE_HARMONY["boss"]

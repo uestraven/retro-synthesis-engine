@@ -173,6 +173,7 @@ def generate_snes(
     brr: bool = True,
     section_bars: int = 8,
     tempo_bpm: int | None = None,
+    spend_freed_voice: bool | None = None,
 ) -> SnesSong:
     """Compose, arrange for eight voices, and render in stereo.
 
@@ -210,7 +211,19 @@ def generate_snes(
         section_bars=section_bars,
         tempo_bpm=tempo_bpm,
     )
-    song = arrange(result)
+    # Spend the voice the bass frees only when there is a voice to spare.
+    #
+    # Measured on a boss track: at 0 or 1 reserved voices the third harmony
+    # note is free -- 48 harmony notes instead of 32, nothing dropped. At 2
+    # or more it is not: the allocator sheds 15 notes to gain a single
+    # harmony note, because lead, bass and three drums have already taken
+    # the budget. Game-ready mode wants the thinner voicing; a track that
+    # owns all eight voices does not.
+    #
+    # None means decide from the reservation. True or False forces it, which
+    # is what scripts/voicing_ab.py uses to render the comparison.
+    spend = reserved_voices <= 1 if spend_freed_voice is None else spend_freed_voice
+    song = arrange(result, spend_freed_voice=spend)
     allocation = allocate(song, reserved=reserved_voices)
 
     if echo is None:
