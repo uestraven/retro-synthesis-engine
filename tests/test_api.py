@@ -301,11 +301,18 @@ def test_ui_style_labels_are_accepted(client: TestClient) -> None:
 
 
 def test_duration_control_reaches_the_composer(client: TestClient) -> None:
-    short = generate(client, style="boss", seconds=30, seed=7)
-    long = generate(client, style="boss", seconds=120, seed=7)
+    """Both durations stay inside the cap on purpose.
+
+    This asked for 120 s, which the cap now refuses -- and refusing it is the
+    point of the cap, so the fix is a shorter request rather than a looser
+    limit. 15 and 55 are far enough apart that the composer's section
+    rounding cannot collapse them into the same length.
+    """
+    short = generate(client, style="boss", seconds=15, seed=7)
+    long = generate(client, style="boss", seconds=55, seed=7)
     assert short["duration_sec"] < long["duration_sec"]
-    assert short["requested_seconds"] == 30.0
-    assert long["requested_seconds"] == 120.0
+    assert short["requested_seconds"] == 15.0
+    assert long["requested_seconds"] == 55.0
 
 
 def test_an_empty_prompt_still_generates(client: TestClient) -> None:
@@ -923,3 +930,44 @@ def test_gating_is_case_and_whitespace_insensitive(monkeypatch) -> None:
     monkeypatch.delenv("RSE_API_CONSOLES")
     assert Settings.from_env().consoles == ()
     assert Settings.from_env().serves("snes")
+
+
+def test_the_duration_cap_is_sized_by_memory_not_cpu() -> None:
+    """60 seconds, and the number has a measured reason behind it.
+
+    The old default was 180, justified by CPU: "at ~20 ms per rendered
+    second, 180 s of music is ~3.6 s of CPU". True, and the wrong
+    constraint. Peak RSS scales at roughly 4.7 MB per second of rendered
+    audio -- measured in a fresh process per point, because ru_maxrss is a
+    high-water mark:
+
+        60 s of audio  ->  340 MB
+       120 s          ->  582 MB
+       180 s          ->  883 MB
+
+    A 512 MB instance is the common small tier, and a memory ceiling does
+    not degrade: the process is killed and the platform returns a 502 with
+    nothing in the application log. The first deployed request failed
+    exactly that way.
+
+    Pinned because 60 looks arbitrary and is not, and because the obvious
+    "users would like longer songs" change silently reintroduces an outage.
+    Raising it needs a measured peak on the target host, multiplied by
+    RSE_API_MAX_CONCURRENT.
+    """
+    assert Settings().max_seconds == 60.0
+
+    # The deployed config must not exceed the code default, which is the
+    # direction the mistake actually went: render.yaml was raised to 180 on
+    # CPU reasoning after the memory limit had already been established.
+    import re
+
+    blueprint = Path("render.yaml").read_text()
+    match = re.search(
+        r"RSE_API_MAX_SECONDS\s*\n\s*value:\s*\"?(\d+)", blueprint
+    )
+    assert match, "render.yaml should pin RSE_API_MAX_SECONDS"
+    assert int(match.group(1)) <= 60, (
+        f"the deployed cap is {match.group(1)}s against a 60s default sized "
+        "by a 512 MB memory ceiling"
+    )

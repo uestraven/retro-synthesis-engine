@@ -64,16 +64,6 @@ services:
         value: "3.12"
       - key: RSE_API_HOST
         value: 0.0.0.0
-      # Sized by the PLATFORM REQUEST TIMEOUT, which is the binding
-      # constraint and was not when this file was written.
-      #
-      # The old comment here said 180 s of music is ~3.6 s of CPU. That was
-      # the NES renderer. The SNES sampler is three orders of magnitude more
-      # expensive -- measured at 0.67-0.77x realtime, so 115 s of audio takes
-      # 82 s to render on a build host with a full core. Generation is
-      # synchronous inside the HTTP request, so render time IS request time,
-      # and Render's load balancer closes a request at 100 s.
-      #
       # Consoles this deployment serves. "nes" only, which is what makes the
       # free plan viable: see the 32x cost gap at the top of this file.
       #

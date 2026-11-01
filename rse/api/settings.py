@@ -26,10 +26,27 @@ from pathlib import Path
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 
-#: One request's ceiling. Generation cost scales with duration, so this is the
-#: single most effective cap: at ~20 ms of CPU per rendered second, 180 s of
-#: music is ~3.6 s of CPU.
-DEFAULT_MAX_SECONDS = 180.0
+#: One request's ceiling, and set by MEMORY rather than by CPU.
+#:
+#: The old comment here read "at ~20 ms of CPU per rendered second, 180 s of
+#: music is ~3.6 s of CPU", which is true and was the wrong constraint. CPU
+#: is not what runs out. Peak RSS scales at roughly 4.7 MB per second of
+#: rendered audio, measured in a fresh process per data point:
+#:
+#:      60 s of audio  ->  340 MB
+#:     120 s          ->  582 MB
+#:     180 s          ->  883 MB
+#:
+#: A 512 MB instance is the common small tier, and a memory ceiling does not
+#: degrade -- the process is killed and the platform reports a 502 with
+#: nothing in the application log. The first deployed request failed exactly
+#: that way at the old default.
+#:
+#: 60 leaves roughly 170 MB for Python, the server and the request. Raise it
+#: only against a measured peak on the host that will run it, and remember to
+#: multiply by RSE_API_MAX_CONCURRENT: two simultaneous renders cost twice
+#: this.
+DEFAULT_MAX_SECONDS = 60.0
 DEFAULT_MIN_SECONDS = 8.0
 
 #: The instance's ceiling. Renders are CPU-bound and run in a worker thread, so
