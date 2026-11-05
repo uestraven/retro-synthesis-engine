@@ -144,6 +144,85 @@ already says this -- it classifies arpeggios as within-row EFFECTS, not
 attacks -- and the renderer has no way to express one. The row grid was never
 the limit (a frame is representable in ticks); the per-note phase reset is.
 
+**An 11.4% validation-loss improvement produced unusable music.** The
+foundation checkpoint was retrained from scratch on the byte-identical corpus
+(same corpus_hash, same 11,151 windows, same 5,667,840 parameters) and reached
+0.5030 against the original's 0.56789 -- a real gain, traced to the original
+having been trained from warm weights with a cold optimizer. The listener's
+verdict on four samples: "horrible and can barely be considered music."
+
+So validation loss on next-token prediction does not measure music, and the
+gap is not small -- it is the difference between a clear numerical win and
+output that does not qualify as music. Two independently trained models now
+lose decisively to the rules-based composer.
+
+**Training on one genre did not help either.** The seven NES JRPGs give 233
+compositions and 307k tokens. Fine-tuning changed nothing at lr 3e-5 and made
+validation WORSE at 2e-4, where train loss rose too -- disruption rather than
+memorization. The reason was predicted from the data before the run: 10% of
+tracks supply 40% of training windows because they are long, and RPG tracks
+are long, so the foundation had already over-learned the idiom.
+
+**The corpus was not the problem, and the evidence that said it was came
+from a broken string match.** Doubt about the model line turned to the data:
+if NES-MDB lacks Zelda II, SMB3 and Castlevania III, the dataset is not
+musically valid. An availability check reported 19 of 50 curated titles
+absent. All three named games were in fact present, and so were 31 of 35
+spot-checked classics; the release has 392 games, not the 374 first counted.
+
+The cause was the filename grammar. NES-MDB writes
+`NNN_Game[_Part]_TT_NNTrackName.mid`, and the game spans a VARIABLE number of
+underscore fields: a sequel number (`SuperMarioBros_3`), a subtitle
+(`ZeldaII_TheAdventureofLink`), or punctuation in the real title (`Dr_Mario`).
+Reading field 1 -- which `_matches_title` did in shipped code -- collapsed
+SMB1, SMB2 and SMB3 into one game and returned nothing at all for Dr. Mario,
+whose field 1 is "Dr". The first hand-check compounded it by spelling sequels
+with digits (`Castlevania3`) where the release uses Roman numerals. Two
+independent naming assumptions, two wrong answers, pointing the same way.
+
+So data purity never explained the output: the 9,702 training windows that
+produced "barely music" already contained SMB3, Castlevania III and Zelda II.
+Before a dataset-availability claim is allowed to justify a decision, print
+the actual keys.
+
+**A codec validated against its own decoder is not validated.** The BRR
+encoder had only ever been checked against `rse.snes.brr.decode`, and three
+rounds of green loop tests plus a full V1 release validation all passed. Built
+as an external oracle, blargg's `snes_spc` found that 67-72% of the sustained
+instruments' samples would WRAP on a real S-DSP: the hardware ends each
+decoded sample with `CLAMP16(s); s = (int16_t)(s * 2)` -- saturate at half
+scale, then double with 16-bit wraparound -- where `_clamp` saturates at full
+scale and never wraps. On a full-scale sine the two decoders disagree by 96%.
+
+The cause was the encoder scoring filter choices with the saturating decoder,
+so the overflow-prone predictors 2 and 3 looked free at full amplitude: bass
+is filter 3 in 602 of 642 blocks. Scoring against the hardware's arithmetic
+instead takes every wrap to zero for 2.2 dB of round-trip accuracy on bass and
+under 0.6 dB elsewhere. The first fix tried -- banning filters 2 and 3 --
+cost three times as much, because the ban applies to the whole bank where
+correct scoring picks a safe filter per block. Fix the measurement, not the
+symptom.
+
+Nothing here was audible: the preview renderer decodes with the same
+saturating decoder it encodes for, so the output was self-consistent, and
+`aram.py` already declined to claim hardware compatibility. The defect is in a
+capability that was never claimed -- which is exactly why only an independent
+implementation could find it, and why the fix is opt-in with the default left
+byte-identical.
+
+Two process notes. The harness earned trust only after feeding the hardware
+decoder's own samples back through it reproduced the oracle to 0.02%; before
+that check it was just a second opinion. And two diagnoses were wrong first --
+overflow saturation (a counter that measured RSE's predictor chain rather than
+the hardware's, and so reported zero) and then LSB parity. Validate the
+instrument before believing the reading.
+
+**The model has no sense of where a phrase ends.** Every sample set both
+`underran_length` and `overran_length`: it tried to stop before the eighth bar,
+was held to length by the grammar, then tried to start a ninth. Its form is
+imposed by the sampler, not chosen. Trained on 8-bar windows with a 3072-token
+context, a 32-bar request silently exceeds both.
+
 **Measure the resource that fails, not the one you were thinking about.** The
 first deployed NES request returned 502. The duration cap had been sized by
 careful CPU measurement -- NES renders at 0.022x realtime, so 180 s of audio
