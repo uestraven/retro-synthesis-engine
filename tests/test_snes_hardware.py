@@ -22,12 +22,15 @@ from rse.snes.aram import (
 from rse.snes.brr import (
     BYTES_PER_BLOCK,
     FILTERS,
+    BrrSample,
     MAX_RANGE,
     SAMPLES_PER_BLOCK,
     bytes_for,
     decode,
     decode_looping,
     encode,
+    hardware_overflows,
+    hardware_sample,
     predict,
     round_trip_error,
 )
@@ -828,3 +831,120 @@ def test_the_real_track_fits_in_aram() -> None:
     )
     assert budget.fits, budget.report()
     assert budget.total / ARAM_BYTES < 0.75
+
+
+# --- hardware BRR overflow ------------------------------------------------
+#
+# Found by diffing this codec against blargg's `snes_spc`, driven as an
+# external oracle. The S-DSP ends each decoded sample with
+# `CLAMP16(s); s = (int16_t)(s * 2)` -- saturate at HALF scale, then double
+# with 16-bit wraparound -- where `_clamp` saturates at full scale and never
+# wraps. Against the real DSP, `hardware_overflow=True` tracks to 0.011-0.020%
+# across sine, saw, noise and a full-scale sine; the default path is 96.5%
+# wrong on the last of those. The oracle is not a repo dependency, so what is
+# asserted here are the properties that hold without it.
+
+
+def test_every_hardware_decoded_sample_is_even() -> None:
+    """A structural consequence of `s = (int16_t)(s * 2)`.
+
+    The hardware cannot emit an odd BRR sample. `_clamp` can and does, which
+    is why the two decoders sit on different grids even before anything
+    overflows -- and the gaussian downstream truncates to int16, so a one-LSB
+    grid difference is not always a one-LSB output difference.
+    """
+    rng = np.random.default_rng(7)
+    for shift in (0, 4, 8, 12):
+        for filter_index in range(4):
+            p1 = p2 = 0
+            for _ in range(64):
+                nybble = int(rng.integers(-8, 8))
+                p1, p2 = hardware_sample(filter_index, p1, p2, nybble, shift), p1
+                assert p1 % 2 == 0, (filter_index, shift, p1)
+
+
+def test_the_hardware_wraps_where_this_codec_saturates() -> None:
+    """The divergence, at the boundary, in one assertion.
+
+    Driven past the rail under filter 2, the saturating decoder pins to
+    +32767 and the hardware flips the sign. Anything that "fixes" the wrap by
+    clamping would fail this.
+    """
+    header = (0x0C << 4) | (2 << 2)
+    payload = bytes([0x77] * 8)  # every nibble +7, pushing one direction
+    data = bytes([0x00]) + payload + bytes([header]) + payload
+    sample = BrrSample(data=data, loop_block=None, frames=32)
+
+    saturating = np.round(decode(sample, frames=32) * 32767.0).astype(int)
+    hardware = np.round(
+        decode(sample, frames=32, hardware_overflow=True) * 32767.0
+    ).astype(int)
+
+    assert saturating.max() >= 32000, "expected the saturating decoder at the rail"
+    assert hardware.min() < -10000, "expected the hardware to wrap negative"
+    assert abs(int(saturating.max()) - int(hardware.min())) > 40000, (
+        "the two decoders must disagree by most of full scale here"
+    )
+
+
+def test_the_shipped_bank_would_wrap_on_real_hardware() -> None:
+    """Documents the defect, so it cannot be quietly reintroduced or forgotten.
+
+    This is NOT audible in the preview renderer: it decodes with this module's
+    saturating decoder, so what a listener hears is self-consistent, and
+    `aram.py` already declines to claim hardware compatibility. It does mean
+    the encoded data is not hardware-playable, which matters only if real
+    hardware or an accurate emulator ever becomes a target.
+    """
+    bank = build_bank(brr=False)
+    sustained = {"bass", "brass", "choir", "strings"}
+    assert sustained <= set(bank), sorted(bank)
+    for name in sorted(sustained):
+        asset = bank[name]
+        encoded = encode(np.asarray(asset.data, float), loop_start=asset.loop_start)
+        report = hardware_overflows(encoded)
+        assert report.fraction > 0.5, (
+            f"{name}: expected the default encoder to overflow on hardware, "
+            f"got {report.to_dict()}"
+        )
+        assert not report.to_dict()["hardware_playable"]
+
+
+def test_opting_into_hardware_arithmetic_removes_every_wrap() -> None:
+    """The fix, measured: zero wraps, and what it costs.
+
+    Scoring the brute force against the hardware's arithmetic lets it pick a
+    safe filter PER BLOCK rather than banning filters 2 and 3 outright, which
+    is why the accuracy cost is small -- the wholesale ban cost ~7 dB on bass
+    and this costs ~2 dB.
+    """
+    bank = build_bank(brr=False)
+    for name in sorted(bank):
+        asset = bank[name]
+        pcm = np.asarray(asset.data, float)
+        fixed = encode(pcm, loop_start=asset.loop_start, hardware_overflow=True)
+        assert hardware_overflows(fixed).wraps == 0, name
+
+        played = decode(fixed, frames=fixed.frames, hardware_overflow=True)
+        error = float(np.sqrt(np.mean((played - pcm[: played.size]) ** 2)))
+        assert error < 10 ** (-35 / 20), f"{name}: round-trip {error}"
+
+
+def test_the_default_encoder_is_unchanged_by_the_opt_in() -> None:
+    """The flag must not move the accepted baselines.
+
+    Every pinned SNES hash was produced by the saturating encoder, so the
+    default path has to stay byte-identical. Only an explicit opt-in differs.
+    """
+    bank = build_bank(brr=False)
+    for name in sorted(bank):
+        asset = bank[name]
+        pcm = np.asarray(asset.data, float)
+        default = encode(pcm, loop_start=asset.loop_start)
+        explicit = encode(pcm, loop_start=asset.loop_start, hardware_overflow=False)
+        assert default.data == explicit.data, name
+        opted_in = encode(pcm, loop_start=asset.loop_start, hardware_overflow=True)
+        if name in {"bass", "brass", "choir", "strings"}:
+            assert opted_in.data != default.data, (
+                f"{name} overflows, so the opt-in must choose different filters"
+            )

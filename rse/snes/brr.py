@@ -153,11 +153,120 @@ def _clamp(value: float) -> int:
     return int(max(SAMPLE_MIN, min(SAMPLE_MAX, round(value))))
 
 
+def _wrap16(value: int) -> int:
+    """Truncate to a signed 16-bit value, wrapping rather than saturating."""
+    return ((value + 0x8000) & 0xFFFF) - 0x8000
+
+
+def hardware_sample(
+    filter_index: int, p1: int, p2: int, nybble: int, shift: int
+) -> int:
+    """One decoded BRR sample in the S-DSP's own arithmetic.
+
+    `predict` above is algebraically what the hardware computes, and `_clamp`
+    saturates the result. The hardware does neither of those last two things
+    in that order: it accumulates at HALF scale, saturates there, and then
+    doubles with 16-bit WRAPAROUND --
+
+        CLAMP16( s );            // saturate the half-scale accumulator
+        s = (int16_t) (s * 2);   // double, wrapping
+
+    Two consequences, both measured against blargg's `snes_spc` as an external
+    oracle rather than reasoned about. Every sample the hardware stores is
+    EVEN, because of the doubling; and a sample whose half-scale accumulator
+    exceeds the rail does not pin to the rail, it flips sign. Saturating
+    instead diverges by up to 96% of full scale, and does so on this bank:
+    67-72% of the sustained instruments' samples wrap on real hardware, since
+    `_encode_block` scores filters with the saturating decoder and therefore
+    picks the overflow-prone predictors 2 and 3 at full amplitude.
+
+    `nybble` is already sign-extended to -8..7. Python's `>>` floors, which is
+    the arithmetic shift the hardware performs, so the shifts transcribe
+    directly.
+    """
+    return _hardware_step(filter_index, p1, p2, nybble, shift)[0]
+
+
+def _hardware_step(
+    filter_index: int, p1: int, p2: int, nybble: int, shift: int
+) -> tuple[int, bool]:
+    """`hardware_sample`, also reporting whether the doubling wrapped."""
+    s = nybble
+    if shift < 0xD:
+        s = (s << shift) >> 1
+    else:
+        # An out-of-range shift does not encode a large sample; the hardware
+        # collapses it to a rail.
+        s = -0x800 if s < 0 else 0
+    big = p1
+    small = p2 >> 1
+    if filter_index == 1:
+        s += (big >> 1) + ((-big) >> 5)
+    elif filter_index == 2:
+        s += big - small + (small >> 4) + ((big * -3) >> 6)
+    elif filter_index == 3:
+        s += big - small + ((big * -13) >> 7) + ((small * 3) >> 4)
+    s = max(SAMPLE_MIN, min(SAMPLE_MAX, s))
+    doubled = s * 2
+    stored = _wrap16(doubled)
+    return stored, stored != doubled
+
+
+@dataclass(frozen=True)
+class OverflowReport:
+    """How much of a sample would wrap if a real S-DSP decoded it.
+
+    Non-zero means the data is not hardware-playable as encoded: the preview
+    renderer's own decoder saturates and sounds fine, and the hardware would
+    flip those samples' sign. Reported rather than fixed by default, because
+    the renderer is self-consistent and re-encoding costs round-trip accuracy;
+    see `hardware_sample`.
+    """
+
+    wraps: int
+    samples: int
+
+    @property
+    def fraction(self) -> float:
+        return self.wraps / self.samples if self.samples else 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "wraps": self.wraps,
+            "samples": self.samples,
+            "fraction": self.fraction,
+            "hardware_playable": self.wraps == 0,
+        }
+
+
+def hardware_overflows(sample: BrrSample) -> OverflowReport:
+    """Count the samples a real S-DSP would wrap while decoding `sample`."""
+    wraps = 0
+    total = 0
+    p1 = p2 = 0
+    for index in range(sample.blocks):
+        offset = index * BYTES_PER_BLOCK
+        header = sample.data[offset]
+        shift = (header >> 4) & 0xF
+        filter_index = (header >> 2) & 0x3
+        for byte in sample.data[offset + 1 : offset + BYTES_PER_BLOCK]:
+            for nibble in ((byte >> 4) & 0xF, byte & 0xF):
+                value = nibble - 16 if nibble >= 8 else nibble
+                decoded, wrapped = _hardware_step(
+                    filter_index, p1, p2, value, shift
+                )
+                wraps += wrapped
+                total += 1
+                p2, p1 = p1, decoded
+    return OverflowReport(wraps=wraps, samples=total)
+
+
 def _encode_block(
     samples: np.ndarray,
     previous: tuple[int, int],
     *,
     allowed_filters: tuple[int, ...] = (0, 1, 2, 3),
+    hardware_overflow: bool = False,
 ) -> tuple[bytes, tuple[int, int], float]:
     """Encode sixteen samples, choosing the cheapest filter and range.
 
@@ -165,6 +274,15 @@ def _encode_block(
     would produce -- which is the only error that matters, and it differs from
     the quantisation error because the predictor feeds back. An encoder that
     scores the nibble error instead drifts.
+
+    `hardware_overflow` decides WHICH decoder that is. False (the default)
+    scores against this module's saturating `_clamp`, which is what the
+    preview renderer plays and what the accepted baselines were pinned
+    against. True scores against `hardware_sample`, the S-DSP's own
+    clamp-then-double-with-wrap, so a filter whose predictor would overflow on
+    real hardware is charged for it and loses the brute force. That is the
+    difference between data that sounds right in this renderer and data a real
+    SNES could play; see `hardware_sample` for the measurement.
     """
     best: tuple[bytes, tuple[int, int], float] | None = None
     for filter_index in allowed_filters:
@@ -180,7 +298,10 @@ def _encode_block(
                     round(residual)
                 )
                 quantised = max(-8, min(7, quantised))
-                decoded = _clamp(prediction + (quantised << shift))
+                if hardware_overflow:
+                    decoded = hardware_sample(filter_index, p1, p2, quantised, shift)
+                else:
+                    decoded = _clamp(prediction + (quantised << shift))
                 error += (decoded - float(target)) ** 2
                 nibbles.append(quantised & 0xF)
                 p2, p1 = p1, decoded
@@ -200,6 +321,7 @@ def encode(
     *,
     loop_start: int | None = None,
     scale: float = 32767.0,
+    hardware_overflow: bool = False,
 ) -> BrrSample:
     """Encode float samples in [-1, 1] as BRR.
 
@@ -208,6 +330,11 @@ def encode(
     audio. The block at the loop point is forced to filter 0 so that every
     repetition decodes identically -- a policy, not a hardware requirement; see
     the module docstring.
+
+    `hardware_overflow` is opt-in and off by default so this call stays
+    byte-identical to the encoder the accepted SNES baselines were pinned
+    against. Turn it on to produce data a real S-DSP could play; see
+    `_encode_block` and `hardware_sample`.
     """
     pcm = np.clip(np.asarray(samples, dtype=np.float64) * scale, SAMPLE_MIN, SAMPLE_MAX)
     # Pad to a whole number of blocks: the hardware reads blocks, not samples.
@@ -231,7 +358,8 @@ def encode(
         # would decode differently on pass 1 than on pass 2.
         allowed = (0,) if index == 0 or index == loop_block else (0, 1, 2, 3)
         encoded, previous, _error = _encode_block(
-            block, previous, allowed_filters=allowed
+            block, previous, allowed_filters=allowed,
+            hardware_overflow=hardware_overflow,
         )
         header = encoded[0]
         if index == total_blocks - 1:
@@ -248,10 +376,17 @@ def encode(
     )
 
 
-def decode(sample: BrrSample, *, frames: int | None = None) -> np.ndarray:
+def decode(
+    sample: BrrSample, *, frames: int | None = None, hardware_overflow: bool = False
+) -> np.ndarray:
     """Decode BRR to floats in [-1, 1].
 
     Decodes straight through; looping is the player's job, not the decoder's.
+
+    `hardware_overflow` switches the per-sample arithmetic to the S-DSP's own
+    (`hardware_sample`). Off by default, so this is the saturating decoder the
+    preview renderer plays. Turning it on is how you hear what a real SNES
+    would make of data encoded without it.
     """
     wanted = frames if frames is not None else sample.frames
     out = np.zeros(wanted, dtype=np.float64)
@@ -267,14 +402,21 @@ def decode(sample: BrrSample, *, frames: int | None = None) -> np.ndarray:
                 if position >= wanted:
                     return out / 32767.0
                 value = nibble - 16 if nibble >= 8 else nibble
-                decoded = _clamp(predict(filter_index, p1, p2) + (value << shift))
+                if hardware_overflow:
+                    decoded = hardware_sample(filter_index, p1, p2, value, shift)
+                else:
+                    decoded = _clamp(
+                        predict(filter_index, p1, p2) + (value << shift)
+                    )
                 out[position] = decoded
                 p2, p1 = p1, decoded
                 position += 1
     return out / 32767.0
 
 
-def decode_looping(sample: BrrSample, *, frames: int) -> np.ndarray:
+def decode_looping(
+    sample: BrrSample, *, frames: int, hardware_overflow: bool = False
+) -> np.ndarray:
     """Decode with the loop taken, the way the hardware plays it.
 
     `decode` stops at the end of the data; this keeps going, jumping back to
@@ -303,7 +445,12 @@ def decode_looping(sample: BrrSample, *, frames: int) -> np.ndarray:
                 if position >= frames:
                     return out / 32767.0
                 value = nibble - 16 if nibble >= 8 else nibble
-                decoded = _clamp(predict(filter_index, p1, p2) + (value << shift))
+                if hardware_overflow:
+                    decoded = hardware_sample(filter_index, p1, p2, value, shift)
+                else:
+                    decoded = _clamp(
+                        predict(filter_index, p1, p2) + (value << shift)
+                    )
                 out[position] = decoded
                 p2, p1 = p1, decoded
                 position += 1
