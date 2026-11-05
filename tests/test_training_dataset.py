@@ -288,6 +288,38 @@ def test_a_title_matches_a_whole_field_not_a_substring() -> None:
     assert not _matches_title(decoy, ("finalfantasy",))
 
 
+def test_a_title_may_span_several_filename_fields() -> None:
+    """The game is not always field 1, and reading only field 1 was wrong in
+    both directions: it found NOTHING for Dr. Mario, whose field 1 is "Dr",
+    and it collapsed SMB1/2/3 into one game, so asking for any selected all
+    three. Found while checking whether 19 curated titles were in the release;
+    4 of the 19 were present and had been reported absent."""
+
+    from rse.training.corpus import _matches_title
+
+    smb1 = "nesmdb_midi/train/322_SuperMarioBros__00_01RunningAbout.mid"
+    smb3 = "nesmdb_midi/train/324_SuperMarioBros_3_00_01World1Map.mid"
+    mario = "nesmdb_midi/train/082_Dr_Mario_00_01TitleScreen.mid"
+    zelda2 = "nesmdb_midi/train/401_ZeldaII_TheAdventureofLink_00_01TitleBGM.mid"
+    cv3 = "nesmdb_midi/train/046_CastlevaniaIII_Dracula_sCurse_00_01Prelude.mid"
+
+    # A numeric sequel field is part of the title, never droppable, or asking
+    # for SMB1 would silently train on three games.
+    assert _matches_title(smb1, ("supermariobros",))
+    assert not _matches_title(smb3, ("supermariobros",))
+    assert _matches_title(smb3, ("supermariobros3",))
+
+    # A punctuated title: "Dr. Mario" is written `Dr_Mario`.
+    assert _matches_title(mario, ("drmario",))
+
+    # A subtitle may be dropped, since it is not what distinguishes the game.
+    assert _matches_title(zelda2, ("zeldaii",))
+    assert _matches_title(zelda2, ("zeldaiitheadventureoflink",))
+    assert _matches_title(cv3, ("castlevaniaiii",))
+    # ...but dropping it must not reach past the Roman numeral to the original.
+    assert not _matches_title(cv3, ("castlevania",))
+
+
 def test_the_holdout_is_stratified_so_no_game_is_unrepresented() -> None:
     """A flat 15% sample across games of 21 to 59 tracks can take none from
     the smallest, which would skew the eval signal to the largest title."""

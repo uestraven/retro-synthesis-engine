@@ -13,6 +13,7 @@ proven. Say so whenever reporting numbers from it.
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -98,24 +99,74 @@ def corpus_from_procedural(
     return entries, info
 
 
+def _normalize(text: str) -> str:
+    """Lowercase, punctuation-free form, so "Dr. Mario" == "Dr_Mario"."""
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+#: A bare two-digit field, which is how NES-MDB writes a track index.
+_TRACK_INDEX = re.compile(r"\d\d")
+
+
+def _game_fields(name: str) -> tuple[str, ...]:
+    """The game-title fields of a release filename.
+
+    NES-MDB names a track `NNN_Game_TT_NNTrackName.ext`, but the game itself
+    may span SEVERAL underscore-delimited fields -- a subtitle
+    (`ZeldaII_TheAdventureofLink`), a sequel number (`SuperMarioBros_3`), or an
+    abbreviation that contains a period in the real title (`Dr_Mario`). Reading
+    only field 1 was wrong in both directions: it found nothing for Dr. Mario,
+    whose field 1 is "Dr", and it collapsed SMB1, SMB2 and SMB3 into one game,
+    so asking for any of them selected all three.
+
+    The game therefore ends where the track index begins: the first bare
+    two-digit field, preferring one whose successor also starts with two digits
+    (the `TT_NN...` pair), since that signature holds for 5,277 of the 5,278
+    tracks in the release and the first-match fallback covers the last one.
+    """
+    stem = PurePosixPath(name).name.rsplit(".", 1)[0]
+    parts = stem.split("_")
+    indices = [i for i in range(1, len(parts)) if _TRACK_INDEX.fullmatch(parts[i])]
+    if not indices:
+        return ()
+    cut = next(
+        (
+            i
+            for i in indices
+            if i + 1 < len(parts) and _TRACK_INDEX.match(parts[i + 1])
+        ),
+        indices[0],
+    )
+    return tuple(p for p in parts[1:cut] if p)
+
+
 def _matches_title(name: str, wanted: tuple[str, ...]) -> bool:
     """Whether a release filename belongs to one of the named games.
 
-    NES-MDB names a track `NNN_GameTitle_TT_TrackName.ext` under a split
-    directory, so the game is the second underscore-delimited field of the
-    BASENAME -- matching the whole path would let the split directory and the
-    track name produce false positives.
+    A request matches the whole title, punctuation-insensitively, so both
+    `zeldaii` and `zeldaiitheadventureoflink` select Zelda II, and `drmario`
+    selects `Dr_Mario`. It may also name a leading RUN of fields, so a subtitle
+    need not be typed out -- but only when the fields it drops are not purely
+    numeric, which is what keeps `supermariobros` from selecting
+    `SuperMarioBros_3`. The sequel is still reachable as `supermariobros3`.
 
-    Matched as a whole field rather than a substring, which matters more than
-    it looks here: "FinalFantasy" is a prefix of "FinalFantasyII" and
-    "FinalFantasyIII", and "DragonWarrior" of three more. A substring test
-    asking for Final Fantasy alone would silently pull in all three.
+    Sequels spelled in Roman numerals need no special case: they are one field,
+    so "finalfantasy" is simply not equal to "finalfantasyii" and asking for
+    Final Fantasy alone does not pull in the other two. That was true of the
+    old whole-field test and is the behaviour to preserve.
     """
-    stem = PurePosixPath(name).name
-    parts = stem.split("_")
-    if len(parts) < 2:
+    fields = _game_fields(name)
+    if not fields:
         return False
-    return parts[1].lower() in wanted
+    flat = [_normalize(f) for f in fields]
+    for cut in range(len(flat), 0, -1):
+        # Dropping a trailing numeric field would merge a sequel into its
+        # predecessor, so only the full title matches in that case.
+        if cut < len(flat) and any(f.isdigit() for f in flat[cut:]):
+            break
+        if "".join(flat[:cut]) in wanted:
+            return True
+    return False
 
 
 def _stratified_holdout(
@@ -131,8 +182,7 @@ def _stratified_holdout(
         return set()
     by_title: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
-        stem = PurePosixPath(row["name"]).name
-        title = stem.split("_")[1] if "_" in stem else "unknown"
+        title = "_".join(_game_fields(row["name"])) or "unknown"
         by_title.setdefault(title, []).append(row)
 
     held: set[str] = set()
@@ -202,7 +252,7 @@ def corpus_from_release(
         "titles": list(titles) if titles else None,
         "holdout_fraction": holdout_fraction,
     }
-    wanted = tuple(t.lower() for t in titles) if titles else ()
+    wanted = tuple(_normalize(t) for t in titles) if titles else ()
 
     selected: list[dict[str, Any]] = []
     for row in rows:
