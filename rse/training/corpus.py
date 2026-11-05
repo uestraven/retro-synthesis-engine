@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from rse.data.pipeline import processed_dir
@@ -24,7 +24,7 @@ from rse.generation.plan import ENERGIES, MOODS, make_plan
 from rse.generation.procedural import generate
 from rse.hardware.profile import HardwareProfile
 from rse.jsonio import read_json, read_jsonl
-from rse.training.dataset import TRAIN, assign_splits
+from rse.training.dataset import TRAIN, VALID, assign_splits
 
 #: A corpus entry: the music, which split it belongs to, and its identity.
 CorpusEntry = tuple[Composition, str, str]
@@ -98,6 +98,53 @@ def corpus_from_procedural(
     return entries, info
 
 
+def _matches_title(name: str, wanted: tuple[str, ...]) -> bool:
+    """Whether a release filename belongs to one of the named games.
+
+    NES-MDB names a track `NNN_GameTitle_TT_TrackName.ext` under a split
+    directory, so the game is the second underscore-delimited field of the
+    BASENAME -- matching the whole path would let the split directory and the
+    track name produce false positives.
+
+    Matched as a whole field rather than a substring, which matters more than
+    it looks here: "FinalFantasy" is a prefix of "FinalFantasyII" and
+    "FinalFantasyIII", and "DragonWarrior" of three more. A substring test
+    asking for Final Fantasy alone would silently pull in all three.
+    """
+    stem = PurePosixPath(name).name
+    parts = stem.split("_")
+    if len(parts) < 2:
+        return False
+    return parts[1].lower() in wanted
+
+
+def _stratified_holdout(
+    rows: list[dict[str, Any]], fraction: float, *, seed: int
+) -> set[str]:
+    """Composition ids to move into the validation split, per game.
+
+    Stratified so every game contributes proportionally -- a flat random
+    sample of 15% across seven games of 21 to 59 tracks can easily take none
+    from the smallest and skew the signal toward the largest.
+    """
+    if fraction <= 0:
+        return set()
+    by_title: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        stem = PurePosixPath(row["name"]).name
+        title = stem.split("_")[1] if "_" in stem else "unknown"
+        by_title.setdefault(title, []).append(row)
+
+    held: set[str] = set()
+    for title in sorted(by_title):
+        group = sorted(by_title[title], key=lambda r: r["composition_id"])
+        # At least one per game, so no game is unrepresented in the signal.
+        want = max(1, round(len(group) * fraction))
+        random.Random(f"{seed}:{title}").shuffle(group)
+        held.update(row["composition_id"] for row in group[:want])
+    return held
+
+
 def corpus_from_release(
     dataset_id: str,
     release_id: str,
@@ -107,6 +154,8 @@ def corpus_from_release(
     exclude_duplicates: bool = True,
     require_compliant: bool = False,
     splits: tuple[str, ...] | None = None,
+    titles: tuple[str, ...] | None = None,
+    holdout_fraction: float = 0.0,
     seed: int = 0,
 ) -> tuple[list[CorpusEntry], CorpusInfo]:
     """Load an ingested release as a corpus.
@@ -116,6 +165,23 @@ def corpus_from_release(
     exactly the memorization the originality screening looks for. Only when the
     index has no splits are they assigned here, and by composition rather than
     by window.
+
+    `titles` restricts the corpus to named games, matched case-insensitively
+    against the composition id. That is how a single-genre corpus is built:
+    the seven NES JRPGs are 235 of the release's 5,278 tracks.
+
+    `holdout_fraction` carves an evaluation split from what survives the
+    title filter, and exists because NES-MDB splits BY GAME. Every one of
+    those seven JRPGs lands wholly in `train`, so a title-filtered corpus has
+    no validation data at all and training would run blind. The split is
+    stratified per title and seeded, so each game contributes proportionally
+    and the same request gives the same split.
+
+    Be clear about what that buys: a track-level holdout leaks the game. The
+    model sees other tracks from the same game, so this measures "has it
+    learned the idiom" and NOT "does it generalize to an unseen composer",
+    which is what the release's own composer-disjoint splits measure. Use it
+    as a training signal, not as evidence of generalization.
     """
     out_dir = processed_dir(dataset_id, release_id, datasets_dir=datasets_dir)
     index_path = out_dir / "index.jsonl"
@@ -133,7 +199,10 @@ def corpus_from_release(
         "exclude_duplicates": exclude_duplicates,
         "require_compliant": require_compliant,
         "splits": list(splits) if splits else None,
+        "titles": list(titles) if titles else None,
+        "holdout_fraction": holdout_fraction,
     }
+    wanted = tuple(t.lower() for t in titles) if titles else ()
 
     selected: list[dict[str, Any]] = []
     for row in rows:
@@ -151,6 +220,9 @@ def corpus_from_release(
         if splits and row.get("split") not in splits:
             info.n_skipped += 1
             continue
+        if wanted and not _matches_title(row["name"], wanted):
+            info.n_skipped += 1
+            continue
         selected.append(row)
     if limit and limit < len(selected):
         # Shuffle before truncating. The index is ordered by path, so `test/`
@@ -159,6 +231,9 @@ def corpus_from_release(
         random.Random(seed).shuffle(selected)
         selected = selected[:limit]
         selected.sort(key=lambda row: row["composition_id"])
+
+    held = _stratified_holdout(selected, holdout_fraction, seed=seed)
+    info.detail["n_held_out"] = len(held)
 
     has_splits = any(row.get("split") for row in selected)
     fallback = (
@@ -176,6 +251,8 @@ def corpus_from_release(
             info.n_skipped += 1
             continue
         split = row.get("split") or fallback.get(row["composition_id"], TRAIN)
+        if row["composition_id"] in held:
+            split = VALID
         entries.append((composition, split, row["composition_id"]))
         info.per_split[split] = info.per_split.get(split, 0) + 1
 

@@ -216,11 +216,28 @@ def acquire(
     datasets_dir: Path | None = None,
     configs_dir: Path | None = None,
     overwrite: bool = False,
+    from_extracted: bool = False,
 ) -> dict[str, Any]:
     """Fetch (or register) a release, extract it, and write its manifest.
 
     Exactly one of `archive` (a file already on disk) or a URL — passed here or
-    present in the dataset config — is required.
+    present in the dataset config — is required, UNLESS `from_extracted` is
+    set.
+
+    `from_extracted` registers a release whose raw files are already on disk:
+    it skips the download and the extraction and writes the manifest from
+    what `raw_dir` contains. That is the case on a machine where the raw tree
+    was copied in rather than fetched -- a shared volume, a restored backup,
+    a transferred dataset -- where the archive no longer exists and
+    re-downloading a research-only dataset to rebuild a manifest is pure
+    waste.
+
+    The provenance cost is explicit and recorded as such: without the archive
+    there is no checksum to verify the tree against, so the acquisition
+    method is "extracted" and `archive_sha256` is null. Every per-file
+    checksum in the manifest is still computed from the files themselves, so
+    the records describe exactly what is on disk -- what is missing is proof
+    that what is on disk is what the publisher released.
     """
     release = load_release(dataset_id, release_id, configs_dir=configs_dir)
     root = datasets_dir or paths.DATASETS_DIR
@@ -228,7 +245,22 @@ def acquire(
     raw_dir = root / "raw" / dataset_id / release.release_id
 
     effective_url = url or release.url
-    if archive is not None:
+    # `from_extracted` is checked FIRST, before the archive and the URL.
+    # Ordering it after them made the flag silently ineffective whenever the
+    # config carried a URL -- which is every release here -- so it reported
+    # acquisition_method=download for a tree it never downloaded, and on a
+    # machine with no cached archive it would have started a pointless
+    # download of a dataset already sitting on disk.
+    if from_extracted:
+        if not raw_dir.is_dir():
+            raise DatasetError(
+                f"--from-extracted needs the raw tree at {raw_dir}, which "
+                "does not exist"
+            )
+        archive = None
+        method = "extracted"
+        archive_sha256 = None
+    elif archive is not None:
         archive = Path(archive).expanduser().resolve()
         if not archive.is_file():
             raise DatasetError(f"archive {archive} does not exist")
@@ -252,10 +284,12 @@ def acquire(
         raise DatasetError(
             f"{release.version} has no download URL in its config. Download it from "
             f"{release.homepage or 'the dataset homepage'} and re-run with "
-            f"--archive <path> (and --sha256 <hash> to pin it)."
+            f"--archive <path> (and --sha256 <hash> to pin it), or "
+            "--from-extracted if the raw files are already on disk."
         )
 
-    extract_archive(archive, raw_dir, overwrite=overwrite)
+    if not from_extracted:
+        extract_archive(archive, raw_dir, overwrite=overwrite)
     manifest = build_manifest(release, raw_dir, source_url=effective_url, acquisition_method=method)
 
     out_dir = root / "processed" / dataset_id / release.release_id
@@ -267,7 +301,7 @@ def acquire(
         "acquired_utc": utc_now(),
         "acquisition_method": method,
         "source_url": effective_url,
-        "archive": str(archive),
+        "archive": str(archive) if archive else None,
         "archive_sha256": archive_sha256,
         "raw_dir": str(raw_dir),
         "n_source_files": len(manifest),

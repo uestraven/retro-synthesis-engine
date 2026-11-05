@@ -254,3 +254,72 @@ def test_section_segments_divide_the_window_at_least_twice(tokenizer):
         if tokenizer.vocabulary.token_of(i).startswith("Section_")
     }
     assert len(labels) > 1, f"sections never vary, so the ablation is vacuous: {labels}"
+
+
+# --- single-genre corpora -------------------------------------------------
+
+
+def test_a_title_matches_a_whole_field_not_a_substring() -> None:
+    """The trap that makes this worth a test.
+
+    "FinalFantasy" is a prefix of "FinalFantasyII" and "FinalFantasyIII", and
+    "DragonWarrior" of three more titles. A substring match asking for Final
+    Fantasy alone would silently train on all three games -- 104 tracks
+    instead of 21 -- and nothing downstream would look wrong.
+
+    NES-MDB names a track `NNN_GameTitle_TT_TrackName.ext` under a split
+    directory, so the title is the second field of the BASENAME. Matching the
+    whole path would let the split directory or the track name match too.
+    """
+    from rse.training.corpus import _matches_title
+
+    ff1 = "nesmdb24_exprsco/train/117_FinalFantasy_00_01Prelude.exprsco.pkl"
+    ff3 = "nesmdb24_exprsco/train/119_FinalFantasyIII_00_01Prologue.exprsco.pkl"
+
+    assert _matches_title(ff1, ("finalfantasy",))
+    assert not _matches_title(ff3, ("finalfantasy",)), (
+        "asking for Final Fantasy must not select Final Fantasy III"
+    )
+    assert _matches_title(ff3, ("finalfantasyiii",))
+    # Case-insensitive, since the caller types the title by hand.
+    assert _matches_title(ff1, ("FinalFantasy".lower(),))
+    # A track name containing a title must not match on its own.
+    decoy = "nesmdb24_exprsco/train/044_CastleofDragon_05_06FinalFantasy.pkl"
+    assert not _matches_title(decoy, ("finalfantasy",))
+
+
+def test_the_holdout_is_stratified_so_no_game_is_unrepresented() -> None:
+    """A flat 15% sample across games of 21 to 59 tracks can take none from
+    the smallest, which would skew the eval signal to the largest title."""
+
+    from rse.training.corpus import _stratified_holdout
+
+    rows = []
+    for title, count in (("Small", 4), ("Medium", 20), ("Large", 60)):
+        for i in range(count):
+            rows.append({
+                "composition_id": f"{title}:{i}",
+                "name": f"x/train/001_{title}_{i:02d}_Track.pkl",
+            })
+
+    held = _stratified_holdout(rows, 0.15, seed=0)
+    by_title: dict[str, int] = {}
+    for cid in held:
+        by_title[cid.split(":")[0]] = by_title.get(cid.split(":")[0], 0) + 1
+
+    assert set(by_title) == {"Small", "Medium", "Large"}, by_title
+    assert by_title["Small"] >= 1, "at least one from the smallest game"
+    assert by_title["Large"] > by_title["Small"], "proportional to size"
+    # Deterministic for a given seed, or two runs are not comparable.
+    assert _stratified_holdout(rows, 0.15, seed=0) == held
+    assert _stratified_holdout(rows, 0.15, seed=1) != held
+
+
+def test_no_holdout_is_requested_by_default() -> None:
+    """The release's own composer-disjoint splits are the right ones whenever
+    they are usable. A track-level holdout leaks the game, so it must be
+    opt-in rather than something a caller gets by accident."""
+    from rse.training.corpus import _stratified_holdout
+
+    rows = [{"composition_id": "a:1", "name": "x/train/001_A_00_T.pkl"}]
+    assert _stratified_holdout(rows, 0.0, seed=0) == set()

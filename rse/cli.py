@@ -76,6 +76,16 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument(
         "--overwrite", action="store_true", help="replace an existing extraction directory"
     )
+    fetch.add_argument(
+        "--from-extracted",
+        action="store_true",
+        help="register a release whose raw files are already on disk: skip "
+        "the download and extraction and write the manifest from the raw "
+        "tree. For a machine where the data was copied in rather than "
+        "fetched. Records acquisition_method=extracted and no archive "
+        "checksum, because without the archive there is nothing to verify "
+        "the tree against",
+    )
     fetch.set_defaults(func=cmd_fetch)
 
     ingest = sub.add_parser(
@@ -190,6 +200,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     train.add_argument("--dataset", default="nesmdb")
     train.add_argument("--release", default="midi")
+    train.add_argument(
+        "--titles",
+        default=None,
+        help="comma-separated game titles to train on, matched as whole "
+        "fields against the release filename. This is how a single-genre "
+        "corpus is built: the seven NES JRPGs are 235 of NES-MDB's 5,278 "
+        "tracks, 211 after duplicates. Matched as a whole field, not a "
+        "substring, because \"FinalFantasy\" is a prefix of "
+        "\"FinalFantasyII\" and \"FinalFantasyIII\"",
+    )
+    train.add_argument(
+        "--holdout-fraction",
+        type=float,
+        default=0.0,
+        help="carve this fraction of a title-filtered corpus into the valid "
+        "split, stratified per game. Needed because NES-MDB splits BY GAME, "
+        "so any single-genre corpus lands wholly in train and training would "
+        "run with no eval set. It LEAKS the game -- the model sees other "
+        "tracks from the same title -- so it is a training signal, not "
+        "evidence of generalization",
+    )
     train.add_argument("--corpus-size", type=int, default=200, help="procedural pieces to make")
     train.add_argument("--corpus-limit", type=int, default=None, help="cap dataset compositions")
     train.add_argument("--window-bars", type=int, default=16)
@@ -496,6 +527,7 @@ def cmd_fetch(args: argparse.Namespace) -> int:
         datasets_dir=args.datasets_dir,
         configs_dir=_dataset_configs(args.configs_dir),
         overwrite=args.overwrite,
+        from_extracted=getattr(args, "from_extracted", False),
     )
     if args.json:
         _print_json(result)
@@ -1014,6 +1046,12 @@ def cmd_train(args: argparse.Namespace) -> int:
                 args.release,
                 datasets_dir=args.datasets_dir,
                 limit=args.corpus_limit,
+                titles=tuple(
+                    t.strip() for t in args.titles.split(",") if t.strip()
+                )
+                if getattr(args, "titles", None)
+                else None,
+                holdout_fraction=getattr(args, "holdout_fraction", 0.0) or 0.0,
                 seed=args.seed,
             )
         print(f"corpus    : {corpus_info.n_compositions} compositions, tokenizing...", flush=True)
