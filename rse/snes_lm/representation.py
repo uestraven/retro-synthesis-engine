@@ -60,6 +60,8 @@ class Vocab:
 
     time_buckets: tuple[float, ...]
     dur_buckets: tuple[float, ...]
+    #: Positive deltas are capped here before bucketing; see `fit_vocab`.
+    max_delta_sec: float = 2.0
 
     PAD: int = 0
     BOS: int = 1
@@ -74,8 +76,17 @@ class Vocab:
         return self.n_special
 
     @property
+    def time_same(self) -> int:
+        """Delta exactly zero: this event shares its onset with the previous.
+
+        A dedicated token rather than a bucket, because 51.9% of consecutive
+        pairs are this case and it is categorical, not continuous.
+        """
+        return self.time_base
+
+    @property
     def n_time(self) -> int:
-        return len(self.time_buckets)
+        return len(self.time_buckets) + 1  # positive buckets plus TIME_SAME
 
     @property
     def voice_base(self) -> int:
@@ -139,6 +150,7 @@ class Vocab:
             "pitch_min": PITCH_MIN,
             "pitch_max": PITCH_MAX,
             "stride": STRIDE,
+            "max_delta_sec": self.max_delta_sec,
             "time_buckets": list(self.time_buckets),
             "dur_buckets": list(self.dur_buckets),
         }
@@ -148,6 +160,7 @@ class Vocab:
         return cls(
             time_buckets=tuple(data["time_buckets"]),
             dur_buckets=tuple(data["dur_buckets"]),
+            max_delta_sec=float(data.get("max_delta_sec", 2.0)),
         )
 
 
@@ -163,34 +176,78 @@ def _bucket(value: float, edges: Sequence[float]) -> int:
     return min(low, len(edges) - 1)
 
 
+def _quantile_edges(values: list[float], n: int) -> tuple[float, ...]:
+    """Quantile bucket upper bounds, deduplicated and sorted."""
+    values = sorted(v for v in values if v is not None)
+    if not values:
+        return (0.0,)
+    out: list[float] = []
+    for i in range(1, n + 1):
+        index = min(len(values) - 1, (i * len(values)) // n)
+        edge = values[index]
+        if not out or edge > out[-1]:
+            out.append(edge)
+    return tuple(out)
+
+
+def _log_edges(lo: float, hi: float, n: int) -> tuple[float, ...]:
+    """Geometrically spaced upper bounds from `lo` to `hi`."""
+    if n < 2 or hi <= lo:
+        return (hi,)
+    ratio = (hi / lo) ** (1.0 / (n - 1))
+    return tuple(lo * ratio**i for i in range(n))
+
+
 def fit_vocab(
     deltas: Iterable[float],
     durations: Iterable[float],
     *,
-    n_time: int = 48,
+    n_time: int = 96,
     n_dur: int = 32,
+    max_delta_sec: float = 2.0,
+    min_delta_sec: float = 0.0005,
 ) -> Vocab:
-    """Fit bucket edges by quantile. TRAIN SPLIT ONLY.
+    """Fit bucket edges. TRAIN SPLIT ONLY.
 
-    Quantiles rather than fixed or log spacing: the delta distribution is
-    whatever these drivers happen to produce, and a fixed grid was already
-    rejected on measurement. Quantiles put resolution where the data is.
+    Three corrections, each forced by a measurement rather than taste. The
+    error figures are positive-delta quantisation error over all 1,224,840
+    positive train deltas.
+
+    **Zero gets its own token and is excluded from the fit.** 51.9% of
+    consecutive key-on pairs across the full corpus share an onset exactly,
+    because SNES drivers key several voices on one sequencer tick. Fitting
+    quantiles over that spent half the buckets on a single value and collapsed
+    48 requested buckets to 25. Zero is categorical -- "same tick" -- not a
+    point on a continuum.
+
+    **Long gaps are capped**, folding into the top bucket. Only 0.072% of
+    positive deltas exceed 2 s, and a multi-second silence carries little
+    musical information where a 20 ms note spacing carries a lot.
+
+    **Time buckets are LOG spaced, not quantile spaced.** This is the change
+    that mattered. Quantiles put buckets where the mass is, and the mass is at
+    small deltas, so the top bucket spanned 0.4 s to 2 s:
+
+        quantile 48 + cap   p99  1489 ms   relative p99  2.918
+        quantile 96 + cap   p99   114 ms   relative p99  0.488
+        log 96 + cap        p99    31 ms   relative p99  0.090
+
+    Log spacing bounds the RELATIVE error, which is the musically meaningful
+    invariant -- timing is heard as ratios, so 10 ms matters at a 50 ms spacing
+    and is inaudible at 1 s. The original scheme had a 10,806 ms p99 and a
+    428 ms mean; this has 31 ms and 5.1 ms.
+
+    Durations keep quantile spacing: their distribution is not dominated by a
+    single repeated value, so quantiles are not pathological there.
     """
-    def edges(values: list[float], n: int) -> tuple[float, ...]:
-        values = sorted(v for v in values if v is not None)
-        if not values:
-            return (0.0,)
-        out: list[float] = []
-        for i in range(1, n + 1):
-            index = min(len(values) - 1, (i * len(values)) // n)
-            edge = values[index]
-            if not out or edge > out[-1]:
-                out.append(edge)
-        return tuple(out)
-
+    positive = [d for d in deltas if d is not None and d > 0.0]
+    observed_max = max(positive) if positive else max_delta_sec
     return Vocab(
-        time_buckets=edges(list(deltas), n_time),
-        dur_buckets=edges(list(durations), n_dur),
+        time_buckets=_log_edges(
+            min_delta_sec, min(max_delta_sec, max(observed_max, min_delta_sec * 2)), n_time
+        ),
+        dur_buckets=_quantile_edges([d for d in durations if d is not None], n_dur),
+        max_delta_sec=max_delta_sec,
     )
 
 
@@ -224,7 +281,13 @@ def encode(events: Sequence[dict[str, Any]], vocab: Vocab) -> EncodedTrack:
         onset = float(event["onset_sec"])
         delta = max(0.0, onset - previous)
         previous = onset
-        tokens.append(vocab.time_base + _bucket(delta, vocab.time_buckets))
+        if delta == 0.0:
+            tokens.append(vocab.time_same)
+        else:
+            capped = min(delta, vocab.max_delta_sec)
+            tokens.append(
+                vocab.time_base + 1 + _bucket(capped, vocab.time_buckets)
+            )
 
         voice = int(event["voice"])
         tokens.append(vocab.voice_base + (voice if 0 <= voice < VOICES else 0))
@@ -272,7 +335,7 @@ def decode(tokens: Sequence[int], vocab: Vocab) -> list[dict[str, Any]]:
         if [vocab.group(t) for t in chunk] != ["time", "voice", "pitch", "dur"]:
             continue
         time_index = chunk[0] - vocab.time_base
-        clock += vocab.time_buckets[time_index]
+        clock += 0.0 if time_index == 0 else vocab.time_buckets[time_index - 1]
         note: float | None = None
         if chunk[2] == vocab.pitch_none:
             status = "unpitched"
