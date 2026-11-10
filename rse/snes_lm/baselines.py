@@ -51,6 +51,11 @@ class Score:
     per_track: list[float] = field(default_factory=list)
     #: Per-game bits/token, for the descriptive per-game report.
     per_game: dict[str, float] = field(default_factory=dict)
+    #: Per-slot bits/token (TIME, VOICE, PITCH, DUR). The model reports the
+    #: same breakdown, and without the baseline's values the model's are
+    #: uninterpretable -- 4.23 bits on pitch is only meaningful against what
+    #: the comparator achieves on the same field.
+    per_slot: dict[str, float] = field(default_factory=dict)
     detail: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +65,7 @@ class Score:
             "n_tokens": self.n_tokens,
             "n_tracks": len(self.per_track),
             "per_game": dict(sorted(self.per_game.items())),
+            "per_slot": dict(self.per_slot),
             "detail": self.detail,
         }
 
@@ -375,8 +381,11 @@ def score(
     uncertainty can be bootstrapped over tracks and the eight test games can be
     reported descriptively.
     """
+    SLOT_NAMES = ("TIME", "VOICE", "PITCH", "DUR")
     total_bits = 0.0
     total_tokens = 0
+    slot_bits = [0.0] * STRIDE
+    slot_counts = [0] * STRIDE
     per_track: list[float] = []
     game_bits: dict[str, float] = defaultdict(float)
     game_tokens: dict[str, int] = defaultdict(int)
@@ -386,6 +395,10 @@ def score(
         logps = model.stream(body)
         bits = -sum(logps) / _LN2
         count = len(logps)
+        for offset, value in enumerate(logps):
+            slot = _slot(offset + 1)
+            slot_bits[slot] += -value / _LN2
+            slot_counts[slot] += 1
         if count:
             total_bits += bits
             total_tokens += count
@@ -399,6 +412,10 @@ def score(
         n_tokens=total_tokens,
         per_track=per_track,
         per_game={g: game_bits[g] / game_tokens[g] for g in game_bits},
+        per_slot={
+            SLOT_NAMES[i]: slot_bits[i] / slot_counts[i]
+            for i in range(STRIDE) if slot_counts[i]
+        },
     )
 
 
