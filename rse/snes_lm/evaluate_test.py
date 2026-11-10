@@ -162,3 +162,62 @@ def level1_verdict(
 
 def write_report(path: str | Path, payload: dict[str, Any]) -> None:
     Path(path).write_text(json.dumps(payload, indent=1))
+
+
+def clustered_bootstrap(
+    model: Sequence[TrackScore],
+    baseline: Sequence[TrackScore],
+    *,
+    n_resamples: int = 10_000,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> dict[str, Any]:
+    """Bootstrap resampling GAMES, not tracks.
+
+    The track-level bootstrap answers "how uncertain is this improvement over
+    these tracks", and that is the registered statistic. It does NOT answer
+    "how uncertain is it over unseen games", because tracks within a game are
+    correlated -- they share a composer, a driver, an instrument bank and an
+    idiom, so 176 tracks are nowhere near 176 independent observations of
+    game-level performance.
+
+    Resampling whole games with replacement treats the game as the unit. With
+    only 8 games the interval is necessarily wide, and that width is the
+    honest expression of what eight games can support. It is reported
+    alongside the registered track-level interval, not instead of it.
+    """
+    by_game: dict[str, list[tuple[float, int, float, int]]] = {}
+    for m, b in zip(model, baseline):
+        assert m.track_id == b.track_id, (m.track_id, b.track_id)
+        by_game.setdefault(m.game, []).append((m.bits, m.n_tokens, b.bits, b.n_tokens))
+    games = sorted(by_game)
+
+    def relative(selected: Sequence[str]) -> float:
+        rows = [row for game in selected for row in by_game[game]]
+        mb = sum(r[0] for r in rows) / sum(r[1] for r in rows)
+        bb = sum(r[2] for r in rows) / sum(r[3] for r in rows)
+        return (bb - mb) / bb
+
+    observed = relative(games)
+    rng = random.Random(seed)
+    draws = []
+    for _ in range(n_resamples):
+        sample = [games[rng.randrange(len(games))] for _ in range(len(games))]
+        draws.append(relative(sample))
+    draws.sort()
+    low = draws[int(alpha / 2 * n_resamples)]
+    high = draws[int((1 - alpha / 2) * n_resamples)]
+    return {
+        "unit": "game",
+        "n_games": len(games),
+        "observed_relative_improvement": observed,
+        "ci_lower": low,
+        "ci_upper": high,
+        "confidence": 1 - alpha,
+        "ci_lower_exceeds_5pct": low > 0.05,
+        "note": (
+            "Resamples whole games. With 8 clusters this interval is wide by "
+            "construction; that width is what eight games support. Reported "
+            "alongside the registered track-level interval, not instead of it."
+        ),
+    }

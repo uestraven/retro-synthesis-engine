@@ -50,6 +50,7 @@ from rse.snes_lm.evaluate_test import (  # noqa: E402
     TrackScore,
     aggregate,
     level1_verdict,
+    clustered_bootstrap,
     paired_bootstrap,
     write_report,
 )
@@ -164,6 +165,8 @@ def main() -> None:
 
     boot = paired_bootstrap(model_scores, base_scores,
                             n_resamples=args.resamples, seed=0)
+    game_boot = clustered_bootstrap(model_scores, base_scores,
+                                    n_resamples=args.resamples, seed=0)
     verdict = level1_verdict(model_agg["bits_per_token"],
                              base_agg["bits_per_token"], boot)
 
@@ -182,6 +185,13 @@ def main() -> None:
         "model": model_agg,
         "baseline": base_agg,
         "bootstrap": boot,
+        "bootstrap_by_game": game_boot,
+        "per_track": [
+            {"track_id": m.track_id, "game": m.game,
+             "model_bits": m.bits, "baseline_bits": b.bits,
+             "n_tokens": m.n_tokens}
+            for m, b in zip(model_scores, base_scores)
+        ],
         "verdict": verdict,
         "per_game_relative_improvement": per_game_delta,
         "n_games_improved": sum(1 for v in per_game_delta.values() if v > 0),
@@ -197,8 +207,10 @@ def main() -> None:
     print(f"  baseline {base_agg['bits_per_token']:.4f} bits/token")
     print(f"  relative improvement {verdict['relative_improvement']*100:.2f}%  "
           f"(threshold 5%)")
-    print(f"  bootstrap 95% CI [{boot['ci_lower']*100:.2f}%, "
-          f"{boot['ci_upper']*100:.2f}%]")
+    print(f"  bootstrap 95% CI over TRACKS [{boot['ci_lower']*100:.2f}%, "
+          f"{boot['ci_upper']*100:.2f}%]   (registered statistic)")
+    print(f"  bootstrap 95% CI over GAMES  [{game_boot['ci_lower']*100:.2f}%, "
+          f"{game_boot['ci_upper']*100:.2f}%]   (n={game_boot['n_games']} clusters)")
     print(f"\n  per slot:")
     for slot in SLOT_NAMES:
         m = model_agg["per_slot_bits"][slot]
