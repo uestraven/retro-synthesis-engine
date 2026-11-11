@@ -219,6 +219,7 @@ def render_real_control(args, vocab, out_dir: Path, manifest: list[dict]) -> Non
 
     release = Release(args.release)
     chosen = []
+    seen_games: set[str] = set()
     for track in release.tracks(split=args.real_split):
         events = release.events(track)
         if not events:
@@ -229,6 +230,16 @@ def render_real_control(args, vocab, out_dir: Path, manifest: list[dict]) -> Non
         pitched = sum(1 for e in window if e.get("midi_note") is not None)
         if pitched / len(window) < 0.5:
             continue
+        # Taking the first qualifying tracks in split order drew all five from
+        # ONE game, which makes the control vulnerable to that game being
+        # atypical. One track per game by default.
+        name = (getattr(track, "name", None) or getattr(track, "track_id", None)
+                or "")
+        game = str(name).split("-")[0]
+        if args.one_per_game:
+            if game in seen_games:
+                continue
+            seen_games.add(game)
         chosen.append((track, window))
         if len(chosen) >= args.real_tracks:
             break
@@ -283,6 +294,8 @@ def main() -> None:
     parser.add_argument("--real-tracks", type=int, default=0,
                         help="render N genuine tracks as a diagnostic control")
     parser.add_argument("--real-split", default="test")
+    parser.add_argument("--one-per-game", action="store_true",
+                        help="one control track per game, not per split order")
     args = parser.parse_args()
 
     vocab = rep.read_vocab(args.vocab)
