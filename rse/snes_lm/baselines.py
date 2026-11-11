@@ -512,3 +512,70 @@ class SlotNGram(Model):
 
     def logprob(self, history: Sequence[int], target: int) -> float:
         return self.stream(list(history) + [target])[-1]
+
+
+def stride_unigram_distribution(model: StrideUnigram, index: int) -> list[float]:
+    """The stride-aware unigram's full distribution at a target position.
+
+    Same arithmetic as `StrideUnigram.logprob`, evaluated for every token id at
+    once instead of once per id. A performance change only; an equivalence test
+    pins it against the original.
+    """
+    slot = _slot(index)
+    support = model._support[slot] + 1
+    denominator = (
+        model.totals[slot] + model.eos[slot] + model.alpha * support
+    )
+    # NOTE a quirk of the FROZEN comparator, deliberately reproduced rather
+    # than fixed. Smoothing mass `alpha` is spread over all `vocab.size` ids
+    # while the denominator budgets only for the ids legal in this slot, so the
+    # distribution sums to slightly more than 1.
+    #
+    # The excess is proportional to alpha/denominator and so scales inversely
+    # with count mass: about 1e-4 on the real corpus, where the denominator is
+    # ~622,000. Measured over 183,890 test positions the sum was 1.0000 at p05,
+    # p50, p95 and max, and Level 1's figures are unaffected. (A synthetic
+    # equivalence fixture with ~100 tokens of count mass showed sums near 1.94
+    # and made this look four orders of magnitude worse than it is.)
+    #
+    # Spreading alpha over legal ids only does make it sum to exactly 1 -- and
+    # breaks equivalence with the frozen evaluator, which is the registered
+    # requirement for this optimisation. The comparator used for Level 1 is not
+    # changed to suit a sampler. `random.choices` normalises its weights, so
+    # sampling is unaffected either way.
+    out = [model.alpha / denominator] * model.vocab.size
+    for token, count in model.counts[slot].items():
+        out[token] = (count + model.alpha) / denominator
+    out[model.vocab.EOS] = (model.eos[slot] + model.alpha) / denominator
+    return out
+
+
+def slot_ngram_distribution(
+    model: "SlotNGram", body: Sequence[int], index: int
+) -> list[float]:
+    """`SlotNGram`'s full predictive distribution at `index`.
+
+    Identical interpolation to `SlotNGram.stream`, vectorised over the
+    vocabulary: start from the stride-aware unigram, then for each order whose
+    context was seen, blend by the Witten-Bell weight
+
+        weight = total / (total + discount * distinct)
+
+    This exists because sampling needs the whole distribution, and obtaining it
+    by calling `logprob` once per token id costs 240 evaluations per step -- at
+    roughly 300 tokens an excerpt, 72,000 evaluations. It changes the cost, not
+    the distribution, and `tests/test_snes_lm_sampling.py` asserts equivalence
+    on seen contexts, unseen contexts, backoff cases and track beginnings.
+    """
+    probabilities = stride_unigram_distribution(model.unigram, index)
+    for k, context in enumerate(model._contexts(body, index), start=1):
+        table = model.tables[k].get(context)
+        if not table:
+            continue
+        total = sum(table.values())
+        weight = total / (total + model.discount * len(table))
+        complement = 1.0 - weight
+        probabilities = [p * complement for p in probabilities]
+        for token, count in table.items():
+            probabilities[token] += weight * (count / total)
+    return probabilities

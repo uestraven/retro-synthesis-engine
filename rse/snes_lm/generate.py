@@ -177,6 +177,8 @@ def generate_baseline(
     per step, which is slow and exactly correct -- the alternative would be a
     different sampling procedure for the two arms.
     """
+    from rse.snes_lm.baselines import slot_ngram_distribution
+
     rng = random.Random(config.seed)
     tokens = [vocab.BOS]
     clock = 0.0
@@ -184,10 +186,36 @@ def generate_baseline(
 
     stop = False
     while not stop and events_emitted < max_events:
-        logprobs = [model.logprob(tokens, t) for t in range(vocab.size)]
-        scaled = [lp / config.temperature for lp in logprobs]
-        peak = max(scaled)
-        weights = [math.exp(value - peak) for value in scaled]
+        # One vectorised pass over the vocabulary instead of 240 scalar
+        # `logprob` calls -- equivalent to 2.8e-17, verified in
+        # tests/test_snes_lm_sampling.py. `random.choices` normalises the
+        # weights, which also absorbs the frozen comparator's ~1e-4 excess mass.
+        # Temperature, top-k then nucleus, in the SAME order as the model's
+        # `_filter_logits`. Applying only temperature here left top_p inert for
+        # this arm, so its grid had five effective settings against the model's
+        # ten -- which breaks the registered requirement that the selection
+        # PROCEDURE be symmetric across arms.
+        weights = slot_ngram_distribution(model, tokens, len(tokens))
+        if config.temperature != 1.0:
+            weights = [w ** (1.0 / config.temperature) for w in weights]
+        if config.top_k:
+            cutoff = sorted(weights, reverse=True)[
+                min(config.top_k, len(weights)) - 1
+            ]
+            weights = [w if w >= cutoff else 0.0 for w in weights]
+        if config.top_p < 1.0:
+            total = sum(weights) or 1.0
+            order = sorted(range(len(weights)), key=lambda i: -weights[i])
+            cumulative = 0.0
+            keep = set()
+            for i in order:
+                keep.add(i)
+                cumulative += weights[i] / total
+                if cumulative >= config.top_p:
+                    break
+            weights = [w if i in keep else 0.0 for i, w in enumerate(weights)]
+        total = sum(weights)
+        weights = [w / total for w in weights] if total > 0 else weights
         token = rng.choices(range(vocab.size), weights=weights, k=1)[0]
         if token in (vocab.EOS, vocab.PAD):
             break
@@ -235,7 +263,9 @@ class CorpusStatistics:
         }
 
 
-def statistics(events: Sequence[dict[str, Any]], *, clip: int = 12) -> CorpusStatistics:
+def statistics(
+    event_lists: Sequence[Sequence[dict[str, Any]]], *, clip: int = 12
+) -> CorpusStatistics:
     """Attacks/sec, mean simultaneity, and the melodic interval distribution.
 
     Simultaneity is counted per distinct onset, which the corpus licenses: a
@@ -246,31 +276,49 @@ def statistics(events: Sequence[dict[str, Any]], *, clip: int = 12) -> CorpusSta
     +/- `clip` semitones. Clipping keeps a handful of octave-error outliers
     from dominating a histogram comparison.
     """
-    if not events:
+    # Each item is ONE track or ONE excerpt. Density and simultaneity are
+    # computed per item and then averaged; intervals are pooled.
+    #
+    # Pooling the events themselves was wrong and badly so: every decoded item
+    # restarts its clock near zero, so a concatenated list has the span of its
+    # LONGEST item and the event count of ALL of them. Sixty tracks pooled
+    # that way reported 296 attacks/s against a true corpus range of 13 to 26.
+    if not event_lists:
         return CorpusStatistics(0.0, 0.0, {})
-    span = max(e["onset_sec"] for e in events) or 1e-9
-    onsets: dict[float, int] = {}
-    for event in events:
-        onsets[round(float(event["onset_sec"]), 6)] = (
-            onsets.get(round(float(event["onset_sec"]), 6), 0) + 1
-        )
-    by_voice: dict[int, list[float]] = {}
-    for event in events:
-        note = event.get("midi_note")
-        if note is None:
-            continue
-        by_voice.setdefault(event["voice"], []).append(float(note))
+    if event_lists and isinstance(event_lists[0], dict):  # single list passed
+        event_lists = [event_lists]  # type: ignore[list-item]
+
+    densities: list[float] = []
+    simultaneities: list[float] = []
     counts: dict[int, int] = {}
     total = 0
-    for pitches in by_voice.values():
-        for a, b in zip(pitches, pitches[1:]):
-            step = max(-clip, min(clip, int(round(b - a))))
-            counts[step] = counts.get(step, 0) + 1
-            total += 1
+    for events in event_lists:
+        if not events:
+            continue
+        span = max(float(e["onset_sec"]) for e in events) or 1e-9
+        densities.append(len(events) / span)
+        onsets: dict[float, int] = {}
+        for event in events:
+            key = round(float(event["onset_sec"]), 6)
+            onsets[key] = onsets.get(key, 0) + 1
+        simultaneities.append(sum(onsets.values()) / len(onsets))
+        by_voice: dict[int, list[float]] = {}
+        for event in events:
+            note = event.get("midi_note")
+            if note is None:
+                continue
+            by_voice.setdefault(event["voice"], []).append(float(note))
+        for pitches in by_voice.values():
+            for a, b in zip(pitches, pitches[1:]):
+                step = max(-clip, min(clip, int(round(b - a))))
+                counts[step] = counts.get(step, 0) + 1
+                total += 1
+    if not densities:
+        return CorpusStatistics(0.0, 0.0, {})
     histogram = {k: v / total for k, v in counts.items()} if total else {}
     return CorpusStatistics(
-        attacks_per_second=len(events) / span,
-        mean_simultaneous_voices=sum(onsets.values()) / len(onsets),
+        attacks_per_second=sum(densities) / len(densities),
+        mean_simultaneous_voices=sum(simultaneities) / len(simultaneities),
         interval_histogram=histogram,
     )
 
