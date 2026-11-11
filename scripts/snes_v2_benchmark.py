@@ -136,8 +136,11 @@ def measure_eval(model, tokens, mask, device, *, batch: int,
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--windows", default=str(Path.home() /
-                        "workplace/v2_artifacts/windows"))
+    # Default relative to the SCRIPT, not to $HOME: a transferred bundle has
+    # its own windows/ directory, and resolving Path.home() on a rented pod
+    # pointed at /root/workplace/... and failed.
+    parser.add_argument("--windows", default=str(
+        Path(__file__).resolve().parent.parent / "windows"))
     parser.add_argument("--batches", default="4,8,16")
     parser.add_argument("--no-autocast", action="store_true")
     parser.add_argument("--out", default=str(Path.home() /
