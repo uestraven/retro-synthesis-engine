@@ -73,6 +73,12 @@ class DeltaCodec:
     #: Number of distinct deltas seen in training, for reporting.
     n_observed: int
 
+    def __post_init__(self) -> None:
+        # Reverse map, so decoding a direct token is O(1). Scanning `direct`
+        # cost 512 comparisons per delta and dominated parsing.
+        object.__setattr__(self, "_value_of",
+                           {t: d for d, t in self.direct.items()})
+
     @property
     def n_direct(self) -> int:
         return len(self.direct)
@@ -107,10 +113,10 @@ class DeltaCodec:
             raise IncompleteDelta("no tokens")
         head = tokens[index]
         if head < self.n_direct:
-            for value, token in self.direct.items():
-                if token == head:
-                    return value, index + 1
-            raise ValueError(f"token {head} is not a known direct delta")
+            value = getattr(self, "_value_of", {}).get(head)
+            if value is None:
+                raise ValueError(f"token {head} is not a known direct delta")
+            return value, index + 1
         if head >= self.n_direct + MAX_ESCAPE_DIGITS:
             raise ValueError(f"token {head} is a digit, not a delta start")
         n_digits = head - self.n_direct + 1
