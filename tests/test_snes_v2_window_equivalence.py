@@ -162,3 +162,25 @@ def test_truncated_snapshot_is_incomplete_not_empty():
     tokens = gx.encode_snapshot((gx.ActiveNote(0, 69.3, "estimated", 10),), v)
     with pytest.raises(gx.IncompleteStream):
         gx.decode_snapshot(tokens[:-1], 0, v)
+
+
+def test_legal_sets_cover_a_window_that_opens_with_a_snapshot():
+    """81.7% of training windows carry a snapshot. Omitting it from the mask
+    state machine yielded empty legal sets for all of them -- which would have
+    left a rollover window with NO legal token during generation."""
+    events = [ev(0, 0.0, 40.0, 60.0)]
+    events += [ev(1 + (i % 7), 0.1 + 0.05 * i, 0.04, 70.0) for i in range(120)]
+    v = vocab()
+    groups, windows = both_paths(events, 128, v)
+    later = [w for w in windows if w.snapshot]
+    assert later, "need a snapshot-bearing window"
+    for window in later[:2]:
+        sets = gx.legal_at(window.tokens, v)
+        assert len(sets) == len(window.tokens)
+        empty = [i for i, s in enumerate(sets) if not s]
+        # Only trailing positions after EOS may be empty.
+        assert all(i >= window.tokens.index(v.EOS) for i in empty), empty
+        for i, (token, allowed) in enumerate(zip(window.tokens, sets)):
+            if i == 0 or not allowed:
+                continue
+            assert token in allowed, (i, token)

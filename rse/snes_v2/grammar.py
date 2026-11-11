@@ -637,3 +637,120 @@ def build_windows(groups: Sequence[cx.Group], vocab: Vocab, *,
         for position in range(first_group, last + 1):
             state.emit(groups[position], first=(position == 0))
     return windows
+
+
+def legal_at(tokens: Sequence[int], vocab: Vocab) -> list[frozenset[int]]:
+    """The legal set before each position, from the same causal state.
+
+    Used for BOTH constrained scoring and generation masking, so the two
+    cannot disagree. `out[i]` is the set admissible at position `i`, given
+    `tokens[:i]`. A stream that violates the grammar stops yielding at the
+    offending position rather than guessing.
+    """
+    out: list[frozenset[int]] = []
+    active: set[int] = set()
+    changed: set[int] = set()
+    n_actions = 0
+    started = False
+    state = State.START
+    index = 0
+    while index < len(tokens):
+        out.append(frozenset(legal(state, active=frozenset(active),
+                                   n_actions=n_actions, vocab=vocab,
+                                   started=started, changed=frozenset(changed))))
+        token = tokens[index]
+        if state is State.START:
+            if token != vocab.BOS:
+                break
+            index += 1
+            # A window may open with a SNAPSHOT of the notes already sounding.
+            # 81.7% of training windows do. Omitting this made every such
+            # window break here and yield empty legal sets -- which would also
+            # have left a rollover window with NO legal tokens during
+            # generation, not merely mis-scored it.
+            if index < len(tokens) and tokens[index] == vocab.SNAPSHOT_START:
+                out.append(frozenset({vocab.SNAPSHOT_START}))
+                index += 1
+                while index < len(tokens) and tokens[index] != vocab.SNAPSHOT_END:
+                    if not vocab.is_handle(tokens[index]):
+                        break
+                    handle = tokens[index] - vocab.handle_base
+                    active.add(handle)
+                    out.append(frozenset(
+                        vocab.handle_base + h
+                        for h in range(cx.N_HARDWARE_VOICES)))
+                    if index + 1 >= len(tokens) or not vocab.is_pitch(
+                            tokens[index + 1]):
+                        break
+                    out.append(frozenset(vocab.pitch_base + i
+                                         for i in range(vocab.n_pitch)))
+                    try:
+                        _, nxt = vocab.decode_delta(tokens, index + 2)
+                    except (IncompleteDelta, NonPositiveDelta):
+                        break
+                    for _ in range(index + 2, nxt):
+                        out.append(frozenset(
+                            vocab.delta_base + t
+                            for t in range(vocab.delta.vocab_size)))
+                    index = nxt
+                if index < len(tokens) and tokens[index] == vocab.SNAPSHOT_END:
+                    out.append(frozenset({vocab.SNAPSHOT_END}))
+                    index += 1
+            state = State.GROUP_ENDS
+            continue
+        if token == vocab.EOS:
+            state = State.DONE
+            index += 1
+            continue
+        if vocab.is_end(token):
+            slot = token - vocab.end_base
+            if state is not State.GROUP_ENDS or slot not in active:
+                break
+            active.discard(slot)
+            n_actions += 1
+            started = True
+            index += 1
+        elif vocab.is_pitch(token):
+            if state not in (State.GROUP_ENDS, State.GROUP_STARTS):
+                break
+            if len(active) >= cx.N_HARDWARE_VOICES:
+                break
+            active.add(min(set(range(cx.N_HARDWARE_VOICES)) - active))
+            n_actions += 1
+            state = State.GROUP_STARTS
+            started = True
+            index += 1
+        elif vocab.is_change(token):
+            slot = token - vocab.change_base
+            if slot not in active or slot in changed:
+                break
+            if index + 1 >= len(tokens) or not vocab.is_pitch(tokens[index + 1]):
+                break
+            changed.add(slot)
+            n_actions += 1
+            state = State.GROUP_CHANGES
+            started = True
+            # The change's pitch is forced, so its legal set is the pitch family.
+            out.append(frozenset(
+                vocab.pitch_base + i for i in range(vocab.n_pitch)))
+            index += 2
+        elif token >= vocab.delta_base:
+            try:
+                _, nxt = vocab.decode_delta(tokens, index)
+            except (IncompleteDelta, NonPositiveDelta):
+                break
+            for offset in range(index + 1, nxt):
+                base = vocab.delta_base + vocab.delta.n_direct + 3
+                out.append(frozenset(base + d for d in range(256)))
+            if started:
+                active_after = set(active)
+                active, changed = active_after, set()
+                n_actions = 0
+                started = False
+                state = State.GROUP_ENDS
+            index = nxt
+        else:
+            break
+    while len(out) < len(tokens):
+        out.append(frozenset())
+    return out[:len(tokens)]
