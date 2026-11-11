@@ -33,7 +33,7 @@ from rse.snes_lm import representation as rep  # noqa: E402
 from rse.snes_lm.release import Release  # noqa: E402
 
 #: Reported in tokens; 4 tokens is one event under the stride-4 serialization.
-LADDER = (4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512)
+LADDER = (16, 18, 20, 22, 24)
 
 
 def stream(tokens: list[int], vocab: rep.Vocab) -> bytes:

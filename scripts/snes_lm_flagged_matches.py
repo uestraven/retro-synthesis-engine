@@ -76,30 +76,38 @@ def main() -> None:
               flush=True)
         entries = []
         for (seed, fragment), tracks in sorted(hits.items(), key=lambda k: k[0][0]):
-            events = rep.decode([vocab.BOS] + list(fragment) + [vocab.EOS], vocab)
+            # A fragment taken from an arbitrary offset is NOT necessarily
+            # aligned to an event boundary, so it cannot be decoded as if it
+            # began a stream -- doing that silently yielded empty event lists.
+            # Report the tokens with their groups, and the phase, instead.
+            position = excerpts[seed].find(fragment)
+            groups = [vocab.group(t) for t in fragment]
             entries.append({
                 "seed": seed,
                 "n_tokens": n,
-                "n_events": n // 4,
+                "n_events_spanned": n // 4,
+                "offset_in_excerpt": position,
+                "phase": position % rep.STRIDE,
+                "event_aligned": position % rep.STRIDE == 0,
                 "n_training_tracks_containing": len(tracks),
                 "example_source_track": sorted(tracks)[0],
-                "events": [
-                    {"voice": e["voice"],
-                     "onset_sec": float(e["onset_sec"]),
-                     "duration_sec": float(e["duration_sec"])
-                     if e.get("duration_sec") is not None else None,
-                     "midi_note": e.get("midi_note")}
-                    for e in events
-                ],
+                "tokens": list(fragment),
+                "groups": groups,
+                "all_pitch_tokens_unpitched": all(
+                    t == vocab.pitch_none
+                    for t, g in zip(fragment, groups) if g == "pitch"
+                ) if any(g == "pitch" for g in groups) else None,
             })
         report[str(n)] = entries
-        for entry in entries[:3]:
+        for entry in entries[:4]:
             print(f"    seed {entry['seed']} <- {entry['example_source_track']} "
-                  f"(in {entry['n_training_tracks_containing']} track(s))",
+                  f"(in {entry['n_training_tracks_containing']} track(s)), "
+                  f"offset {entry['offset_in_excerpt']} phase {entry['phase']}"
+                  f"{', all unpitched' if entry['all_pitch_tokens_unpitched'] else ''}",
                   flush=True)
-            for e in entry["events"]:
-                print(f"       v{e['voice']} +{e['onset_sec']:.3f}s "
-                      f"dur {e['duration_sec']} note {e['midi_note']}", flush=True)
+            print(f"       groups: {' '.join(g[:3] for g in entry['groups'])}",
+                  flush=True)
+            print(f"       tokens: {entry['tokens']}", flush=True)
         if entries:
             break
 
