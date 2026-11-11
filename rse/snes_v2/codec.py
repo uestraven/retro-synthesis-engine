@@ -63,6 +63,10 @@ class Action:
     #: Original S-DSP voice, carried for verification only.
     provenance_voice: int | None = None
     end_source: EndSource | None = None
+    #: The source `event_id` this action came from. Carried so preservation can
+    #: be verified by IDENTITY -- no substitutions, no duplicates -- rather
+    #: than inferred from matching counts or equal sequences.
+    source_event_id: Any = None
 
     def sort_key(self) -> tuple[int, int]:
         return (_ORDER[self.kind], self.note_id)
@@ -100,6 +104,27 @@ class EncodeReport:
     n_indistinguishable_starts: int
     n_events_without_duration: int
     n_unpitched_starts: int
+    #: Two key-ons on the SAME provenance voice landing on one grid step. The
+    #: corpus has zero same-voice retriggers per hardware tick, so any
+    #: collision here is introduced by quantisation and makes the ORDER of
+    #: those two attacks unrecoverable. Weaker and more common than
+    #: `n_indistinguishable_starts`, which also requires equal pitch.
+    n_same_step_rekey_collisions: int = 0
+    #: Legato steps whose parent attack is absent from the table. Counted, not
+    #: promoted to attacks.
+    n_orphan_legato: int = 0
+    #: Two pitch changes on one note landing on the same step: their order is
+    #: lost.
+    n_same_step_pitch_changes: int = 0
+    #: Note ends clamped to the next key-on on the SAME provenance voice --
+    #: the S-DSP rule, applied at encode. RECORDED, not silent: the published
+    #: tables contain sub-microsecond same-voice overlaps (onset and duration
+    #: are rounded independently) that make nine notes nominally concurrent on
+    #: eight-voice hardware. Without this the codec needs a ninth slot and
+    #: steals, and whether it does depends on lucky rounding -- 1000 Hz passed
+    #: every invariant while 4000 Hz failed, because coarse grids collapse
+    #: short notes to zero length and free slots early.
+    n_ends_clamped_to_rekey: int = 0
 
     @property
     def actions_per_source_event(self) -> float:
@@ -119,6 +144,10 @@ class EncodeReport:
             "n_indistinguishable_starts": self.n_indistinguishable_starts,
             "n_events_without_duration": self.n_events_without_duration,
             "n_unpitched_starts": self.n_unpitched_starts,
+            "n_same_step_rekey_collisions": self.n_same_step_rekey_collisions,
+            "n_orphan_legato": self.n_orphan_legato,
+            "n_same_step_pitch_changes": self.n_same_step_pitch_changes,
+            "n_ends_clamped_to_rekey": self.n_ends_clamped_to_rekey,
             "actions_per_source_event": self.actions_per_source_event,
         }
 
@@ -156,8 +185,25 @@ def encode(
     def add(step: int, action: Action) -> None:
         timeline.setdefault(step, []).append(action)
 
+    # Hardware semantics, applied before quantisation: a key-on ends whatever
+    # its voice was playing. Counted so the normalisation is visible.
+    next_onset_on_voice: dict[int, Decimal] = {}
+    by_voice: dict[int, list[int]] = {}
+    for index, event in enumerate(starts):
+        by_voice.setdefault(int(event["voice"]), []).append(index)
+    for indices in by_voice.values():
+        for current, following in zip(indices, indices[1:]):
+            next_onset_on_voice[current] = Decimal(
+                str(starts[following]["onset_sec"]))
+    n_clamped_to_rekey = 0
+
     seen_start: set[tuple[int, Any, int]] = set()
+    seen_voice_step: set[tuple[int, int]] = set()
     n_indistinguishable = 0
+    n_rekey_collisions = 0
+    n_orphan_legato = 0
+    n_same_step_pitch = 0
+    pitch_steps: set[tuple[int, int]] = set()
 
     for note_id, event in enumerate(starts):
         onset = Decimal(str(event["onset_sec"]))
@@ -170,6 +216,10 @@ def encode(
         if key in seen_start:
             n_indistinguishable += 1
         seen_start.add(key)
+        voice_step = (step, int(event["voice"]))
+        if voice_step in seen_voice_step:
+            n_rekey_collisions += 1
+        seen_voice_step.add(voice_step)
         if event.get("event_id") is not None:
             id_of_event[event["event_id"]] = note_id
         add(step, Action(
@@ -177,18 +227,26 @@ def encode(
             midi_note=None if note is None else float(note),
             pitch_status=event.get("pitch_status"),
             provenance_voice=int(event["voice"]),
+            source_event_id=event.get("event_id"),
         ))
         duration = event.get("duration_sec")
         if duration is None:
             n_without_duration += 1
             n_ends_open += 1
             continue
-        end_step = _step(onset + Decimal(str(duration)), grid_hz)
+        nominal_end = onset + Decimal(str(duration))
+        limit = next_onset_on_voice.get(note_id)
+        end_source: EndSource = "derived_duration"
+        if limit is not None and nominal_end > limit:
+            nominal_end = limit
+            end_source = "rekey"
+            n_clamped_to_rekey += 1
+        end_step = _step(nominal_end, grid_hz)
         # A note quantised to zero length still ENDS; it is not dropped. The
         # decoder decides what a zero-length note sounds like, which keeps the
         # codec honest about what it was given.
         add(end_step, Action(kind="end", note_id=note_id,
-                             end_source="derived_duration"))
+                             end_source=end_source))
         n_ends_derived += 1
 
     for event in legato:
@@ -197,12 +255,18 @@ def encode(
         if note_id is None:
             # Orphaned legato step: no parent attack in this table. Counted,
             # not silently promoted to an attack.
+            n_orphan_legato += 1
             continue
         note = event.get("midi_note")
+        pitch_step = (_step(Decimal(str(event["onset_sec"])), grid_hz), note_id)
+        if pitch_step in pitch_steps:
+            n_same_step_pitch += 1
+        pitch_steps.add(pitch_step)
         add(_step(Decimal(str(event["onset_sec"])), grid_hz), Action(
             kind="pitch", note_id=note_id,
             midi_note=None if note is None else float(note),
             pitch_status=event.get("pitch_status"),
+            source_event_id=event.get("event_id"),
         ))
 
     steps = sorted(timeline)
@@ -232,6 +296,10 @@ def encode(
         n_indistinguishable_starts=n_indistinguishable,
         n_events_without_duration=n_without_duration,
         n_unpitched_starts=n_unpitched,
+        n_same_step_rekey_collisions=n_rekey_collisions,
+        n_orphan_legato=n_orphan_legato,
+        n_same_step_pitch_changes=n_same_step_pitch,
+        n_ends_clamped_to_rekey=n_clamped_to_rekey,
     )
     return groups, report
 
@@ -305,7 +373,17 @@ def decode(
 
     for group in groups:
         now += group.delta
-        for action in group.ordered():
+        # Ends come before starts so a slot freed at this instant is reusable
+        # at this instant -- EXCEPT for a note that also STARTS here. A note
+        # whose duration quantises to zero has both actions in one group, and
+        # processing its end first found nothing active and counted an
+        # unmatched end. A monophonic track (kss-13, peak concurrency 1) then
+        # reported 4 unmatched ends, which quantisation cannot cause.
+        started_here = {a.note_id for a in group.actions if a.kind == "start"}
+        for action in sorted(group.actions, key=lambda a: (
+                _ORDER[a.kind] + (2 if a.kind == "end"
+                                  and a.note_id in started_here else 0),
+                a.note_id)):
             if action.kind == "end":
                 if action.note_id not in active:
                     unmatched += 1
@@ -328,6 +406,7 @@ def decode(
                     "midi_note": action.midi_note,
                     "pitch_status": action.pitch_status,
                     "provenance_voice": action.provenance_voice,
+                    "source_event_id": action.source_event_id,
                     # No musical role is asserted. Absence is explicit.
                     "role": None,
                     "_start_step": now,
@@ -340,7 +419,11 @@ def decode(
                 record.setdefault("pitch_changes", []).append(
                     {"onset_sec": float(now * step_sec),
                      "midi_note": action.midi_note,
-                     "pitch_status": action.pitch_status}
+                     "pitch_status": action.pitch_status,
+                     "source_event_id": action.source_event_id,
+                     # Emission index within this parent, so ordering is
+                     # recoverable even if two changes share a grid step.
+                     "sequence": len(record.get("pitch_changes") or [])}
                 )
             peak = max(peak, len(active))
 

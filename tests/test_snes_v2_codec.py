@@ -120,10 +120,62 @@ def test_unpitched_start_is_preserved_not_dropped():
 
 # --- occupancy invariant --------------------------------------------------
 
-def test_occupancy_never_exceeds_eight_under_load():
+def test_overload_is_resolved_at_encode_so_steals_are_impossible():
+    """With the encode-time rekey clamp, each provenance voice holds at most
+    one active note, and there are at most eight voices -- so the decoder can
+    never need a ninth slot. Steals are structurally impossible rather than
+    rare, and the correction is visible as a clamp count instead."""
     events = [ev(v % 8, 0.01 * i, 9.0, 60.0 + (i % 12))
               for i, v in enumerate(range(300))]
-    groups, _ = cx.encode(events, grid_hz=100)
+    groups, rep = cx.encode(events, grid_hz=100)
     notes, dec = cx.decode(groups, grid_hz=100)
     assert dec.peak_occupancy <= 8
-    assert dec.n_voice_steals > 0          # the load had to be corrected
+    assert dec.n_voice_steals == 0, dec
+    assert rep.n_ends_clamped_to_rekey > 0   # the load WAS corrected, visibly
+
+
+def test_zero_duration_note_does_not_report_an_unmatched_end():
+    """The previous test asserted duration 0 and passed via the WRONG path.
+
+    With ends ordered before starts, a zero-length note's end was processed
+    before its start, found nothing active, counted as unmatched, and the note
+    was closed later by the final flush as `open`. A monophonic track then
+    reported unmatched ends that quantisation cannot produce.
+    """
+    groups, _ = cx.encode([ev(0, 0.0, 0.0)], grid_hz=100)
+    notes, dec = cx.decode(groups, grid_hz=100)
+    assert dec.n_unmatched_ends == 0, dec
+    assert len(notes) == 1
+    assert notes[0]["end_source"] == "derived_duration"   # not "open"
+    assert notes[0]["duration_sec"] == 0.0
+
+
+def test_zero_length_note_still_frees_its_slot_for_a_later_note():
+    events = [ev(v, 0.0, 0.0) for v in range(8)] + [ev(0, 0.1, 0.5)]
+    groups, _ = cx.encode(events, grid_hz=100)
+    notes, dec = cx.decode(groups, grid_hz=100)
+    assert dec.n_unmatched_ends == 0 and dec.n_voice_steals == 0, dec
+    assert len(notes) == 9
+
+
+def test_same_voice_overlap_is_clamped_at_encode_and_counted():
+    """Published tables contain sub-microsecond same-voice overlap, which made
+    nine notes nominally concurrent on eight-voice hardware."""
+    events = [ev(0, 0.0, 1.0), ev(0, 0.5, 1.0)]
+    groups, rep = cx.encode(events, grid_hz=1000)
+    assert rep.n_ends_clamped_to_rekey == 1
+    notes, dec = cx.decode(groups, grid_hz=1000)
+    assert dec.n_voice_steals == 0
+    first = next(n for n in notes if n["note_id"] == 0)
+    assert abs(first["duration_sec"] - 0.5) < 1e-9
+    assert first["end_source"] == "rekey"
+
+
+def test_nine_concurrent_from_same_voice_overlap_becomes_eight():
+    events = [ev(v, 0.0, 5.0, 60.0 + v) for v in range(8)]
+    events.append(ev(3, 1.0, 5.0, 72.0))      # overlaps voice 3
+    groups, rep = cx.encode(events, grid_hz=1000)
+    notes, dec = cx.decode(groups, grid_hz=1000)
+    assert rep.n_ends_clamped_to_rekey == 1
+    assert dec.n_voice_steals == 0, dec
+    assert dec.peak_occupancy <= 8

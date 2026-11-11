@@ -47,6 +47,10 @@ VOICE_GAIN = 1.0 / 8.0
 ATTACK_SEC = 0.004
 RELEASE_SEC = 0.015
 GRID_HZ = 250.0
+#: Positive control. A real rung from the sweep (1,188 steals, 9.85 ms mean
+#: onset error), not a synthetic degradation, so "can the setup hear a codec
+#: difference at all" is answered by the codec itself.
+CONTROL_GRID_HZ = 25.0
 CONTROL_TRACKS = ("actr-01", "al3-03", "fz-01", "sai-03", "sf-04")
 
 
@@ -159,6 +163,9 @@ def main() -> None:
     parser.add_argument("--release", default="~/snesmdb-releases/snesmdb-50game-rc1")
     parser.add_argument("--out-dir", default=str(Path.home() / "workplace/v2_ab_test"))
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--mixed-grids", action="store_true",
+                        help="emit BOTH 250 Hz and 25 Hz pairs, "
+                             "shuffled, so the null has a positive control")
     parser.add_argument("--legato-extra", action="store_true",
                         help="add an OPTIONAL sixth pair on a legato-bearing "
                              "track; legato is untested by the five controls")
@@ -189,11 +196,14 @@ def main() -> None:
 
     measurements, keys = [], []
     rng = random.Random(args.seed)
-    for name, track, is_extra in chosen:
+    grids = [GRID_HZ, CONTROL_GRID_HZ] if args.mixed_grids else [GRID_HZ]
+    plan = [(n, t, x, g) for (n, t, x) in chosen for g in grids]
+    rng.shuffle(plan)
+    for name, track, is_extra, grid in plan:
         events = [e for e in release.events(track)
                   if float(e["onset_sec"]) < WINDOW_SEC]
-        groups, enc = cx.encode(events, grid_hz=GRID_HZ)
-        notes, dec = cx.decode(groups, grid_hz=GRID_HZ)
+        groups, enc = cx.encode(events, grid_hz=grid)
+        notes, dec = cx.decode(groups, grid_hz=grid)
         # Do NOT filter decoded notes by the window: an attack at 24.999590 s
         # quantises to exactly 25.0 at 250 Hz, and filtering it reported a
         # codec loss that was really this harness truncating its own output.
@@ -226,7 +236,7 @@ def main() -> None:
         measurements.append({
             "track": name,
             "optional_legato_extra": is_extra,
-            "grid_hz": GRID_HZ,
+            "grid_hz": grid,
             "n_published_events": len(events),
             "n_published_attacks": len(starts),
             "n_published_legato": sum(
@@ -252,14 +262,15 @@ def main() -> None:
             "audio_duration_diff_sec": 0.0,
         })
 
-        pair = [("A_published", audio_a), ("B_codec250", audio_b)]
+        pair = [("A_published", audio_a), (f"B_codec{int(grid)}", audio_b)]
         rng.shuffle(pair)
         tag = rng.randrange(10 ** 6, 10 ** 7)
         for index, (which, audio) in enumerate(pair):
             fname = f"clip_{tag}_{index + 1}.wav"
             write_wav(out_dir / fname, audio, SAMPLE_RATE)
             keys.append({"file": fname, "pair_tag": tag, "track": name,
-                         "version": which, "optional_extra": is_extra})
+                         "version": which, "grid_hz": grid,
+                         "optional_extra": is_extra})
 
     # identical-source sanity control: one rendering written twice
     name, track, _ = chosen[0]
