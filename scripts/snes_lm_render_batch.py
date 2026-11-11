@@ -188,6 +188,88 @@ def valid_prefix(tokens: list[int], vocab: rep.Vocab) -> list[int]:
     return [vocab.BOS] + body[:cut] + [vocab.EOS]
 
 
+def render_real_control(args, vocab, out_dir: Path, manifest: list[dict]) -> None:
+    """Genuine SNES-MDB tracks through the IDENTICAL renderer.
+
+    The diagnostic that separates two very different explanations of a poor
+    listening result:
+
+    - real music sounds like music here, generated music does not -> the
+      representation and renderer preserve enough musical information and the
+      generators are failing to organise it;
+    - real music ALSO sounds incoherent -> the pipeline is destroying musical
+      information and the listening failure cannot be attributed to the
+      generators at all.
+
+    Each track is rendered TWICE, which splits that second case further:
+
+    - `real_published`: the release's own events, full symbolic fidelity. The
+      upper bound of what this synthesiser can convey.
+    - `real_roundtrip`: the same events through encode then decode, so they
+      carry the tokenizer's quantisation -- 96 log-spaced time buckets, 32
+      duration quantiles, semitone-rounded pitch. This is the fair comparison
+      for the generators, which can only ever emit round-tripped material.
+
+    A gap between those two arms measures the representation. A gap between
+    `real_roundtrip` and the generators measures the generators.
+
+    This is a control, not an opportunity to revise a registered outcome.
+    """
+    from rse.snes_lm.release import Release
+
+    release = Release(args.release)
+    chosen = []
+    for track in release.tracks(split=args.real_split):
+        events = release.events(track)
+        if not events:
+            continue
+        window = [e for e in events if float(e["onset_sec"]) < WINDOW_SEC]
+        if len(window) < 40:
+            continue
+        pitched = sum(1 for e in window if e.get("midi_note") is not None)
+        if pitched / len(window) < 0.5:
+            continue
+        chosen.append((track, window))
+        if len(chosen) >= args.real_tracks:
+            break
+
+    for index, (track, window) in enumerate(chosen):
+        name = (getattr(track, "name", None) or getattr(track, "track_id", None)
+                or f"track{index}")
+        tokens = rep.encode(release.events(track), vocab).tokens
+        roundtrip = [e for e in rep.decode(tokens, vocab)
+                     if float(e["onset_sec"]) < WINDOW_SEC]
+        for arm, events in (("real_published", window),
+                            ("real_roundtrip", roundtrip)):
+            arm_dir = out_dir / arm
+            arm_dir.mkdir(parents=True, exist_ok=True)
+            if not events:
+                manifest.append({"arm": arm, "track": name,
+                                 "render_status": "not_rendered_no_events"})
+                continue
+            span = max(float(e["onset_sec"]) for e in events)
+            buffer, stats = render(events)
+            safe = str(name).replace("/", "_").replace(":", "_")
+            wav = write_wav(arm_dir / f"{arm}_{safe}.wav", buffer, SAMPLE_RATE)
+            entry = {
+                "arm": arm,
+                "track": str(name),
+                "split": args.real_split,
+                "structurally_valid": True,
+                "render_status": "full",
+                "n_events": len(events),
+                "span_sec": round(span, 4),
+                "attacks_per_sec": round(len(events) / span, 3) if span else None,
+                "wav": str(wav),
+            }
+            entry.update(stats)
+            manifest.append(entry)
+            print(f"  {arm:15} {str(name)[:28]:28} {len(events):5} ev  "
+                  f"peak {stats['peak_before_limiting']:.3f}  "
+                  f"steal {100*stats['voice_stealing_rate']:5.1f}%  "
+                  f"pitched {100*(stats['pitched_share'] or 0):5.1f}%", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--vocab", default="/tmp/snes_vocab.json")
@@ -197,11 +279,18 @@ def main() -> None:
                         default="/tmp/snes_level2_raw/baseline_tokens.json")
     parser.add_argument("--out-dir",
                         default=str(Path.home() / "workplace/level2_renders"))
+    parser.add_argument("--release", default="~/snesmdb-releases/snesmdb-50game-rc1")
+    parser.add_argument("--real-tracks", type=int, default=0,
+                        help="render N genuine tracks as a diagnostic control")
+    parser.add_argument("--real-split", default="test")
     args = parser.parse_args()
 
     vocab = rep.read_vocab(args.vocab)
     out_dir = Path(args.out_dir)
     manifest: list[dict] = []
+
+    if args.real_tracks:
+        render_real_control(args, vocab, out_dir, manifest)
 
     for arm, path in (("transformer", args.model_tokens),
                       ("slotngram", args.baseline_tokens)):
