@@ -33,27 +33,44 @@ SECONDS = 25.0
 
 
 def measure(excerpts: list[gen.Excerpt]) -> dict:
-    """The four registered measurements, identically defined for both arms."""
+    """The four registered measurements, identically defined for both arms.
+
+    **Which excerpts the rates cover.** An excerpt failing the structural
+    criterion decodes to zero events, so there is nothing on it to measure:
+    every rate below is necessarily over the VALID excerpts. That is not a
+    selection -- no excerpt is dropped for being unflattering, and none is
+    regenerated -- but it does mean the rates must always be read against
+    `n_valid / n_excerpts`, which is reported beside them. The valid excerpts
+    are never presented as the whole generated population.
+
+    Occupancy is reported as THREE distinct quantities. The earlier single
+    "peak voices" figure conflated them and reported 13 and 14 voices on
+    eight-voice hardware, which measured the function rather than the output.
+    """
     valid = [e for e in excerpts if e.valid]
     pairs = overlapping = clamped = notes = 0
     worst = 0.0
-    peak_before = peak_after = 0
+    concurrent = after_stealing = occupied = 0
     for excerpt in valid:
         report = hc.same_voice_overlap(excerpt.events)
         pairs += report.n_pairs
         overlapping += report.n_overlapping
         worst = max(worst, report.max_overlap_sec)
-        peak_before = max(peak_before, hc.max_simultaneous_voices(excerpt.events))
-        stolen, n = hc.apply_voice_stealing(excerpt.events)
+        occ = hc.occupancy(excerpt.events)
+        concurrent = max(concurrent, occ.concurrent_notes)
+        after_stealing = max(after_stealing, occ.concurrent_after_stealing)
+        occupied = max(occupied, occ.occupied_voices)
+        _, n = hc.apply_voice_stealing(excerpt.events)
         clamped += n
         notes += len(excerpt.events)
-        peak_after = max(peak_after, hc.max_simultaneous_voices(stolen))
     stats = gen.statistics([e.events for e in valid])
     return {
         "n_excerpts": len(excerpts),
         "n_valid": len(valid),
         "validity_rate": len(valid) / len(excerpts) if excerpts else 0.0,
         "invalid_reasons": [e.invalid_reason for e in excerpts if not e.valid],
+        "rates_computed_over": "valid excerpts only; invalid ones decode to "
+                               "zero events. Read against validity_rate.",
         "raw_same_voice_overlap_rate": overlapping / pairs if pairs else 0.0,
         "n_overlapping_pairs": overlapping,
         "n_same_voice_pairs": pairs,
@@ -61,8 +78,11 @@ def measure(excerpts: list[gen.Excerpt]) -> dict:
         "voice_stealing_rate": clamped / notes if notes else 0.0,
         "n_clamped": clamped,
         "n_notes": notes,
-        "peak_concurrent_before_stealing": peak_before,
-        "peak_voices_after_stealing": peak_after,
+        # (1) may exceed 8 -- that IS the diagnostic
+        "peak_concurrent_notes": concurrent,
+        # (2) and (3) must both be <= 8
+        "peak_concurrent_after_stealing": after_stealing,
+        "peak_occupied_voices": occupied,
         "attacks_per_second": stats.attacks_per_second,
         "mean_simultaneous_voices": stats.mean_simultaneous_voices,
     }
@@ -150,8 +170,12 @@ def main() -> None:
               f"worst {m['max_overlap_sec']:.2f} s")
         print(f"    voice-stealing rate          {100*m['voice_stealing_rate']:.1f}% "
               f"({m['n_clamped']}/{m['n_notes']} notes)")
-        print(f"    peak concurrent before       {m['peak_concurrent_before_stealing']}")
-        print(f"    peak voices after stealing   {m['peak_voices_after_stealing']}")
+        print(f"    (1) peak concurrent notes    {m['peak_concurrent_notes']}"
+              f"   [may exceed 8]")
+        print(f"    (2) peak after stealing      {m['peak_concurrent_after_stealing']}"
+              f"   [must be <= 8]")
+        print(f"    (3) peak occupied voices     {m['peak_occupied_voices']}"
+              f"   [must be <= 8]")
         print(f"    attacks/s                    {m['attacks_per_second']:.2f}")
     print(f"\n  control (real tracks, same tokenizer): 6.638% overlap")
 

@@ -137,8 +137,30 @@ def generate_model(
 
     stop = False
     while not stop and events_emitted < max_events:
-        window = tokens[-context:]
-        logits = model(torch.tensor([window], dtype=torch.long))[0, -1, :]
+        # THE WINDOW START MUST STAY ON A STRIDE BOUNDARY.
+        #
+        # `train.windows` cuts at `range(0, len(tokens), context)` and the
+        # context is 1024, a multiple of the stride, so in every window the
+        # model ever trained on, a token's positional index carried the same
+        # slot phase as its index in the track -- `_slot(p) = (p-1) % 4` was a
+        # reliable cue, and the model learned to use it.
+        #
+        # A plain `tokens[-context:]` advances the start by one token per step,
+        # so past the context boundary three steps in four present a
+        # positional phase that never occurred in training. That desynchronised
+        # the grammar exactly where it was observed to break: all five invalid
+        # excerpts of the first registered batch first violated the cycle past
+        # token 1024 (two within ~20 tokens of it), while 0 of 9 excerpts that
+        # stayed inside the window failed. Regenerating them with the start
+        # snapped to a stride boundary -- same checkpoint, same seeds, same
+        # sampling -- made them valid.
+        #
+        # This is a harness correction, not a grammar constraint: sampling
+        # still ranges over the whole vocabulary and validity is still measured
+        # rather than enforced.
+        start = max(0, len(tokens) - context)
+        start += (-start) % rep.STRIDE
+        logits = model(torch.tensor([tokens[start:]], dtype=torch.long))[0, -1, :]
         probabilities = F.softmax(_filter_logits(logits, config), dim=-1)
         token = int(torch.multinomial(probabilities, 1, generator=generator))
         if token == vocab.EOS:

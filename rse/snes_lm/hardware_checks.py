@@ -123,37 +123,107 @@ def apply_voice_stealing(
     out = [dict(event) for event in events]
     clamped = 0
     for indices in by_voice.values():
-        ordered = sorted(indices, key=lambda i: float(events[i]["onset_sec"]))
+        ordered = sorted(indices, key=lambda i: Decimal(str(events[i]["onset_sec"])))
         for current, following in zip(ordered, ordered[1:]):
             duration = out[current].get("duration_sec")
             if duration is None:
                 continue
-            start = float(out[current]["onset_sec"])
-            limit = float(events[following]["onset_sec"])
-            if start + float(duration) > limit + ROUNDING_TOLERANCE_SEC:
-                out[current]["duration_sec"] = max(0.0, limit - start)
+            start = Decimal(str(out[current]["onset_sec"]))
+            limit = Decimal(str(events[following]["onset_sec"]))
+            overlap = start + Decimal(str(duration)) - limit
+            if overlap <= 0:
+                continue
+            # Clamp EXACTLY, in Decimal, with no tolerance. Clamping in float
+            # against `limit + 1e-6` left `onset + duration` a hair past the
+            # next key-on, so the voice read as still sounding when it
+            # retriggered: eight voices each holding a sub-microsecond
+            # residual produced the impossible 13- and 14-voice figures.
+            out[current]["duration_sec"] = float(limit - start)
+            # Authoritative end: the following onset's own value, so the two
+            # spans are exactly adjacent rather than within an ULP.
+            out[current]["end_sec"] = events[following]["onset_sec"]
+            # The RATE keeps its musical meaning: a 1 us documented rounding
+            # artefact is not a voice-stealing event, so it is clamped but not
+            # counted. This keeps the reported rates comparable to the ones
+            # already recorded.
+            if overlap > Decimal(str(ROUNDING_TOLERANCE_SEC)):
                 out[current]["clamped_by_voice_stealing"] = True
                 clamped += 1
     return out, clamped
 
 
-def max_simultaneous_voices(events: Sequence[dict[str, Any]]) -> int:
-    """Peak simultaneous sounding voices, with the documented traps handled.
+#: The eight generic S-DSP voices.
+N_HARDWARE_VOICES = 8
 
-    The release is explicit about both: parse the 6-dp literals as `Decimal`
-    because they are not float64-representable, and process CLOSES BEFORE
-    OPENS at equal timestamps. A naive sweep reports 9 to 13 voices on
-    eight-voice hardware; closes-first alone takes nine games over the limit
-    down to six.
+
+@dataclass
+class OccupancyReport:
+    """Three DIFFERENT quantities that were previously conflated.
+
+    `max_simultaneous_voices` was named for quantity 3 but computes quantity 1,
+    and was then applied to a voice-stolen table, where the two should coincide
+    and did not: it reported 13 and 14 concurrent voices on eight-voice
+    hardware. Those figures measured nothing about the corpus or the model.
+    """
+
+    #: (1) Concurrent NOTE INSTANCES as generated. MAY legitimately exceed 8:
+    #: that is the diagnostic -- it is how far the table is from playable.
+    concurrent_notes: int
+    #: (2) Concurrent note instances after the renderer's voice-stealing
+    #: policy. Must be <= 8; more means the renderer is not actually capping.
+    concurrent_after_stealing: int
+    #: (3) Distinct OCCUPIED HARDWARE VOICES. Cannot exceed 8 by construction,
+    #: because a key-on ends whatever its voice was playing. A value above 8 is
+    #: a defect in this function, never a property of the data.
+    occupied_voices: int
+    n_distinct_voices: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "concurrent_notes": self.concurrent_notes,
+            "concurrent_after_stealing": self.concurrent_after_stealing,
+            "occupied_voices": self.occupied_voices,
+            "n_distinct_voices": self.n_distinct_voices,
+        }
+
+
+def _span(event: dict[str, Any]) -> tuple[Decimal, Decimal] | None:
+    """Exact [onset, onset+duration) from the 6-dp literals.
+
+    `Decimal(str(x))` rather than `Decimal(x)`: the release's values are not
+    float64-representable, so going through the shortest repr is what keeps
+    `onset + duration` comparable to the next onset at all.
+    """
+    duration = event.get("duration_sec")
+    if duration is None:
+        return None
+    start = Decimal(str(event["onset_sec"]))
+    # An explicit end wins over `onset + duration`. Voice stealing sets it to
+    # the FOLLOWING onset's own value, so adjacency is exact by construction.
+    # Re-deriving the end by addition cannot achieve that here: decoded onsets
+    # are accumulated floats, not the release's exact 6-dp literals, so the sum
+    # lands an ULP past the next onset and the voice reads as still sounding --
+    # which is what kept quantity 2 at 9 and 10 after the clamp was made exact.
+    end = event.get("end_sec")
+    if end is not None:
+        return start, Decimal(str(end))
+    return start, start + Decimal(str(duration))
+
+
+def _peak(intervals: Sequence[tuple[Decimal, Decimal]]) -> int:
+    """Peak overlap of HALF-OPEN intervals.
+
+    Empty intervals are dropped: a zero-duration key-on sounds for no time, so
+    it occupies nothing -- though it still ends the previous note on its voice,
+    which is `_voice_intervals`' job, not this one. Closes are processed before
+    opens at equal timestamps, which is what makes [onset, end) half-open: a
+    note ending exactly when the next begins does not overlap it.
     """
     boundaries: list[tuple[Decimal, int]] = []
-    for event in events:
-        duration = event.get("duration_sec")
-        if duration is None:
+    for start, end in intervals:
+        if end <= start:
             continue
-        start = Decimal(str(event["onset_sec"]))
-        end = start + Decimal(str(duration))
-        boundaries.append((end, -1))   # closes sort before opens at equal time
+        boundaries.append((end, -1))
         boundaries.append((start, +1))
     boundaries.sort(key=lambda b: (b[0], b[1]))
     current = peak = 0
@@ -161,3 +231,64 @@ def max_simultaneous_voices(events: Sequence[dict[str, Any]]) -> int:
         current += delta
         peak = max(peak, current)
     return peak
+
+
+def _voice_intervals(
+    events: Sequence[dict[str, Any]]
+) -> list[tuple[Decimal, Decimal]]:
+    """Sounding spans per voice, each truncated by the next key-on on it.
+
+    This is the hardware's own rule, applied exactly: a voice sounds one note
+    at a time. Because every span on a voice is cut at the following key-on,
+    the spans within a voice cannot overlap, so the peak over all voices is
+    bounded by the number of distinct voices -- and so quantity 3 cannot
+    exceed 8 unless the generator emitted a voice outside 0..7.
+    """
+    by_voice: dict[int, list[dict[str, Any]]] = {}
+    for event in events:
+        by_voice.setdefault(int(event["voice"]), []).append(event)
+
+    out: list[tuple[Decimal, Decimal]] = []
+    for voice_events in by_voice.values():
+        ordered = sorted(voice_events, key=lambda e: Decimal(str(e["onset_sec"])))
+        for index, event in enumerate(ordered):
+            span = _span(event)
+            if span is None:
+                continue
+            start, end = span
+            if index + 1 < len(ordered):
+                # A repeated key-on at the SAME onset truncates to empty, which
+                # is right: the voice is immediately retriggered.
+                end = min(end, Decimal(str(ordered[index + 1]["onset_sec"])))
+            out.append((start, end))
+    return out
+
+
+def occupancy(events: Sequence[dict[str, Any]]) -> OccupancyReport:
+    """All three quantities, measured on one event table.
+
+    Quantity 2 is computed from `apply_voice_stealing`'s actual output rather
+    than re-deriving it, so the renderer's policy is checked as implemented --
+    in float, as it runs -- instead of being assumed correct.
+    """
+    stolen, _ = apply_voice_stealing(events)
+    spans = [s for s in (_span(e) for e in events) if s is not None]
+    stolen_spans = [s for s in (_span(e) for e in stolen) if s is not None]
+    voices = {int(e["voice"]) for e in events}
+    return OccupancyReport(
+        concurrent_notes=_peak(spans),
+        concurrent_after_stealing=_peak(stolen_spans),
+        occupied_voices=_peak(_voice_intervals(events)),
+        n_distinct_voices=len(voices),
+    )
+
+
+def max_simultaneous_voices(events: Sequence[dict[str, Any]]) -> int:
+    """Quantity 1: peak concurrent NOTE INSTANCES, ignoring voice.
+
+    Kept under its original name because the Level 1 and corpus-scan records
+    cite it, but it is no longer described as a voice count. It never was one:
+    it does not group by voice, so on a table with same-voice overlap it
+    exceeds 8 whether or not the hardware could play the table.
+    """
+    return _peak([s for s in (_span(e) for e in events) if s is not None])
