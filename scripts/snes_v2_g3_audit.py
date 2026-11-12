@@ -52,7 +52,13 @@ def load_vocab() -> gx.Vocab:
 
 
 def notes_from_parsed(parsed, vocab: gx.Vocab) -> list[dict]:
-    """Reconstruct a note table from G3 tokens, independent of codec.decode."""
+    """Thin wrapper; the implementation now lives in grammar.notes_from_groups
+    so generation reuses it instead of growing a third event walk."""
+    return gx.notes_from_groups(parsed)
+
+
+def _superseded_notes_from_parsed(parsed, vocab: gx.Vocab) -> list[dict]:
+    """The original, kept only so the audit's provenance is legible."""
     tick = 0
     live: dict[int, dict] = {}
     out: list[dict] = []

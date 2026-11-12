@@ -917,3 +917,40 @@ class GenerationState:
 
 #: Escape-length families in the delta vocabulary.
 MAX_ESCAPE_DIGITS_OFFSET = 3
+
+
+def notes_from_groups(parsed: Sequence[ParsedGroup]) -> list[dict[str, Any]]:
+    """Reconstruct a note table from parsed G3 groups.
+
+    **The single event-reconstruction implementation.** It was written for the
+    full-population G3 audit, where it was validated against `codec.decode` --
+    a different decoder -- on all 1,740 tracks with zero onset, slot, pitch or
+    status mismatches. Generation reuses it rather than growing a third walk.
+    """
+    tick = 0
+    live: dict[int, dict[str, Any]] = {}
+    out: list[dict[str, Any]] = []
+    for group in parsed:
+        tick += group.delta
+        for slot in group.ends:
+            note = live.pop(slot, None)
+            if note is not None:
+                note["end_tick"] = tick
+                out.append(note)
+        free = sorted(set(range(cx.N_HARDWARE_VOICES)) - set(live))
+        for midi, status in group.starts:
+            if not free:
+                continue
+            slot = free.pop(0)
+            live[slot] = {"slot": slot, "start_tick": tick, "midi": midi,
+                          "status": status, "changes": []}
+        for slot, midi, status in group.changes:
+            if slot in live:
+                live[slot]["changes"].append((tick, midi, status))
+    for note in live.values():
+        # An open lifetime: the excerpt ended while this note was sounding.
+        note["end_tick"] = tick
+        note["open"] = True
+        out.append(note)
+    out.sort(key=lambda n: (n["start_tick"], n["slot"]))
+    return out

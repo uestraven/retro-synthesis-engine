@@ -65,13 +65,27 @@ def test_soft_stop_terminates_at_a_group_boundary_past_45s():
     assert e.tokens[-1] == v.EOS
 
 
-def test_hard_cap_is_never_exceeded():
+def test_the_cap_stops_at_the_next_boundary_and_flags_an_overshoot():
+    """Section 5 stops at the NEXT group boundary, and the clock only moves
+    when a delta is sampled, so ONE delta can jump past the cap. The old
+    name of this test -- "hard cap is never exceeded" -- was false: the
+    first real run produced 85.23 s and 104.63 s excerpts. The contract is
+    that an overshoot is FLAGGED, not that it cannot happen."""
     v = vocab()
-    big = delta_token(v, int(20.0 * gn.GRID_HZ))     # 20 s per group
-    want = [v.pitch_token(60.0, "estimated")] + big
+    on_the_cap = delta_token(v, int(20.0 * gn.GRID_HZ))      # 20 s per group
+    want = [v.pitch_token(60.0, "estimated")] + on_the_cap
     e = gn.generate(scripted(v, want), v, gn.SamplingConfig(seed=3))
     assert e.outcome == "complete"
     assert e.duration_sec <= gn.HARD_CAP_SEC + 1e-9, e.duration_sec
+    assert e.exceeded_hard_cap is False
+
+    over = delta_token(v, int(35.0 * gn.GRID_HZ))            # 35 s per group
+    want = [v.pitch_token(60.0, "estimated")] + over
+    e = gn.generate(scripted(v, want), v, gn.SamplingConfig(seed=3))
+    assert e.outcome == "complete"
+    assert e.duration_sec > gn.HARD_CAP_SEC
+    assert e.exceeded_hard_cap is True, (
+        "an excerpt past the cap must not read as an in-target result")
 
 
 def test_budget_exhaustion_is_retained_not_retried():
@@ -81,7 +95,12 @@ def test_budget_exhaustion_is_retained_not_retried():
     e = gn.generate(scripted(v, want), v, gn.SamplingConfig(seed=4),
                     token_budget=200)
     assert e.outcome == "budget_exhausted"
-    assert len(e.tokens) - 1 >= 200
+    # Generation ran to the budget and was not retried. The exact length is
+    # no longer the budget: terminating grammatically rewrites the tail,
+    # either dropping an incomplete terminal group or adding releases. So
+    # the contract is "within one group of the budget", not "exactly it".
+    assert abs(len(e.tokens) - 1 - 200) <= gx.MAX_ACTIONS_PER_GROUP
+    assert e.tokens[-1] == v.EOS, "a retained outcome must be terminated"
     assert e.duration_sec < gn.SOFT_STOP_SEC
 
 

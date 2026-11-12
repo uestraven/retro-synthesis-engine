@@ -18,6 +18,14 @@ age -- never a note's eventual end, which a generator could not know.
 Nothing is retried. A seed that exhausts its budget, stops early, or breaks
 the grammar is a **retained outcome**, because a rate without its failures is
 not a rate.
+
+**Termination is grammatical, not appended.** A delta is the PREFIX of the
+group it belongs to, so a boundary just after a delta has an OPEN group with
+no actions, and `EOS` closes an open group -- a group with nothing in it has
+nothing to close. An earlier version appended `EOS` unconditionally at the
+stopping boundary, which made every soft-stop and hard-cap excerpt
+unparseable: the harness, not the model, invalidated them. See
+`_terminate()`.
 """
 
 from __future__ import annotations
@@ -65,12 +73,21 @@ class Excerpt:
     allocator_steals: int
     invalid_reason: str = ""
     snapshots: list[int] = field(default_factory=list)
+    #: Handles released to close the terminal group legally. An intervention,
+    #: so it is counted rather than folded into the note content.
+    terminal_releases: int = 0
+    #: True when the group boundary the stop fired at was already past the
+    #: 60 s cap, because a single sampled delta can jump over it. Section 5
+    #: stops at the NEXT boundary, so this is conformant but outside the
+    #: 45-60 s target and must not be read as an in-target excerpt.
+    exceeded_hard_cap: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {k: getattr(self, k) for k in (
             "seed", "arm", "outcome", "termination_reason", "duration_sec",
             "n_groups", "n_rollovers", "illegal_mass_mean", "illegal_mass_max",
-            "forced_closures", "allocator_steals", "invalid_reason")} | {
+            "forced_closures", "allocator_steals", "invalid_reason",
+            "terminal_releases", "exceeded_hard_cap")} | {
             "n_tokens": len(self.tokens), "snapshot_sizes": self.snapshots}
 
 
@@ -102,6 +119,48 @@ def _apply_sampling(probs: list[float], legal: Sequence[int],
     return [t for t, _ in kept], [p for _, p in kept]
 
 
+def _terminate(state: "gx.GenerationState", emitted: list[int],
+               vocab: gx.Vocab, pre_delta_len: int) -> tuple[int, bool, str]:
+    """Close the open group legally, then EOS. Returns (releases, ok, note).
+
+    Two cases, and neither invents musical material the model did not
+    produce:
+
+    1. Notes are sounding. Each active handle **releases** -- the ending a
+       composition actually has -- which gives the terminal group its
+       actions, after which EOS is legal. Counted, not hidden.
+    2. Nothing is sounding, or the stop fell mid-action. There is no action
+       to close the group with, so the **incomplete terminal group is
+       dropped**: `emitted` is truncated back to before the delta that
+       opened it, and EOS follows the previous group's actions -- a delta
+       closes the PRECEDING group, so that group keeps everything it had.
+       The clock reverts with it.
+
+    `ok` is False only when there is no earlier group to fall back on: a
+    stop inside the very first group, where every candidate termination
+    would have to invent an action. The outcome is then retained and
+    reported as not decodable, which is the honest answer, not a repair.
+    """
+    releases = 0
+    while vocab.EOS not in state.legal():
+        ends = sorted(t for t in state.legal() if vocab.is_end(t))
+        if not ends:
+            if pre_delta_len <= 1:
+                return releases, False, (
+                    "no completed group to terminate after; closing the "
+                    "stream would require inventing an action")
+            del emitted[pre_delta_len:]
+            emitted.append(vocab.EOS)
+            return releases, True, ("incomplete terminal group dropped; the "
+                                    "clock reverts to the previous boundary")
+        state.advance(ends[0])
+        emitted.append(ends[0])
+        releases += 1
+    state.advance(vocab.EOS)
+    emitted.append(vocab.EOS)
+    return releases, True, ""
+
+
 def generate(
     next_distribution: Callable[[Sequence[int]], list[float]],
     vocab: gx.Vocab,
@@ -129,14 +188,30 @@ def generate(
     snapshots: list[int] = []
     rollovers = 0
     n_groups = 0
+    pre_delta_len = 1
+    terminal_releases = 0
+    termination_note = ""
     outcome = reason = ""
     invalid_reason = ""
 
     while True:
         if len(emitted) - 1 >= token_budget:
-            outcome, reason = "budget_exhausted", (
-                f"token budget {token_budget} reached"
-                + (" mid-action" if state.mid_action else " at a boundary"))
+            where = " mid-action" if state.mid_action else " at a boundary"
+            # Amendment A1 calls `budget_exhausted` a DECODABLE outcome, so
+            # the stream must actually be closed. Left unterminated it has no
+            # EOS, `parse` rejects it, and the candidate would be ineligible
+            # for the harness's reason. The releases push a few tokens past
+            # the budget; that is disclosed, not hidden.
+            terminal_releases, closed, termination_note = _terminate(
+                state, emitted, vocab, pre_delta_len)
+            outcome = "budget_exhausted"
+            reason = f"token budget {token_budget} reached{where}"
+            if terminal_releases:
+                reason += f"; {terminal_releases} terminal release(s)"
+            if termination_note:
+                reason += f"; {termination_note}"
+            if not closed:
+                invalid_reason = termination_note
             break
         # Rollover only at a group boundary, so no action or escape is split.
         if len(window) >= context - 8 and state.at_group_boundary:
@@ -159,6 +234,10 @@ def generate(
 
         try:
             before_boundary = state.at_group_boundary
+            # Where this group's delta prefix begins, so an empty terminal
+            # group can be dropped rather than closed with invented notes.
+            if token >= vocab.delta_base and not state.mid_action:
+                pre_delta_len = len(emitted)
             state.advance(token)
         except gx.GrammarError as exc:
             outcome, reason = "invalid", str(exc)
@@ -178,13 +257,19 @@ def generate(
             break
 
         seconds = state.seconds(GRID_HZ)
-        if state.at_group_boundary and seconds >= hard_cap_sec:
-            emitted.append(vocab.EOS)
-            outcome, reason = "complete", f"hard cap at {seconds:.2f}s"
-            break
         if state.at_group_boundary and seconds >= soft_stop_sec:
-            emitted.append(vocab.EOS)
-            outcome, reason = "complete", f"soft stop at {seconds:.2f}s"
+            which = "hard cap" if seconds >= hard_cap_sec else "soft stop"
+            terminal_releases, closed, termination_note = _terminate(
+                state, emitted, vocab, pre_delta_len)
+            seconds = state.seconds(GRID_HZ)
+            outcome = "complete"
+            reason = f"{which} at {seconds:.2f}s"
+            if terminal_releases:
+                reason += f"; {terminal_releases} terminal release(s)"
+            if termination_note:
+                reason += f"; {termination_note}"
+            if not closed:
+                invalid_reason = termination_note
             break
 
     return Excerpt(
@@ -195,4 +280,6 @@ def generate(
         illegal_mass_max=max(illegal) if illegal else 0.0,
         forced_closures=state.forced_closures,
         allocator_steals=state.steals,
-        invalid_reason=invalid_reason, snapshots=snapshots)
+        invalid_reason=invalid_reason, snapshots=snapshots,
+        terminal_releases=terminal_releases,
+        exceeded_hard_cap=state.seconds(GRID_HZ) > hard_cap_sec)
