@@ -127,10 +127,21 @@ def build(out_path: Path) -> dict:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     staged = out_path.with_suffix(".manifest.json")
     staged.write_text(json.dumps(manifest, indent=1))
+    def _neutral(info: tarfile.TarInfo) -> tarfile.TarInfo:
+        """Own the archive to root:root with no names.
+
+        The authoring uid does not exist on the pod, so restoring ownership
+        fails there and `tar` exits nonzero even though every file extracted
+        correctly -- a cosmetic failure that reads exactly like a real one.
+        """
+        info.uid = info.gid = 0
+        info.uname = info.gname = ""
+        return info
+
     with tarfile.open(out_path, "w:gz") as tar:
         for src, arc in files:
-            tar.add(src, arcname=arc)
-        tar.add(staged, arcname="BUNDLE_MANIFEST.json")
+            tar.add(src, arcname=arc, filter=_neutral)
+        tar.add(staged, arcname="BUNDLE_MANIFEST.json", filter=_neutral)
     print(f"  {manifest['n_files']} files, "
           f"{manifest['total_bytes'] / 1e6:.1f} MB payload -> {out_path} "
           f"({out_path.stat().st_size / 1e6:.1f} MB compressed)")
