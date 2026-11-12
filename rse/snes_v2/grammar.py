@@ -754,3 +754,166 @@ def legal_at(tokens: Sequence[int], vocab: Vocab) -> list[frozenset[int]]:
     while len(out) < len(tokens):
         out.append(frozenset())
     return out[:len(tokens)]
+
+
+class GenerationState:
+    """The ONE incremental grammar engine, used by scoring and generation.
+
+    `legal_at` is a batch wrapper over this class, so inference cannot drift
+    from training: there is no second masking or snapshot implementation. That
+    separation is what produced Level 2's positional-phase defect, where
+    training cut windows on stride boundaries and inference slid by one token.
+
+    Tracks everything a snapshot needs -- handle, current pitch, status and
+    start tick -- so a rollover reconstructs exactly what training would have
+    written at the same musical instant, and nothing a generator could not
+    know. A note's eventual end is never represented.
+    """
+
+    def __init__(self, vocab: Vocab, *,
+                 snapshot: Sequence[ActiveNote] = ()) -> None:
+        self.vocab = vocab
+        self.tick = 0
+        #: handle -> (midi_note, status, start_tick)
+        self.notes: dict[int, tuple[float | None, str, int]] = {}
+        for note in snapshot:
+            self.notes[note.handle] = (note.midi_note, note.status,
+                                       -note.age_ticks)
+        self.changed: set[int] = set()
+        self.n_actions = 0
+        self.started = False
+        self.phase = State.GROUP_ENDS
+        self._await_change: int | None = None
+        self._delta_remaining = 0
+        self._delta_value = 0
+        self._delta_tokens: list[int] = []
+        self.forced_closures = 0
+        self.steals = 0
+
+    # --- queries --------------------------------------------------------
+
+    @property
+    def active(self) -> frozenset[int]:
+        return frozenset(self.notes)
+
+    def legal(self) -> frozenset[int]:
+        v = self.vocab
+        if self._await_change is not None:
+            return frozenset(v.pitch_base + i for i in range(v.n_pitch))
+        if self._delta_remaining:
+            base = v.delta_base + v.delta.n_direct + MAX_ESCAPE_DIGITS_OFFSET
+            return frozenset(base + d for d in range(256))
+        return frozenset(legal(self.phase, active=self.active,
+                               n_actions=self.n_actions, vocab=v,
+                               started=self.started,
+                               changed=frozenset(self.changed)))
+
+    def snapshot(self) -> tuple[ActiveNote, ...]:
+        return tuple(ActiveNote(handle, midi, status, self.tick - start)
+                     for handle, (midi, status, start)
+                     in sorted(self.notes.items()))
+
+    def seconds(self, grid_hz: float = 4000.0) -> float:
+        return self.tick / grid_hz
+
+    # --- advance --------------------------------------------------------
+
+    def advance(self, token: int) -> None:
+        """Consume one sampled token. Raises if it is not legal."""
+        v = self.vocab
+        if self._await_change is not None:
+            if not v.is_pitch(token):
+                raise GrammarError(f"expected a pitch after CHANGE, got {token}")
+            handle = self._await_change
+            midi, status = v.read_pitch(token)
+            _, _, began = self.notes[handle]
+            self.notes[handle] = (midi, status, began)
+            self._await_change = None
+            return
+        if self._delta_remaining:
+            base = v.delta_base + v.delta.n_direct + MAX_ESCAPE_DIGITS_OFFSET
+            if not (base <= token < base + 256):
+                raise GrammarError(f"expected a delta digit, got {token}")
+            self._delta_value = self._delta_value * 256 + (token - base)
+            self._delta_remaining -= 1
+            if self._delta_remaining == 0:
+                if self._delta_value <= 0:
+                    raise GrammarError("delta escape decoded to zero")
+                self._close_group(self._delta_value)
+            return
+        if token == v.EOS:
+            self.phase = State.DONE
+            return
+        if v.is_end(token):
+            handle = token - v.end_base
+            # Enforced HERE, not left to the mask. advance() is also used to
+            # replay hand-built sequences, where relying on legal() would let
+            # an ordering violation pass undetected.
+            if self.phase is not State.GROUP_ENDS:
+                raise GrammarError("END after starts or changes in one group")
+            if handle not in self.notes:
+                raise GrammarError(f"END on inactive handle {handle}")
+            del self.notes[handle]
+            self.n_actions += 1
+            self.started = True
+            return
+        if v.is_pitch(token):
+            if self.phase not in (State.GROUP_ENDS, State.GROUP_STARTS):
+                raise GrammarError("start after changes began")
+            free = sorted(set(range(cx.N_HARDWARE_VOICES)) - set(self.notes))
+            if not free:
+                raise GrammarError("start with no free handle")
+            midi, status = v.read_pitch(token)
+            self.notes[free[0]] = (midi, status, self.tick)
+            self.n_actions += 1
+            self.phase = State.GROUP_STARTS
+            self.started = True
+            return
+        if v.is_change(token):
+            handle = token - v.change_base
+            if handle not in self.notes or handle in self.changed:
+                raise GrammarError(f"CHANGE on handle {handle}")
+            self.changed.add(handle)
+            self.n_actions += 1
+            self.phase = State.GROUP_CHANGES
+            self.started = True
+            self._await_change = handle
+            return
+        if token >= v.delta_base:
+            if not self.started:
+                raise GrammarError("delta would close an empty group")
+            offset = token - v.delta_base
+            if offset < v.delta.n_direct:
+                value = v.delta._value_of.get(offset)      # type: ignore[attr-defined]
+                if value is None:
+                    raise GrammarError(f"unknown direct delta token {token}")
+                self._close_group(value)
+                return
+            n_digits = offset - v.delta.n_direct + 1
+            if not (1 <= n_digits <= MAX_ESCAPE_DIGITS_OFFSET):
+                raise GrammarError(f"bad delta escape {token}")
+            self._delta_remaining = n_digits
+            self._delta_value = 0
+            return
+        raise GrammarError(f"illegal token {token}")
+
+    def _close_group(self, delta: int) -> None:
+        self.tick += delta
+        self.changed.clear()
+        self.n_actions = 0
+        self.started = False
+        self.phase = State.GROUP_ENDS
+
+    @property
+    def at_group_boundary(self) -> bool:
+        """True when a complete group has just closed, or none has opened."""
+        return (not self.started and self._await_change is None
+                and not self._delta_remaining)
+
+    @property
+    def mid_action(self) -> bool:
+        return self._await_change is not None or bool(self._delta_remaining)
+
+
+#: Escape-length families in the delta vocabulary.
+MAX_ESCAPE_DIGITS_OFFSET = 3
