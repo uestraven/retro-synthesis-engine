@@ -142,7 +142,9 @@ def main() -> None:
                 statistics, note = measure(excerpt, vocab)
                 candidate.outcomes.append(sel.Outcome(
                     seed=seed, outcome=excerpt.outcome,
-                    statistics=statistics, reason=note))
+                    statistics=statistics, reason=note,
+                    duration_sec=excerpt.duration_sec,
+                    exceeded_hard_cap=excerpt.exceeded_hard_cap))
                 record = excerpt.to_dict() | {
                     "temperature": temperature, "top_p": top_p,
                     "scorable": statistics is not None,
@@ -226,11 +228,25 @@ def main() -> None:
             print(f"    t={row['temperature']} p={row['top_p']}  "
                   f"objective {row['objective']:.6f}  "
                   f"{row['aggregate']['attacks_per_sec']:7.3f} attacks/s  "
-                  f"{row['aggregate']['mean_simultaneity']:.3f} simultaneity")
+                  f"{row['aggregate']['mean_simultaneity']:.3f} simultaneity  "
+                  f"| dur med {row['duration']['median_sec']:6.2f}s  "
+                  f"in target {row['duration']['n_in_target']}/4  "
+                  f"<5s {row['duration']['n_under_5_sec']}/4  "
+                  f"over cap {row['duration']['n_exceeded_hard_cap']}/4")
     if result.successful:
+        d = result.selected["duration"]
         print(f"\n  SELECTED  temperature {result.selected['temperature']}  "
               f"top-p {result.selected['top_p']}  "
               f"objective {result.selected['objective']:.6f}")
+        print(f"  durations (REPORTED, NOT SCORED): median "
+              f"{d['median_sec']:.2f}s  range {d['min_sec']:.2f}-"
+              f"{d['max_sec']:.2f}s  {d['n_in_target']}/4 in the 45-60s "
+              f"target  {d['n_under_5_sec']}/4 under 5s  "
+              f"{d['n_exceeded_hard_cap']}/4 past the cap")
+        if d["n_in_target"] == 0:
+            print("  NOTE: no development excerpt of the winning candidate "
+                  "reached the 45-60s target. The frozen objective does not "
+                  "measure duration; this is reported, not corrected.")
     else:
         print(f"\n  SELECTION UNSUCCESSFUL: {result.failure_reason}")
     print(f"  {elapsed:.1f}s; written to {out_dir}")

@@ -22,6 +22,7 @@ success, rewarded *because* its failures were excluded.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import statistics as st
 from typing import Any, Sequence
 
 from . import statistics as sx
@@ -58,6 +59,9 @@ class Outcome:
     #: mechanism of Amendment A1: None cannot be scored.
     statistics: dict[str, Any] | None
     reason: str = ""
+    #: Reported, never scored. See `duration_summary`.
+    duration_sec: float = 0.0
+    exceeded_hard_cap: bool = False
 
     def __post_init__(self) -> None:
         if self.outcome not in OUTCOME_CATEGORIES:
@@ -93,6 +97,43 @@ class Candidate:
                     f"seed {outcome.seed}: {outcome.outcome} with no defined "
                     f"metrics{(' -- ' + outcome.reason) if outcome.reason else ''}")
         return (not reasons, reasons)
+
+
+#: §5's target window. Used for REPORTING ONLY.
+TARGET_MIN_SEC = 45.0
+TARGET_MAX_SEC = 60.0
+
+
+def duration_summary(outcomes: Sequence[Outcome]) -> dict[str, Any]:
+    """Durations beside the objective, never inside it.
+
+    The frozen §4 objective scores density, simultaneity and the interval
+    histogram. **None of the three measures duration**, so a candidate whose
+    excerpts barely play can score well: the baseline's winning candidate
+    scored 0.6969 with only 1 of 40 excerpts in the 45-60 s target and 12
+    under 5 seconds, the shortest 0.05 s.
+
+    §4 stays frozen -- that was the registered decision -- so the remedy is
+    visibility rather than a changed formula. Every candidate carries this
+    block, so a winner that barely plays cannot be read as an in-target
+    result. Nothing here feeds `objective()` or `tie_break_key()`.
+    """
+    durations = sorted(o.duration_sec for o in outcomes)
+    if not durations:
+        return {"n": 0, "note": "no outcomes"}
+    return {
+        "n": len(durations),
+        "min_sec": durations[0],
+        "median_sec": st.median(durations),
+        "max_sec": durations[-1],
+        "n_in_target": sum(1 for d in durations
+                           if TARGET_MIN_SEC <= d <= TARGET_MAX_SEC),
+        "n_under_5_sec": sum(1 for d in durations if d < 5.0),
+        "n_exceeded_hard_cap": sum(1 for o in outcomes if o.exceeded_hard_cap),
+        "target_sec": [TARGET_MIN_SEC, TARGET_MAX_SEC],
+        "scored": False,
+        "note": "reported beside the frozen §4 objective, never inside it",
+    }
 
 
 @dataclass
@@ -140,6 +181,8 @@ def select(candidates: Sequence[Candidate],
                          for o in sorted(candidate.outcomes,
                                          key=lambda o: o.seed)],
             "ineligibility_reasons": reasons,
+            # Beside the objective, never inside it.
+            "duration": duration_summary(candidate.outcomes),
         }
         if eligible:
             aggregated = sx.aggregate([o.statistics for o in candidate.outcomes])
@@ -176,6 +219,7 @@ def select(candidates: Sequence[Candidate],
         "top_p": best["top_p"],
         "objective": best["objective"],
         "aggregate": best["aggregate"],
+        "duration": best["duration"],
         "tie_break": "lowest distance, then lowest temperature, then highest "
                      "top-p; distances compared at 6 decimal places",
     }

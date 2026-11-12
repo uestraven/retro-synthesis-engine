@@ -196,3 +196,43 @@ def test_tie_break_prefers_the_lower_temperature_then_the_higher_top_p():
             candidate(0.9, 1.0, per_seed=identical)]
     result = sel.select(grid, REFERENCE)
     assert (result.selected["temperature"], result.selected["top_p"]) == (0.9, 1.0)
+
+
+# --- durations are reported, never scored ----------------------------------
+
+def test_duration_does_not_enter_the_objective():
+    """The registered decision was to leave section 4 frozen. So a candidate
+    whose excerpts barely play must score exactly as one that plays in
+    target -- and the report must make that visible."""
+    def with_durations(temperature, durations):
+        return sel.Candidate(temperature=temperature, top_p=1.0, outcomes=[
+            sel.Outcome(seed=seed, outcome="short", statistics=stats(17.9, 2.3),
+                        duration_sec=duration)
+            for seed, duration in zip(sel.DEVELOPMENT_SEEDS, durations)])
+
+    barely_plays = with_durations(0.8, [0.05, 0.3, 0.5, 1.0])
+    in_target = with_durations(0.9, [47.0, 48.0, 52.0, 59.0])
+    result = sel.select([barely_plays, in_target], REFERENCE)
+    rows = {r["temperature"]: r for r in result.rows}
+    assert rows[0.8]["objective"] == rows[0.9]["objective"], \
+        "duration must not change the frozen objective"
+    # ...and the tie-break's lowest temperature still wins, barely-playing.
+    assert result.selected["temperature"] == 0.8
+    # The visibility that replaces the amendment:
+    assert rows[0.8]["duration"]["n_in_target"] == 0
+    assert rows[0.8]["duration"]["n_under_5_sec"] == 4
+    assert rows[0.9]["duration"]["n_in_target"] == 4
+    assert rows[0.8]["duration"]["scored"] is False
+    assert result.selected["duration"]["n_in_target"] == 0
+
+
+def test_the_overshoot_flag_is_carried_into_the_candidate_report():
+    over = sel.Candidate(temperature=1.0, top_p=1.0, outcomes=[
+        sel.Outcome(seed=seed, outcome="complete", statistics=stats(17.9, 2.3),
+                    duration_sec=duration, exceeded_hard_cap=duration > 60.0)
+        for seed, duration in zip(sel.DEVELOPMENT_SEEDS,
+                                  [47.0, 85.23, 104.63, 50.0])])
+    result = sel.select([over], REFERENCE)
+    assert result.rows[0]["duration"]["n_exceeded_hard_cap"] == 2
+    assert result.rows[0]["duration"]["n_in_target"] == 2
+    assert result.rows[0]["duration"]["max_sec"] == 104.63
