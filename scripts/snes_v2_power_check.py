@@ -46,14 +46,31 @@ N_SIMULATIONS = 200
 
 
 def simulate(n_pairs: int, true_preference: float, *, seed: int,
-             n_listeners: int = N_LISTENERS) -> list[px.Judgement]:
+             n_listeners: int = N_LISTENERS,
+             pairs_per_listener: int | None = None) -> list[px.Judgement]:
+    """`pairs_per_listener=None` crosses every listener with every pair.
+
+    That is an UPPER BOUND on power and infeasible past a few dozen pairs:
+    20 listeners x 60 pairs is 1,200 judgements, each two 20-second clips.
+    Passing an integer applies a fixed rotation instead -- listener i takes a
+    contiguous block starting at offset i*k mod n_pairs -- which is what a
+    real assignment looks like and what the registered design specifies.
+    """
     rng = random.Random(seed)
     pair_effect = {f"p{i}": rng.gauss(0.0, PAIR_SD) for i in range(n_pairs)}
     listener_effect = {f"L{i}": rng.gauss(0.0, LISTENER_SD)
                        for i in range(n_listeners)}
+    order = sorted(pair_effect)
     out: list[px.Judgement] = []
-    for listener, le in listener_effect.items():
-        for pair, pe in pair_effect.items():
+    for index, (listener, le) in enumerate(listener_effect.items()):
+        if pairs_per_listener is None:
+            assigned = order
+        else:
+            k = min(pairs_per_listener, n_pairs)
+            start = (index * k) % n_pairs
+            assigned = [order[(start + j) % n_pairs] for j in range(k)]
+        for pair in assigned:
+            pe = pair_effect[pair]
             p = min(0.999, max(0.001, true_preference + pe + le))
             draw = rng.random()
             if draw < TIE_RATE:
