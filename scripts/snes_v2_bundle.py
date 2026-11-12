@@ -65,6 +65,12 @@ PAYLOAD: tuple[tuple[Path, str], ...] = (
      "scripts/snes_v2_evaluation_batch.py"),
     (ROOT / "tests/test_snes_v2_evaluation_batch.py",
      "tests/test_snes_v2_evaluation_batch.py"),
+    (ROOT / "scripts/snes_v2_m4_generate.py",
+     "scripts/snes_v2_m4_generate.py"),
+    (ROOT / "tests/test_snes_v2_m4_generate.py",
+     "tests/test_snes_v2_m4_generate.py"),
+    (ROOT / "tests/test_snes_v2_binomial.py",
+     "tests/test_snes_v2_binomial.py"),
     # The evaluation batch reads its settings from this report and asserts
     # them, rather than taking them as flags a typo could change.
     (ARTIFACTS / "selection_model/sampling_selection_model.json",
@@ -121,6 +127,10 @@ def build(out_path: Path) -> dict:
         "revisions": revision_ids(),
         "expected_checkpoint_step": EXPECTED_STEP,
         "expected_parameters": EXPECTED_PARAMETERS,
+        "entrypoint_m4_generation":
+            "python3 scripts/snes_v2_m4_generate.py "
+            "--selection-report sampling_selection_model.json "
+            "--checkpoint best.pt --out m4_out --device cuda",
         "entrypoint_evaluation_batch":
             "python3 scripts/snes_v2_evaluation_batch.py --arm model "
             "--selection-report sampling_selection_model.json "
@@ -273,7 +283,9 @@ def validate(bundle_dir: Path, *, device: str = "cpu") -> None:
          str(bundle_dir / "tests/test_snes_v2_selection.py"),
          str(bundle_dir / "tests/test_snes_v2_statistics.py"),
          str(bundle_dir / "tests/test_snes_v2_generate_parses.py"),
-         str(bundle_dir / "tests/test_snes_v2_evaluation_batch.py")],
+         str(bundle_dir / "tests/test_snes_v2_evaluation_batch.py"),
+         str(bundle_dir / "tests/test_snes_v2_m4_generate.py"),
+         str(bundle_dir / "tests/test_snes_v2_binomial.py")],
         capture_output=True, text=True, cwd=bundle_dir)
     tail = (tests.stdout + tests.stderr).strip().splitlines()[-3:]
     if tests.returncode != 0:
