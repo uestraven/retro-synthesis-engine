@@ -36,52 +36,13 @@ from rse.snes_v2 import generate as gen  # noqa: E402
 from rse.snes_v2 import grammar as gx  # noqa: E402
 from rse.snes_v2 import selection as sel  # noqa: E402
 from rse.snes_v2 import statistics as sx  # noqa: E402
+from rse.snes_v2 import runners as rx  # noqa: E402
 from rse.snes_v2.accounting import Accounting  # noqa: E402
 
 GRID_HZ = 4000.0
 #: The locked checkpoint. Asserted, not trusted.
 EXPECTED_STEP = 5400
 EXPECTED_PARAMETERS = 5_646_336
-
-
-def transformer_distribution(checkpoint: Path, device: str):
-    """Returns (callable, metadata). The callable maps a context to probs."""
-    import torch
-    import torch.nn.functional as F
-
-    from rse.snes_lm.train import Config, Decoder
-
-    state = torch.load(checkpoint, map_location="cpu", weights_only=False)
-    cfg = Config(**{**state["config"], "device": device})
-    model = Decoder(state["vocab_size"], cfg)
-    model.load_state_dict(state["model"])
-    model.eval()
-    model.to(device)
-    n_parameters = sum(p.numel() for p in model.parameters())
-
-    def distribution(context):
-        with torch.no_grad():
-            row = torch.tensor([list(context)], dtype=torch.long, device=device)
-            logits = model(row)[0, -1, :]
-            return F.softmax(logits.float(), dim=-1).cpu().tolist()
-
-    return distribution, {"step": state["step"], "n_parameters": n_parameters,
-                          "vocab_size": state["vocab_size"]}
-
-
-def baseline_distribution(window_dir: Path, vocab_size: int):
-    from rse.snes_v2 import baseline as bl
-
-    train = np.load(window_dir / "train.npz")
-    streams = [train["tokens"][i, :train["lengths"][i]].astype(int).tolist()
-               for i in range(len(train["lengths"]))]
-    model = bl.G3KneserNey(vocab_size=vocab_size, order=1).fit(streams)
-
-    def distribution(context):
-        return model.distribution(list(context)[-model.order:])
-
-    return distribution, {"family": "kneser_ney", "order": 1,
-                          "n_train_streams": len(streams)}
 
 
 def main() -> None:
@@ -107,7 +68,7 @@ def main() -> None:
     acc = Accounting(stage=f"sampling_selection_{args.arm}")
 
     if args.arm == "model":
-        distribution, meta = transformer_distribution(
+        distribution, meta = rx.transformer_distribution(
             Path(args.checkpoint), args.device)
         acc.check("checkpoint_step", observed=meta["step"],
                   intended=EXPECTED_STEP, population="locked checkpoint", strict=False)
@@ -120,7 +81,7 @@ def main() -> None:
     else:
         manifest = json.loads(
             (Path(args.windows) / "MANIFEST.json").read_text())
-        distribution, meta = baseline_distribution(
+        distribution, meta = rx.baseline_distribution(
             Path(args.windows), manifest["pad_id"] + 1)
     acc.exit_if_failed()
 
@@ -139,7 +100,7 @@ def main() -> None:
                                             top_p=top_p, seed=seed)
                 excerpt = gen.generate(distribution, vocab, config,
                                        arm=args.arm)
-                statistics, note = measure(excerpt, vocab)
+                statistics, note = rx.measure(excerpt, vocab)
                 candidate.outcomes.append(sel.Outcome(
                     seed=seed, outcome=excerpt.outcome,
                     statistics=statistics, reason=note,
@@ -259,27 +220,6 @@ def main() -> None:
 def identifier(arm: str, temperature: float, top_p: float, seed: int) -> str:
     return (f"{arm}_t{str(temperature).replace('.', '')}"
             f"_p{str(top_p).replace('.', '')}_s{seed}")
-
-
-def measure(excerpt, vocab) -> tuple[dict | None, str]:
-    """Frozen statistics for one retained outcome, or None with the reason.
-
-    None is Amendment A1's mechanism: the metrics are undefined, so the
-    outcome is not scorable and its candidate is ineligible. The outcome is
-    still retained and reported.
-    """
-    if excerpt.outcome == "invalid":
-        return None, f"grammar failure: {excerpt.invalid_reason}"
-    try:
-        parsed, _ = gx.parse(excerpt.tokens, vocab)
-    except Exception as exc:                       # noqa: BLE001
-        return None, f"undecodable: {type(exc).__name__}: {exc}"
-    notes = gx.notes_from_groups(parsed)
-    statistics = sx.excerpt_statistics(notes, grid_hz=GRID_HZ)
-    if statistics is None:
-        return None, (f"decoded to {len(notes)} notes; the frozen metrics are "
-                      f"undefined without a positive span")
-    return statistics, ""
 
 
 if __name__ == "__main__":

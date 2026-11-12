@@ -61,6 +61,14 @@ PAYLOAD: tuple[tuple[Path, str], ...] = (
     # The property whose absence hid the termination defect.
     (ROOT / "tests/test_snes_v2_generate_parses.py",
      "tests/test_snes_v2_generate_parses.py"),
+    (ROOT / "scripts/snes_v2_evaluation_batch.py",
+     "scripts/snes_v2_evaluation_batch.py"),
+    (ROOT / "tests/test_snes_v2_evaluation_batch.py",
+     "tests/test_snes_v2_evaluation_batch.py"),
+    # The evaluation batch reads its settings from this report and asserts
+    # them, rather than taking them as flags a typo could change.
+    (ARTIFACTS / "selection_model/sampling_selection_model.json",
+     "sampling_selection_model.json"),
 )
 
 #: Shipped whole: the G3 codec, delta vocabulary, grammar, generator,
@@ -113,6 +121,10 @@ def build(out_path: Path) -> dict:
         "revisions": revision_ids(),
         "expected_checkpoint_step": EXPECTED_STEP,
         "expected_parameters": EXPECTED_PARAMETERS,
+        "entrypoint_evaluation_batch":
+            "python3 scripts/snes_v2_evaluation_batch.py --arm model "
+            "--selection-report sampling_selection_model.json "
+            "--checkpoint best.pt --out eval_out --device cuda",
         "entrypoint": "python3 scripts/snes_v2_select_sampling.py --arm model "
                       "--checkpoint best.pt --windows windows "
                       "--delta-vocab delta_vocab_k512.json "
@@ -260,7 +272,8 @@ def validate(bundle_dir: Path, *, device: str = "cpu") -> None:
          str(bundle_dir / "tests/test_snes_v2_select_driver.py"),
          str(bundle_dir / "tests/test_snes_v2_selection.py"),
          str(bundle_dir / "tests/test_snes_v2_statistics.py"),
-         str(bundle_dir / "tests/test_snes_v2_generate_parses.py")],
+         str(bundle_dir / "tests/test_snes_v2_generate_parses.py"),
+         str(bundle_dir / "tests/test_snes_v2_evaluation_batch.py")],
         capture_output=True, text=True, cwd=bundle_dir)
     tail = (tests.stdout + tests.stderr).strip().splitlines()[-3:]
     if tests.returncode != 0:

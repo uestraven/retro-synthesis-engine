@@ -63,8 +63,10 @@ def run(driver, bundle, monkeypatch, *, make_excerpt):
         return make_excerpt(config)
 
     monkeypatch.setattr(driver.gen, "generate", fake_generate)
+    # The loaders live in rse.snes_v2.runners now, shared with the
+    # evaluation batch, so both scripts cannot diverge on how they load.
     monkeypatch.setattr(
-        driver, "baseline_distribution",
+        driver.rx, "baseline_distribution",
         lambda window_dir, vocab_size: (lambda context: [], {"family": "stub"}))
     monkeypatch.setattr(sys, "argv", [
         "snes_v2_select_sampling.py", "--arm", "baseline",
